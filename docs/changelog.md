@@ -2,6 +2,21 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### 🐛 Bug Fixes
+
+- **Storage**: Fixed false "-100% change" spike notifications. All 10 storage adapters (Local, S3, SFTP, FTP, SMB, WebDAV, Rsync, Dropbox, Google Drive, OneDrive) were silently returning an empty file list on any connection or access error instead of throwing. This caused a 0-byte snapshot to be saved and triggered a -100% spike alert. Two changes were made: (1) all storage adapter `list()` functions now throw on error instead of returning `[]`, so the existing DB fallback in the stats cache is correctly triggered; (2) storage snapshots and spike checks are skipped for any adapter that fell back to DB estimation, preventing unreliable data from creating false alert history. ([#82](https://github.com/Skyfay/DBackup/issues/82))
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.3.1 - General Improvements, MySQL/MariaDB SSH Mode Fixes and SSH Key Conversion
 *Released: May 11, 2026*
 
