@@ -2,7 +2,7 @@
 
 All notable changes to DBackup are documented here.
 
-## v2.3.2
+## v2.3.2 - Backup Trigger Metadata, Job Trigger Locking, and Notification Improvements
 *Released: May 17, 2026*
 
 ### ✨ Features
