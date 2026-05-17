@@ -256,7 +256,7 @@ async function sendThroughChannel(
  * Failures are logged but never thrown – callers should not be blocked by
  * notification delivery issues.
  */
-export async function notify(event: NotificationEventData): Promise<{ succeeded: number; failed: number }> {
+export async function notify(event: NotificationEventData): Promise<{ succeeded: number; failed: number } | undefined> {
   let succeeded = 0;
   let failed = 0;
   try {

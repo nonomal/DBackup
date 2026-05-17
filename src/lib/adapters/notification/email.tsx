@@ -53,7 +53,7 @@ export const EmailAdapter: NotificationAdapter = {
 </div>`,
             });
 
-            return { success: true, message: `Test email sent to ${recipient}` };
+            return { success: true, message: `SMTP connection verified. Test email sent to ${recipient}` };
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error);
             return { success: false, message: message || "Failed to send test email" };

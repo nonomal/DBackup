@@ -68,9 +68,14 @@ export async function resolveAdapterConfig(adapter: AdapterConfigInput): Promise
     }
 
     // --- Primary slot ---
-    // The primary credential profile is optional. When no profile is assigned the
-    // structural config is used as-is (e.g. unauthenticated SMTP or inline credentials).
-    if (requirements.primary && adapter.primaryCredentialId) {
+    // When the adapter declares a required primary credential, a profile must be assigned.
+    if (requirements.primary) {
+        if (!adapter.primaryCredentialId) {
+            throw new ConfigurationError(
+                adapter.adapterId,
+                "A credential profile is required but none is assigned"
+            );
+        }
         const profile = await loadAndValidate(
             adapter.primaryCredentialId,
             requirements.primary,

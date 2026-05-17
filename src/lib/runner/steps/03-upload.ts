@@ -128,7 +128,7 @@ export async function stepUpload(ctx: RunnerContext) {
     const triggerInfo = ctx.triggerInfo;
     const trigger: BackupMetadata['trigger'] = triggerInfo
         ? {
-            type: triggerInfo.type as BackupMetadata['trigger']['type'],
+            type: triggerInfo.type as NonNullable<BackupMetadata['trigger']>['type'],
             ...(includeActor && triggerInfo.label ? { actor: triggerInfo.label } : {}),
           }
         : undefined;

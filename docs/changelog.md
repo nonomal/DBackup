@@ -21,6 +21,14 @@ All notable changes to DBackup are documented here.
 - **Notifications**: The "Test" button in Settings / Notifications now correctly reports when delivery failed. Previously the action always returned `"Test notification sent"` even when every channel errored out internally. It now returns an explicit error when all channels failed, or a partial warning when some failed. ([#79](https://github.com/Skyfay/DBackup/issues/79))
 - **Storage**: Fixed false "-100% change" spike notifications. All 10 storage adapters (Local, S3, SFTP, FTP, SMB, WebDAV, Rsync, Dropbox, Google Drive, OneDrive) were silently returning an empty file list on any connection or access error instead of throwing. This caused a 0-byte snapshot to be saved and triggered a -100% spike alert. Two changes were made: (1) all storage adapter `list()` functions now throw on error instead of returning `[]`, so the existing DB fallback in the stats cache is correctly triggered; (2) storage snapshots and spike checks are skipped for any adapter that fell back to DB estimation, preventing unreliable data from creating false alert history. ([#82](https://github.com/Skyfay/DBackup/issues/82))
 
+### 🧪 Tests
+
+- Updated unit tests for all 9 cloud/network storage adapters (`S3`, `SFTP`, `FTP`, `SMB`, `WebDAV`, `Rsync`, `Dropbox`, `Google Drive`, `OneDrive`) to expect `list()` to throw on connection/access errors, matching the behavior introduced by the #82 bug fix.
+- Fixed missing `prisma.systemSetting` mock in the multi-destination upload step tests.
+- Updated `executeJob` and `runJob` call assertions to include the third `options` argument introduced with the `lock` feature.
+- Fixed 5 system-notification-service test assertions from `.toBeUndefined()` to `.toBeDefined()` to match the updated `notify()` return type.
+- Fixed TypeScript build errors: non-nullable trigger type access in `03-upload.ts`; `notify()` return type updated to allow `undefined`; null-check guard added in `notification-settings.ts`.
+
 ### 🐳 Docker
 
 - **Image**: `skyfay/dbackup:vNEXT`
