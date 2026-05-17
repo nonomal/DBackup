@@ -59,4 +59,10 @@ export interface RunnerContext {
 
     // Cancellation support
     abortSignal?: AbortSignal;
+
+    // Trigger information
+    triggerInfo?: {
+        type: string;
+        label: string;
+    };
 }

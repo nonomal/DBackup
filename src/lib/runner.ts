@@ -269,6 +269,10 @@ export async function performExecution(executionId: string, jobId: string) {
         execution: initialExe as any,
         destinations: [],
         abortSignal: abortController.signal,
+        triggerInfo: initialExe.triggerType ? {
+            type: initialExe.triggerType,
+            label: initialExe.triggerLabel ?? "Unknown",
+        } : undefined,
     };
 
     // Helper: throw if cancellation was requested

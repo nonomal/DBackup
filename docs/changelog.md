@@ -5,6 +5,12 @@ All notable changes to DBackup are documented here.
 ## vNEXT
 *Release: In Progress*
 
+### ✨ Features
+
+- **Backup Metadata**: The trigger source (type and actor) is now stored in each backup's `.meta.json` sidecar file. The `trigger.type` field records how the backup was initiated (`Manual`, `Scheduler`, or `Api`). The `trigger.actor` field records the username or API key name - this can be disabled via the new Privacy settings tab. ([#81](https://github.com/Skyfay/DBackup/issues/81))
+- **Settings**: A new "Privacy" tab has been added to System Settings. It currently contains a toggle to opt out of storing the trigger actor (username or API key name) in unencrypted backup metadata files. The setting is enabled by default.
+- **Storage Explorer**: A new "Triggered by" column shows who or what initiated each backup, using the same badge style as the Activity Log (blue for Manual, violet for Scheduler, teal for API). The column is populated from the backup's metadata sidecar and only appears for backups created after this update.
+
 ### 🐛 Bug Fixes
 
 - **Storage**: Fixed false "-100% change" spike notifications. All 10 storage adapters (Local, S3, SFTP, FTP, SMB, WebDAV, Rsync, Dropbox, Google Drive, OneDrive) were silently returning an empty file list on any connection or access error instead of throwing. This caused a 0-byte snapshot to be saved and triggered a -100% spike alert. Two changes were made: (1) all storage adapter `list()` functions now throw on error instead of returning `[]`, so the existing DB fallback in the stats cache is correctly triggered; (2) storage snapshots and spike checks are skipped for any adapter that fell back to DB estimation, preventing unreliable data from creating false alert history. ([#82](https://github.com/Skyfay/DBackup/issues/82))
