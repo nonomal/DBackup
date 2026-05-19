@@ -178,7 +178,10 @@ export const FTPAdapter: StorageAdapter = {
                 let items: FTPFileInfo[];
                 try {
                     items = await client!.list(currentDir);
-                } catch {
+                } catch (error: unknown) {
+                    // Root directory listing failure: propagate so the stats cache uses DB fallback.
+                    if (currentDir === startDir) throw error;
+                    // Sub-directory listing failure: skip silently and continue the walk.
                     return;
                 }
 

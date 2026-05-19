@@ -2,6 +2,28 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### 🐛 Bug Fixes
+
+- **Storage**: Fixed false "-100% change" spike notifications still triggering for users with a **Local Filesystem** destination. The v2.3.2 fix updated all 9 cloud/network adapters but missed the Local adapter: its `list()` catch block returned `[]` on any I/O error (e.g. a temporarily unmounted fstab disk) instead of throwing. This caused a 0-byte snapshot to be saved and a spike alert to fire, identical to the original bug. The inner `fs.access` wrapper is removed so the original error code propagates; the outer catch now throws on all errors except ENOENT on non-root sub-paths (legitimate "no backups for this job yet" scenario). ([#82](https://github.com/Skyfay/DBackup/issues/82))
+- **Storage**: Fixed the same class of bug in the **SMB** and **FTP** adapters. Both use an inner `walk()` helper that silently swallowed listing errors via `catch { return; }`. Because the SMB share connection is not established until the first `client.list()` call (unlike FTP/cloud adapters which connect upfront), any SMB authentication or network failure was silently turned into an empty list. The inner catch now re-throws when `currentDir === startDir` (root listing = connection/auth failure) and continues silently only for sub-directory errors (e.g. one folder with restricted permissions). ([#82](https://github.com/Skyfay/DBackup/issues/82))
+
+### 🧪 Tests
+
+- Updated Local Filesystem adapter `list()` tests: replaced "returns empty array on unexpected error" with three new assertions - throws on unexpected readdir errors, throws when the root path (`remotePath = ""`) is inaccessible (ENOENT), and throws on non-ENOENT access errors on sub-paths (EACCES).
+- Updated **SMB** adapter `list()` tests: replaced the incorrect "returns empty array on list error" assertion (expected `[]`, now expects throw) with "throws when root directory listing fails"; added "continues when a subdirectory listing fails" to document the intentional silent-skip behavior for non-root walk errors.
+- Updated **FTP** adapter `list()` tests: added "throws when initial directory listing fails after connection" covering the case where `connectFTP` succeeds but the first `client.list()` call fails (e.g. path does not exist or permission denied). The existing subdirectory-continue test is unchanged.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.3.2 - Backup Trigger Metadata, Job Trigger Locking, and Notification Improvements
 *Released: May 17, 2026*
 

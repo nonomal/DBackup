@@ -136,11 +136,7 @@ export const LocalFileSystemAdapter: StorageAdapter = {
     async list(config: { basePath: string }, remotePath: string = ""): Promise<FileInfo[]> {
         try {
             const dirPath = resolveSafePath(config.basePath, remotePath);
-            try {
-                await fs.access(dirPath);
-            } catch {
-                throw new AdapterError("local-filesystem", "list", `Storage path not accessible: ${dirPath}`);
-            }
+            await fs.access(dirPath);
 
             const entries = await fs.readdir(dirPath, { withFileTypes: true, recursive: true });
 
@@ -163,9 +159,14 @@ export const LocalFileSystemAdapter: StorageAdapter = {
             }
             return files;
         } catch (error) {
-             if (error instanceof Error && error.message.includes("Access denied")) throw error;
+            if (error instanceof Error && error.message.includes("Access denied")) throw error;
+            // A subfolder that does not exist yet is a legitimate empty-result case (no backups for this job yet).
+            const nodeErr = error as NodeJS.ErrnoException;
+            if (remotePath !== "" && nodeErr.code === "ENOENT") return [];
+            // Any other error on a root listing or non-ENOENT failures: throw so the stats cache
+            // triggers its DB fallback and sets scanError=true, preventing a false 0-byte snapshot.
             log.error("Local list failed", { remotePath }, wrapError(error));
-            return [];
+            throw error;
         }
     },
 

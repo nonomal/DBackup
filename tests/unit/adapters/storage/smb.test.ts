@@ -213,12 +213,25 @@ describe("SMBAdapter", () => {
             expect(result[0].path).not.toContain("backups/");
         });
 
-        it("returns empty array on list error", async () => {
-            mockList.mockRejectedValue(new Error("SMB error"));
+        it("throws when root directory listing fails", async () => {
+            mockList.mockRejectedValue(new Error("SMB connection error"));
+
+            await expect(SMBAdapter.list(config, "Job")).rejects.toThrow("SMB connection error");
+        });
+
+        it("continues when a subdirectory listing fails", async () => {
+            mockList
+                .mockResolvedValueOnce([
+                    { name: "subdir", type: "D", size: 0, modifyTime: new Date() },
+                    { name: "backup.sql", type: "F", size: 512, modifyTime: new Date() },
+                ])
+                .mockRejectedValueOnce(new Error("Permission denied on subdir"));
 
             const result = await SMBAdapter.list(config, "Job");
 
-            expect(result).toEqual([]);
+            // The file at the root level is returned; the failed subdirectory is silently skipped.
+            expect(result).toHaveLength(1);
+            expect(result[0].name).toBe("backup.sql");
         });
     });
 

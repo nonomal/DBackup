@@ -142,7 +142,11 @@ export const SMBAdapter: StorageAdapter = {
                     // For root listing (empty currentDir), "*" lists everything in the share root.
                     const listPath = currentDir ? currentDir + "/*" : "*";
                     items = await client.list(listPath);
-                } catch {
+                } catch (error: unknown) {
+                    // Root directory listing failure means the share is unreachable or inaccessible.
+                    // Propagate to trigger the DB fallback in the stats cache.
+                    if (currentDir === startDir) throw error;
+                    // Sub-directory listing failure (e.g. permission denied on one folder): skip silently.
                     return;
                 }
 
