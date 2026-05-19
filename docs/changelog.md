@@ -2,6 +2,36 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.3.3 - Multiple Bug Fixes across MSSQL, Redis, Email, and Storage Adapters
+*Released: May 19, 2026*
+
+### 🐛 Bug Fixes
+
+- **MSSQL**: Fixed Database Explorer showing "No user databases found" on production instances. Databases in non-ONLINE states (e.g. RESTORING, Availability Group replicas) are now included, and connection errors are surfaced to the UI instead of silently returning an empty list.
+- **Redis**: Fixed `A credential profile is required but none is assigned` error when connecting to a Redis instance without authentication. The credential profile is now optional for Redis - when no profile is assigned, the structural config fields (inline password if any) are used directly, allowing Redis instances without ACL/password to work without a credential profile. ([#86](https://github.com/Skyfay/DBackup/issues/86))
+- **email**: Fixed automated email (SMTP) notifications failing with `A credential profile is required but none is assigned` during backup/restore job runs and system health checks. The v2.3.2 fix only covered the test-connection path; the runner pipeline still used a stricter resolver that threw unconditionally when no profile was assigned. The credential profile is now consistently optional in all code paths - when no profile is assigned, the structural config (host, port, from, to, inline user/password if any) is used directly. ([#87](https://github.com/Skyfay/DBackup/issues/87))
+- **Storage**: Fixed orphaned `.connection-test-*` / `.dbackup-test-*` files accumulating on remote storage destinations. All 10 storage adapters (FTP/FTPS, SMB, SFTP, WebDAV, S3/R2/Hetzner/AWS, Local, Rsync, Dropbox, Google Drive, OneDrive) placed the remote file deletion inside the `try` block without a `finally` guard. If the delete call threw (network hiccup, server-side error, permission edge case), the test file was left behind permanently. Every adapter now uses a `remoteFileCreated` flag and a `finally` block to guarantee a best-effort cleanup even when the delete itself fails.
+- **Storage**: Fixed false "-100% change" spike notifications still triggering for users with a **Local Filesystem** destination. The v2.3.2 fix updated all 9 cloud/network adapters but missed the Local adapter: its `list()` catch block returned `[]` on any I/O error (e.g. a temporarily unmounted fstab disk) instead of throwing. This caused a 0-byte snapshot to be saved and a spike alert to fire, identical to the original bug. The inner `fs.access` wrapper is removed so the original error code propagates; the outer catch now throws on all errors except ENOENT on non-root sub-paths (legitimate "no backups for this job yet" scenario). ([#82](https://github.com/Skyfay/DBackup/issues/82))
+- **Storage**: Fixed the same class of bug in the **SMB** and **FTP** adapters. Both use an inner `walk()` helper that silently swallowed listing errors via `catch { return; }`. Because the SMB share connection is not established until the first `client.list()` call (unlike FTP/cloud adapters which connect upfront), any SMB authentication or network failure was silently turned into an empty list. The inner catch now re-throws when `currentDir === startDir` (root listing = connection/auth failure) and continues silently only for sub-directory errors (e.g. one folder with restricted permissions). ([#82](https://github.com/Skyfay/DBackup/issues/82))
+
+### 🎨 Improvements
+
+- **Storage**: Improved UX for S3 Glacier and Deep Archive storage classes. The file list now surfaces the storage class of each object from the AWS ListObjectsV2 response. In the Storage Explorer, Glacier and Deep Archive objects are labeled with an orange "Glacier" or "Deep Archive" badge. Download and Restore action buttons are disabled for archived objects with a tooltip explaining that the object must be restored via the AWS Console first. The S3 download function now throws a descriptive error (instead of returning a generic failure) when AWS returns `InvalidObjectState`, so the message is surfaced to the user in the UI. The "Storage Class" field description in the adapter configuration form now includes a warning that GLACIER and DEEP_ARCHIVE prevent direct download and restore. ([#88](https://github.com/Skyfay/DBackup/issues/88))
+
+### 🧪 Tests
+
+- Updated Local Filesystem adapter `list()` tests: replaced "returns empty array on unexpected error" with three new assertions - throws on unexpected readdir errors, throws when the root path (`remotePath = ""`) is inaccessible (ENOENT), and throws on non-ENOENT access errors on sub-paths (EACCES).
+- Updated **SMB** adapter `list()` tests: replaced the incorrect "returns empty array on list error" assertion (expected `[]`, now expects throw) with "throws when root directory listing fails"; added "continues when a subdirectory listing fails" to document the intentional silent-skip behavior for non-root walk errors.
+- Updated **FTP** adapter `list()` tests: added "throws when initial directory listing fails after connection" covering the case where `connectFTP` succeeds but the first `client.list()` call fails (e.g. path does not exist or permission denied). The existing subdirectory-continue test is unchanged.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.3.3`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.3.2 - Backup Trigger Metadata, Job Trigger Locking, and Notification Improvements
 *Released: May 17, 2026*
 

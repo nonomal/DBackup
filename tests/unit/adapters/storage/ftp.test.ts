@@ -215,6 +215,12 @@ describe("FTPAdapter", () => {
 
             await expect(FTPAdapter.list(config, "Job")).rejects.toThrow("Auth failed");
         });
+
+        it("throws when initial directory listing fails after connection", async () => {
+            mockList.mockRejectedValue(new Error("550 Permission denied"));
+
+            await expect(FTPAdapter.list(config, "Job")).rejects.toThrow("550 Permission denied");
+        });
     });
 
     // ===== delete() =====

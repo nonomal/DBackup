@@ -7,7 +7,14 @@ export type AdapterDefinition = {
     name: string;
     group?: string;
     configSchema: z.ZodObject<any>;
-    credentials?: { primary?: CredentialType; ssh?: CredentialType };
+    /**
+     * `primary` declares the credential type for the primary slot.
+     * `primaryOptional: true` means the adapter can work without a credential
+     * profile (e.g. Redis without auth, SMTP with an unauthenticated relay).
+     * When no profile is assigned and `primaryOptional` is true, the structural
+     * config fields (inline user/password) are used as-is.
+     */
+    credentials?: { primary?: CredentialType; ssh?: CredentialType; primaryOptional?: boolean };
 }
 
 // Validation: Reject paths with null bytes or obvious shell injection patterns

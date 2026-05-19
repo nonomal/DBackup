@@ -10,7 +10,7 @@ export const RedisAdapter: DatabaseAdapter = {
     type: "database",
     name: "Redis",
     configSchema: RedisSchema,
-    credentials: { primary: "USERNAME_PASSWORD", ssh: "SSH_KEY" },
+    credentials: { primary: "USERNAME_PASSWORD", primaryOptional: true, ssh: "SSH_KEY" },
     dump,
     restore,
     prepareRestore,

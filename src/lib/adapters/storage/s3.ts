@@ -98,6 +98,7 @@ async function s3List(internalConfig: S3InternalConfig, dir: string = ""): Promi
             path: obj.Key || "",
             size: obj.Size || 0,
             lastModified: obj.LastModified || new Date(),
+            storageClass: obj.StorageClass || undefined,
         })).filter(f => f.name && f.size > 0); // Filter folders or empty keys
     } catch (error) {
         log.error("S3 list failed", { bucket: internalConfig.bucket, prefix: listPrefix }, wrapError(error));
@@ -143,6 +144,14 @@ async function s3Download(
         }
         return true;
     } catch (error) {
+        const err = error as any;
+        if (err?.name === "InvalidObjectState" || err?.Code === "InvalidObjectState") {
+            log.error("S3 download failed - object is archived", { bucket: internalConfig.bucket, targetKey }, wrapError(error));
+            throw new Error(
+                `The backup "${path.basename(targetKey)}" is stored in S3 Glacier or Deep Archive and cannot be downloaded directly. ` +
+                "Please restore the object via the AWS Console first (S3 - select object - Actions - Initiate restore), then try again."
+            );
+        }
         log.error("S3 download failed", { bucket: internalConfig.bucket, targetKey }, wrapError(error));
         return false;
     }
@@ -196,6 +205,7 @@ async function s3Test(internalConfig: S3InternalConfig): Promise<{ success: bool
     const testFile = `.backup-manager-test-${Date.now()}`;
     // Use target key logic to respect pathPrefix
     const targetKey = S3ClientFactory.getTargetKey(internalConfig, testFile);
+    let uploaded = false;
 
     try {
         // 1. Try to write
@@ -204,17 +214,21 @@ async function s3Test(internalConfig: S3InternalConfig): Promise<{ success: bool
             Key: targetKey,
             Body: "Database Backup Manager - Connection Test"
         }));
+        uploaded = true;
 
         // 2. Try to delete
         await client.send(new DeleteObjectCommand({
             Bucket: internalConfig.bucket,
             Key: targetKey
         }));
+        uploaded = false;
 
         return { success: true, message: "Connection successful (Write/Delete verified)" };
     } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         return { success: false, message: message || "Connection failed" };
+    } finally {
+        if (uploaded) await client.send(new DeleteObjectCommand({ Bucket: internalConfig.bucket, Key: targetKey })).catch(() => {});
     }
 }
 

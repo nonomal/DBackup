@@ -142,7 +142,11 @@ export const SMBAdapter: StorageAdapter = {
                     // For root listing (empty currentDir), "*" lists everything in the share root.
                     const listPath = currentDir ? currentDir + "/*" : "*";
                     items = await client.list(listPath);
-                } catch {
+                } catch (error: unknown) {
+                    // Root directory listing failure means the share is unreachable or inaccessible.
+                    // Propagate to trigger the DB fallback in the stats cache.
+                    if (currentDir === startDir) throw error;
+                    // Sub-directory listing failure (e.g. permission denied on one folder): skip silently.
                     return;
                 }
 
@@ -214,15 +218,19 @@ export const SMBAdapter: StorageAdapter = {
             const tmpPath = path.join(os.tmpdir(), testFileName);
             await fs.writeFile(tmpPath, "Connection Test");
 
+            let remoteFileCreated = false;
             try {
                 // 1. Write Test
                 await client.sendFile(tmpPath, destination);
+                remoteFileCreated = true;
 
                 // 2. Delete Test
                 await client.deleteFile(destination);
+                remoteFileCreated = false;
 
                 return { success: true, message: "Connection successful (Write/Delete verified)" };
             } finally {
+                if (remoteFileCreated) await client.deleteFile(destination).catch(() => {});
                 await fs.unlink(tmpPath).catch(() => {});
             }
         } catch (error: unknown) {

@@ -151,16 +151,18 @@ export async function getDatabasesWithStats(config: MSSQLConfig): Promise<Databa
         pool = new sql.ConnectionPool(connConfig);
         await pool.connect();
 
-        // Get database names and sizes from master catalog views
+        // Get database names and sizes from master catalog views.
+        // Include all user databases regardless of state so offline/restoring DBs
+        // are still visible. state_desc is included for display purposes.
         const sizeResult = await pool.request().query(`
             SELECT
                 d.name,
+                d.state_desc,
                 SUM(mf.size) * 8 * 1024 AS size_bytes
             FROM sys.databases d
             LEFT JOIN sys.master_files mf ON d.database_id = mf.database_id
             WHERE d.database_id > 4
-              AND d.state = 0
-            GROUP BY d.name
+            GROUP BY d.name, d.state_desc
             ORDER BY d.name
         `);
 
@@ -191,7 +193,7 @@ export async function getDatabasesWithStats(config: MSSQLConfig): Promise<Databa
         return databases;
     } catch (error: unknown) {
         log.error("Failed to get databases with stats", {}, wrapError(error));
-        return [];
+        throw wrapError(error);
     } finally {
         if (pool) {
             await pool.close();

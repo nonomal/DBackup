@@ -270,13 +270,23 @@ describe("LocalFileSystemAdapter", () => {
             expect(result[0].name).toBe("backup.sql");
         });
 
-        it("returns empty array on unexpected error", async () => {
+        it("throws on unexpected readdir error (not ENOENT)", async () => {
             mockFsAccess.mockResolvedValue(undefined);
             mockFsReaddir.mockRejectedValue(new Error("Permission denied"));
 
-            const result = await LocalFileSystemAdapter.list!(config, "Job");
+            await expect(LocalFileSystemAdapter.list!(config, "Job")).rejects.toThrow();
+        });
 
-            expect(result).toEqual([]);
+        it("throws on root listing error (remotePath is empty)", async () => {
+            mockFsAccess.mockRejectedValue(Object.assign(new Error("ENOENT: no such file or directory"), { code: "ENOENT" }));
+
+            await expect(LocalFileSystemAdapter.list!(config, "")).rejects.toThrow();
+        });
+
+        it("throws on non-ENOENT access error on subfolder", async () => {
+            mockFsAccess.mockRejectedValue(Object.assign(new Error("EACCES: permission denied"), { code: "EACCES" }));
+
+            await expect(LocalFileSystemAdapter.list!(config, "Job")).rejects.toThrow();
         });
 
         it("uses default empty string for remotePath when not provided", async () => {

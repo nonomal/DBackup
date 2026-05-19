@@ -178,7 +178,10 @@ export const FTPAdapter: StorageAdapter = {
                 let items: FTPFileInfo[];
                 try {
                     items = await client!.list(currentDir);
-                } catch {
+                } catch (error: unknown) {
+                    // Root directory listing failure: propagate so the stats cache uses DB fallback.
+                    if (currentDir === startDir) throw error;
+                    // Sub-directory listing failure: skip silently and continue the walk.
                     return;
                 }
 
@@ -237,11 +240,11 @@ export const FTPAdapter: StorageAdapter = {
     async test(config: FTPConfig): Promise<{ success: boolean; message: string }> {
         const testFileName = `.connection-test-${Date.now()}`;
         const tmpPath = path.join(os.tmpdir(), testFileName);
+        const destination = resolvePath(config, testFileName);
         let client: Client | null = null;
+        let remoteFileCreated = false;
         try {
             client = await connectFTP(config);
-
-            const destination = resolvePath(config, testFileName);
 
             // Ensure pathPrefix directory exists if set
             if (config.pathPrefix) {
@@ -254,15 +257,18 @@ export const FTPAdapter: StorageAdapter = {
 
             // 1. Write Test
             await client.uploadFrom(createReadStream(tmpPath), destination);
+            remoteFileCreated = true;
 
             // 2. Delete Test
             await client.remove(destination);
+            remoteFileCreated = false;
 
             return { success: true, message: "Connection successful (Write/Delete verified)" };
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error);
             return { success: false, message: `FTP Connection failed: ${message}` };
         } finally {
+            if (remoteFileCreated) await client?.remove(destination).catch(() => {});
             if (client) client.close();
             await fs.unlink(tmpPath).catch(() => {});
         }
