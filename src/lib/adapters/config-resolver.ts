@@ -68,21 +68,27 @@ export async function resolveAdapterConfig(adapter: AdapterConfigInput): Promise
     }
 
     // --- Primary slot ---
-    // When the adapter declares a required primary credential, a profile must be assigned.
+    // When the adapter declares a required primary credential, a profile must be assigned
+    // unless the adapter marks the primary slot as optional (e.g. Redis without auth,
+    // SMTP unauthenticated relay). Optional adapters fall back to the structural config.
     if (requirements.primary) {
         if (!adapter.primaryCredentialId) {
-            throw new ConfigurationError(
+            if (!requirements.primaryOptional) {
+                throw new ConfigurationError(
+                    adapter.adapterId,
+                    "A credential profile is required but none is assigned"
+                );
+            }
+            // Optional and no profile assigned - use structural config fields as-is
+        } else {
+            const profile = await loadAndValidate(
+                adapter.primaryCredentialId,
+                requirements.primary,
                 adapter.adapterId,
-                "A credential profile is required but none is assigned"
+                "primary"
             );
+            applyPrimaryOverlay(parsed, profile, requirements.primary);
         }
-        const profile = await loadAndValidate(
-            adapter.primaryCredentialId,
-            requirements.primary,
-            adapter.adapterId,
-            "primary"
-        );
-        applyPrimaryOverlay(parsed, profile, requirements.primary);
     }
 
     // --- SSH slot (always optional at runtime - SSH mode is opt-in per adapter) ---

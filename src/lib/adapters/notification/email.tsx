@@ -31,7 +31,7 @@ export const EmailAdapter: NotificationAdapter = {
     type: "notification",
     name: "Email (SMTP)",
     configSchema: EmailSchema,
-    credentials: { primary: "SMTP" },
+    credentials: { primary: "SMTP", primaryOptional: true },
 
     async test(config: any): Promise<{ success: boolean; message: string }> {
         try {
