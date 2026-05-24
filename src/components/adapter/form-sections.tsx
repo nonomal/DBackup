@@ -54,6 +54,8 @@ interface SectionProps extends CredentialPickerHostProps {
     detectedVersion?: string | null;
     healthNotificationsDisabled?: boolean;
     onHealthNotificationsDisabledChange?: (disabled: boolean) => void;
+    isRestoreExcluded?: boolean;
+    onIsRestoreExcludedChange?: (excluded: boolean) => void;
 }
 
 /**
@@ -127,11 +129,37 @@ function HealthCheckNotificationSwitch({
     );
 }
 
+function RestoreExcludedSwitch({
+    excluded,
+    onChange,
+}: {
+    excluded: boolean;
+    onChange: (excluded: boolean) => void;
+}) {
+    return (
+        <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+                <Label htmlFor="restore-excluded">Exclude from Restore</Label>
+                <p className="text-sm text-muted-foreground">
+                    This source will not appear as a restore target when recovering backups. Backups can still be created from this source.
+                </p>
+            </div>
+            <Switch
+                id="restore-excluded"
+                checked={excluded}
+                onCheckedChange={onChange}
+            />
+        </div>
+    );
+}
+
 export function DatabaseFormContent({
     adapter,
     detectedVersion,
     healthNotificationsDisabled,
     onHealthNotificationsDisabledChange,
+    isRestoreExcluded,
+    onIsRestoreExcludedChange,
     primaryCredentialId,
     sshCredentialId,
     onPrimaryChange,
@@ -200,6 +228,12 @@ export function DatabaseFormContent({
                                  onChange={onHealthNotificationsDisabledChange}
                              />
                          )}
+                         {onIsRestoreExcludedChange && (
+                             <RestoreExcludedSwitch
+                                 excluded={isRestoreExcluded ?? false}
+                                 onChange={onIsRestoreExcludedChange}
+                             />
+                         )}
                      </div>
                  ) : (
                     <Tabs defaultValue="connection" className="w-full pt-2">
@@ -258,6 +292,12 @@ export function DatabaseFormContent({
                                      onChange={onHealthNotificationsDisabledChange}
                                  />
                              )}
+                             {onIsRestoreExcludedChange && (
+                                 <RestoreExcludedSwitch
+                                     excluded={isRestoreExcluded ?? false}
+                                     onChange={onIsRestoreExcludedChange}
+                                 />
+                             )}
                         </TabsContent>
                     </Tabs>
                  )}
@@ -293,6 +333,8 @@ export function DatabaseFormContent({
                 detectedVersion={detectedVersion}
                 healthNotificationsDisabled={healthNotificationsDisabled}
                 onHealthNotificationsDisabledChange={onHealthNotificationsDisabledChange}
+                isRestoreExcluded={isRestoreExcluded}
+                onIsRestoreExcludedChange={onIsRestoreExcludedChange}
                 primaryCredentialId={primaryCredentialId}
                 sshCredentialId={sshCredentialId}
                 onPrimaryChange={onPrimaryChange}
@@ -364,6 +406,12 @@ export function DatabaseFormContent({
                         onChange={onHealthNotificationsDisabledChange}
                     />
                 )}
+                {onIsRestoreExcludedChange && (
+                    <RestoreExcludedSwitch
+                        excluded={isRestoreExcluded ?? false}
+                        onChange={onIsRestoreExcludedChange}
+                    />
+                )}
             </TabsContent>
 
             {isMSSQL && (
@@ -406,6 +454,8 @@ function SshAwareTabLayout({
     detectedVersion,
     healthNotificationsDisabled,
     onHealthNotificationsDisabledChange,
+    isRestoreExcluded,
+    onIsRestoreExcludedChange,
     primaryCredentialId,
     sshCredentialId,
     onPrimaryChange,
@@ -418,6 +468,8 @@ function SshAwareTabLayout({
     detectedVersion?: string | null;
     healthNotificationsDisabled?: boolean;
     onHealthNotificationsDisabledChange?: (disabled: boolean) => void;
+    isRestoreExcluded?: boolean;
+    onIsRestoreExcludedChange?: (excluded: boolean) => void;
 } & CredentialPickerHostProps) {
     return (
         <div className="space-y-4 pt-2">
@@ -478,6 +530,12 @@ function SshAwareTabLayout({
                                 onChange={onHealthNotificationsDisabledChange}
                             />
                         )}
+                        {onIsRestoreExcludedChange && (
+                            <RestoreExcludedSwitch
+                                excluded={isRestoreExcluded ?? false}
+                                onChange={onIsRestoreExcludedChange}
+                            />
+                        )}
                     </TabsContent>
                 </Tabs>
             ) : (
@@ -513,6 +571,12 @@ function SshAwareTabLayout({
                                 type="database"
                                 disabled={healthNotificationsDisabled ?? false}
                                 onChange={onHealthNotificationsDisabledChange}
+                            />
+                        )}
+                        {onIsRestoreExcludedChange && (
+                            <RestoreExcludedSwitch
+                                excluded={isRestoreExcluded ?? false}
+                                onChange={onIsRestoreExcludedChange}
                             />
                         )}
                     </TabsContent>

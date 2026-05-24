@@ -59,6 +59,9 @@ export function AdapterForm({ type, adapters, onSuccess, initialData, onBack }: 
     const initialMeta = initialData?.metadata ? JSON.parse(initialData.metadata) : {};
     const [healthNotificationsDisabled, setHealthNotificationsDisabled] = useState<boolean>(initialMeta.healthNotificationsDisabled === true);
 
+    // Exclude from restore (database only)
+    const [isRestoreExcluded, setIsRestoreExcluded] = useState<boolean>(initialMeta.isRestoreExcluded === true);
+
     // Credential profile assignments (Phase 4 - Generic Credential Profile System)
     const [primaryCredentialId, setPrimaryCredentialId] = useState<string | null>(initialData?.primaryCredentialId ?? null);
     const [sshCredentialId, setSshCredentialId] = useState<string | null>(initialData?.sshCredentialId ?? null);
@@ -198,7 +201,7 @@ export function AdapterForm({ type, adapters, onSuccess, initialData, onBack }: 
             // Build metadata with health notification preference for database/storage adapters
             const existingMeta = initialData?.metadata ? JSON.parse(initialData.metadata) : {};
             const metadata = (type === 'database' || type === 'storage')
-                ? { ...existingMeta, healthNotificationsDisabled }
+                ? { ...existingMeta, healthNotificationsDisabled, ...(type === 'database' ? { isRestoreExcluded } : {}) }
                 : existingMeta;
 
             const payload = {
@@ -394,6 +397,8 @@ export function AdapterForm({ type, adapters, onSuccess, initialData, onBack }: 
                         detectedVersion={detectedVersion}
                         healthNotificationsDisabled={healthNotificationsDisabled}
                         onHealthNotificationsDisabledChange={setHealthNotificationsDisabled}
+                        isRestoreExcluded={isRestoreExcluded}
+                        onIsRestoreExcludedChange={setIsRestoreExcluded}
                         primaryCredentialId={primaryCredentialId}
                         sshCredentialId={sshCredentialId}
                         onPrimaryChange={setPrimaryCredentialId}
