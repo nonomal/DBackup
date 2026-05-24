@@ -13,7 +13,7 @@ Every changelog entry uses a **bold component prefix** followed by a description
 ```
 
 - **component**: Short, lowercase area/adapter name (e.g., `auth`, `MSSQL`, `dashboard`, `ui`, `backup`, `storage`, `SSO`, `Redis`). Must be a **name**, never a sentence or description.
-- **Description**: One sentence, max two. No file paths or function names.
+- **Description**: One sentence - as short as possible while still making sense. Two sentences only if absolutely necessary. Write **what** was done, not why or how.
 - **Issue links**: Always at the **end** of the entry in the format `([#N](url))`. Never embed issue numbers in the component name.
 
 ## Section Headings
@@ -73,8 +73,8 @@ Tag rules:
 
 1. **Grouped sections** - Entries are organized under `###` section headings, not a flat list.
 2. **Bold component prefix** - Every entry starts with `**component**:` to identify the affected area.
-3. **One line per entry** - Each entry is a single bullet point. Max 1-2 sentences.
-4. **No implementation details** - No file paths, function names, or technical internals. Those belong in git commits.
+3. **One line per entry** - Each entry is a single bullet point. One sentence, max two if necessary. Keep it as short as possible.
+4. **What, not why/how** - Describe what changed, not why it was needed or how it works. No file paths, function names, or technical internals.
 5. **Chronological order** - Newest version at the top.
 6. **No separators** - Do not add `---` between versions. VitePress renders them automatically.
 7. **Docker section last** - `### 🐳 Docker` is always the final section in a version block.
@@ -88,24 +88,24 @@ Tag rules:
 
 ### ✨ Features
 
-- **Google Drive**: OAuth 2.0 integration with folder browser and resumable uploads
-- **email**: Multi-recipient tag input for comma-separated email addresses
+- **Google Drive**: Added OAuth 2.0 integration with folder browser
+- **email**: Added multi-recipient support via tag input
 
 ### 🔒 Security
 
-- **OAuth**: Refresh tokens encrypted at rest with AES-256-GCM
+- **OAuth**: Refresh tokens are now encrypted at rest
 
 ### 🎨 Improvements
 
-- **dashboard**: Cached storage statistics reduce page load by 60%
+- **dashboard**: Reduced storage statistics page load time
 
 ### 🐛 Bug Fixes
 
-- **auth**: SSO users no longer see a blank page after login redirect
+- **auth**: Fixed blank page shown to SSO users after login redirect
 
 ### 📝 Documentation
 
-- **wiki**: Per-provider setup guides for all cloud storage adapters
+- **wiki**: Added per-provider setup guides for cloud storage adapters
 
 ### 🐳 Docker
 
