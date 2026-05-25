@@ -2,8 +2,8 @@
 
 All notable changes to DBackup are documented here.
 
-## vNEXT
-*Release: In Progress*
+## v2.4.0 - Database Explorer Browser, Drill-down Data Viewer, and Bug Fixes
+*Released: May 25, 2026*
 
 ### ✨ Features
 
@@ -22,8 +22,8 @@ All notable changes to DBackup are documented here.
 
 ### 🐳 Docker
 
-- **Image**: `skyfay/dbackup:vNEXT`
-- **Also tagged as**: `latest`, `vNEXT`
+- **Image**: `skyfay/dbackup:v2.4.0`
+- **Also tagged as**: `latest`, `v2`
 - **CI Image**: `skyfay/dbackup:ci`
 - **Platforms**: linux/amd64, linux/arm64
 
