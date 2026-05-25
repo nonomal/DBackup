@@ -66,20 +66,22 @@ export function applyNamingPattern(
   date: Date,
   timezone: string = "UTC"
 ): string {
-  const withNames = pattern
+  // Apply date tokens first so that date-like substrings in job/db names
+  // (e.g. 'mm' in 'Immich') are never misinterpreted as format tokens.
+  const withDates = applyDateTokens(pattern, date, timezone);
+
+  return withDates
     .replace(/{job_name}/g, jobName)
     .replace(/{db_name}/g, dbName);
-
-  return applyDateTokens(withNames, date, timezone);
 }
 
 export function previewPattern(pattern: string): string {
   try {
-    const withNames = pattern
+    const withDates = applyDateTokens(pattern, new Date());
+
+    return withDates
       .replace(/{job_name}/g, "JobName")
       .replace(/{db_name}/g, "mydb");
-
-    return applyDateTokens(withNames, new Date());
   } catch {
     return "Invalid pattern";
   }

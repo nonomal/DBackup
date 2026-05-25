@@ -121,9 +121,9 @@ describe("naming-template-engine", () => {
       expect(result).toBe("static-backup");
     });
 
-    it("expands date tokens that appear inside a job name (documented edge case)", () => {
-      // If the job name itself contains a date token (e.g. 'yyyy'), it will be
-      // expanded because token substitution runs over the entire string.
+    it("does not expand date tokens that appear inside a job name", () => {
+      // Job names are substituted after date tokens are resolved, so
+      // date-like substrings in the name (e.g. 'yyyy') are preserved as-is.
       const result = applyNamingPattern(
         "{job_name}",
         "backup_yyyy",
@@ -131,7 +131,20 @@ describe("naming-template-engine", () => {
         fixedDate,
         "UTC"
       );
-      expect(result).toBe("backup_2026");
+      expect(result).toBe("backup_yyyy");
+    });
+
+    it("does not replace 'mm' inside a job name with minutes (regression: Immich)", () => {
+      // Regression test for https://github.com/Skyfay/DBackup/issues/90
+      // 'Immich' contains 'mm' which must not be treated as the minutes token.
+      const result = applyNamingPattern(
+        "{job_name}_{db_name}_yyyy-MM-dd_HH-mm-ss",
+        "Immich",
+        "db",
+        fixedDate,
+        "UTC"
+      );
+      expect(result).toBe("Immich_db_2026-05-07_14-30-45");
     });
 
     it("shifts date correctly across day boundary in negative UTC offset", () => {
