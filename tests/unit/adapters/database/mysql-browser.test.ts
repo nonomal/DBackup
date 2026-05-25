@@ -151,3 +151,74 @@ describe("MySQL browser - getTableData", () => {
         expect(execFileAsync).toHaveBeenCalled();
     });
 });
+
+describe("MySQL browser - SQL escaping", () => {
+    beforeEach(() => vi.clearAllMocks());
+
+    // Helper to extract the SQL query arg from a getTables execFileAsync call.
+    function getTablesQueryArg(): string {
+        const args = vi.mocked(execFileAsync).mock.calls[0][1] as string[];
+        return args[args.indexOf("-e") + 1];
+    }
+
+    // Helper to find the columnsQuery arg from a getTableData call set.
+    function getColumnsQueryArg(): string {
+        const colCall = vi.mocked(execFileAsync).mock.calls.find(c =>
+            (c[1] as string[]).at(-1)?.includes("COLUMN_NAME")
+        );
+        expect(colCall).toBeDefined();
+        return (colCall![1] as string[]).at(-1)!;
+    }
+
+    it("doubles backslashes in database name (tablesQuery)", async () => {
+        vi.mocked(execFileAsync).mockResolvedValue({ stdout: "", stderr: "" } as any);
+
+        await getTables(baseConfig as any, "back\\slash");
+
+        expect(getTablesQueryArg()).toContain("'back\\\\slash'");
+    });
+
+    it("escapes single quotes in database name (tablesQuery)", async () => {
+        vi.mocked(execFileAsync).mockResolvedValue({ stdout: "", stderr: "" } as any);
+
+        await getTables(baseConfig as any, "it's");
+
+        expect(getTablesQueryArg()).toContain("'it\\'s'");
+    });
+
+    it("removes null bytes from database name (tablesQuery)", async () => {
+        vi.mocked(execFileAsync).mockResolvedValue({ stdout: "", stderr: "" } as any);
+
+        await getTables(baseConfig as any, "db\0name");
+
+        const query = getTablesQueryArg();
+        expect(query).toContain("'dbname'");
+        expect(query).not.toContain("\0");
+    });
+
+    it("doubles backslashes in database name (columnsQuery)", async () => {
+        vi.mocked(execFileAsync).mockResolvedValue({ stdout: "", stderr: "" } as any);
+
+        await getTableData(baseConfig as any, {
+            database: "back\\slash",
+            table: "users",
+            page: 1,
+            pageSize: 10,
+        } as any);
+
+        expect(getColumnsQueryArg()).toContain("'back\\\\slash'");
+    });
+
+    it("escapes single quotes in table name (columnsQuery)", async () => {
+        vi.mocked(execFileAsync).mockResolvedValue({ stdout: "", stderr: "" } as any);
+
+        await getTableData(baseConfig as any, {
+            database: "testdb",
+            table: "o'reilly",
+            page: 1,
+            pageSize: 10,
+        } as any);
+
+        expect(getColumnsQueryArg()).toContain("'o\\'reilly'");
+    });
+});

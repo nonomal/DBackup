@@ -25,14 +25,14 @@ function escapeMysqlLiteral(value: string): string {
 const tablesQuery = (db: string) => `
     SELECT TABLE_NAME, TABLE_TYPE, TABLE_ROWS, COALESCE(DATA_LENGTH + INDEX_LENGTH, 0)
     FROM information_schema.TABLES
-    WHERE TABLE_SCHEMA = '${escapeMysqlIdentifier(db).replace(/'/g, "\\'")}'
+    WHERE TABLE_SCHEMA = '${escapeMysqlLiteral(db)}'
     ORDER BY TABLE_NAME
 `.trim();
 
 const columnsQuery = (db: string, table: string) => `
     SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE, COLUMN_KEY, COLUMN_DEFAULT
     FROM information_schema.COLUMNS
-    WHERE TABLE_SCHEMA = '${escapeMysqlIdentifier(db).replace(/'/g, "\\'")}' AND TABLE_NAME = '${escapeMysqlIdentifier(table).replace(/'/g, "\\'")}'
+    WHERE TABLE_SCHEMA = '${escapeMysqlLiteral(db)}' AND TABLE_NAME = '${escapeMysqlLiteral(table)}'
     ORDER BY ORDINAL_POSITION
 `.trim();
 
