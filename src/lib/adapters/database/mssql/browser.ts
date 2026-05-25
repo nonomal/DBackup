@@ -48,7 +48,7 @@ export async function getTableData(
     config: MSSQLConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn, matchMode } = options;
     const offset = (page - 1) * pageSize;
     const dbId = escapeMssqlIdentifier(database);
     const tblId = escapeMssqlIdentifier(table);
@@ -56,8 +56,16 @@ export async function getTableData(
         ? `[${escapeMssqlIdentifier(sortBy)}] ${sortDir === "desc" ? "DESC" : "ASC"}`
         : "(SELECT NULL)";
     const searchActive = !!(search && searchColumn);
+    const searchTermValue = searchActive
+        ? matchMode === "starts" ? `${search}%`
+        : matchMode === "ends"   ? `%${search}`
+        : matchMode === "equals" ? search!
+        : `%${search}%`
+        : undefined;
     const whereClause = searchActive
-        ? ` WHERE CAST([${escapeMssqlIdentifier(searchColumn!)}] AS NVARCHAR(MAX)) LIKE @searchTerm`
+        ? matchMode === "equals"
+            ? ` WHERE CAST([${escapeMssqlIdentifier(searchColumn!)}] AS NVARCHAR(MAX)) = @searchTerm`
+            : ` WHERE CAST([${escapeMssqlIdentifier(searchColumn!)}] AS NVARCHAR(MAX)) LIKE @searchTerm`
         : "";
     let pool: sql.ConnectionPool | null = null;
 
@@ -71,8 +79,8 @@ export async function getTableData(
         const dataReq = pool.request();
 
         if (searchActive) {
-            countReq.input("searchTerm", sql.NVarChar, `%${search}%`);
-            dataReq.input("searchTerm", sql.NVarChar, `%${search}%`);
+            countReq.input("searchTerm", sql.NVarChar, searchTermValue);
+            dataReq.input("searchTerm", sql.NVarChar, searchTermValue);
         }
 
         const [colResult, countResult, dataResult] = await Promise.all([

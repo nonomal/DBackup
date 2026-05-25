@@ -107,6 +107,8 @@ export interface TableDataOptions {
     search?: string;
     /** Column name to restrict the search to. When set, search only applies to this column. */
     searchColumn?: string;
+    /** How to match the search term against the column value. Defaults to "contains". */
+    matchMode?: "contains" | "equals" | "starts" | "ends";
     /** Column name to sort by. */
     sortBy?: string;
     /** Sort direction. Defaults to ascending. */

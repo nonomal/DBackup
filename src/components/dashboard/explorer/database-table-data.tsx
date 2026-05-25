@@ -98,6 +98,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
     const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
     const [searchColumn, setSearchColumn] = useState<string | null>(null);
     const [columnPickerOpen, setColumnPickerOpen] = useState(false);
+    const [matchMode, setMatchMode] = useState<"contains" | "equals" | "starts" | "ends">("contains");
     const [sortBy, setSortBy] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -130,7 +131,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
             const res = await fetch("/api/adapters/database-table-data", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sourceId, database, table, page, pageSize, search: (debouncedSearch && searchColumn) ? debouncedSearch : undefined, searchColumn: searchColumn || undefined, sortBy: sortBy ?? undefined, sortDir: sortBy ? sortDir : undefined }),
+                body: JSON.stringify({ sourceId, database, table, page, pageSize, search: (debouncedSearch && searchColumn) ? debouncedSearch : undefined, searchColumn: searchColumn || undefined, matchMode: (debouncedSearch && searchColumn) ? matchMode : undefined, sortBy: sortBy ?? undefined, sortDir: sortBy ? sortDir : undefined }),
             });
             const data = await res.json();
 
@@ -148,7 +149,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
         } finally {
             setIsLoading(false);
         }
-    }, [sourceId, database, table, page, pageSize, debouncedSearch, searchColumn, sortBy, sortDir]);
+    }, [sourceId, database, table, page, pageSize, debouncedSearch, searchColumn, matchMode, sortBy, sortDir]);
 
     useEffect(() => {
         fetchData();
@@ -255,12 +256,31 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                             </PopoverContent>
                                         </Popover>
                                     )}
+                                    {!isRedis && searchColumn && (
+                                        <Select
+                                            value={matchMode}
+                                            onValueChange={(v) => {
+                                                setMatchMode(v as "contains" | "equals" | "starts" | "ends");
+                                                setPage(1);
+                                            }}
+                                        >
+                                            <SelectTrigger size="sm" className="w-32 text-xs gap-1">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="contains">Contains</SelectItem>
+                                                <SelectItem value="equals">Equals</SelectItem>
+                                                <SelectItem value="starts">Starts with</SelectItem>
+                                                <SelectItem value="ends">Ends with</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    )}
                                     {!isRedis && (searchColumn || search) && (
                                         <Button
                                             variant="ghost"
                                             size="sm"
                                             className="h-8 px-2 lg:px-3"
-                                            onClick={() => { setSearch(""); setSearchColumn(null); setPage(1); }}
+                                            onClick={() => { setSearch(""); setSearchColumn(null); setMatchMode("contains"); setPage(1); }}
                                         >
                                             Reset
                                             <X className="ml-2 h-4 w-4" />

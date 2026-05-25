@@ -130,12 +130,18 @@ export async function getTableData(
     config: MySQLConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn, matchMode } = options;
     const offset = (page - 1) * pageSize;
     const dbId = escapeMysqlIdentifier(database);
     const tblId = escapeMysqlIdentifier(table);
-    const whereClause = search && searchColumn
-        ? ` WHERE \`${escapeMysqlIdentifier(searchColumn)}\` LIKE '%${escapeMysqlLiteral(search)}%'`
+    const whereClause = (search && searchColumn)
+        ? matchMode === "equals"
+            ? ` WHERE \`${escapeMysqlIdentifier(searchColumn)}\` = '${escapeMysqlLiteral(search)}'`
+            : matchMode === "starts"
+            ? ` WHERE \`${escapeMysqlIdentifier(searchColumn)}\` LIKE '${escapeMysqlLiteral(search)}%'`
+            : matchMode === "ends"
+            ? ` WHERE \`${escapeMysqlIdentifier(searchColumn)}\` LIKE '%${escapeMysqlLiteral(search)}'`
+            : ` WHERE \`${escapeMysqlIdentifier(searchColumn)}\` LIKE '%${escapeMysqlLiteral(search)}%'`
         : "";
     const sortClause = sortBy
         ? ` ORDER BY \`${escapeMysqlIdentifier(sortBy)}\` ${sortDir === "desc" ? "DESC" : "ASC"}`

@@ -120,14 +120,21 @@ export async function getTableData(
     config: MongoDBConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn, matchMode } = options;
     const offset = (page - 1) * pageSize;
     const dbNameJs = JSON.stringify(database);
     const collNameJs = JSON.stringify(table);
     const sortObj = sortBy ? `{${JSON.stringify(sortBy)}:${sortDir === "desc" ? -1 : 1}}` : "{}";
-    const filterObj = search && searchColumn
-        ? { [searchColumn]: { $regex: search, $options: "i" } }
-        : {};
+
+    function buildMongoFilter(field: string, term: string): Record<string, unknown> {
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        if (matchMode === "equals")  return { [field]: term };
+        if (matchMode === "starts")  return { [field]: { $regex: `^${escaped}`, $options: "i" } };
+        if (matchMode === "ends")    return { [field]: { $regex: `${escaped}$`, $options: "i" } };
+        return { [field]: { $regex: term, $options: "i" } };
+    }
+
+    const filterObj = search && searchColumn ? buildMongoFilter(searchColumn, search) : {};
     const filterJson = JSON.stringify(filterObj);
 
     if (isSSHMode(config)) {

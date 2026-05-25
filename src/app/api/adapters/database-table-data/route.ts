@@ -25,6 +25,7 @@ const BodySchema = z.intersection(
         pageSize: z.coerce.number().int().min(1).max(MAX_PAGE_SIZE).default(50),
         search: z.string().optional(),
         searchColumn: z.string().optional(),
+        matchMode: z.enum(["contains", "equals", "starts", "ends"]).optional(),
         sortBy: z.string().optional(),
         sortDir: z.enum(["asc", "desc"]).optional(),
     })
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
             pageSize: body.pageSize,
             search: body.search,
             searchColumn: body.searchColumn,
+            matchMode: body.matchMode,
             sortBy: body.sortBy,
             sortDir: body.sortDir,
         });

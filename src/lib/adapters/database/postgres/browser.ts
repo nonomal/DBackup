@@ -137,11 +137,17 @@ export async function getTableData(
     config: PostgresConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn, matchMode } = options;
     const offset = (page - 1) * pageSize;
     const tblId = `"${escapePgIdentifier(table)}"`;
-    const whereClause = search && searchColumn
-        ? ` WHERE "${escapePgIdentifier(searchColumn)}"::text ILIKE '%${escapePgLiteral(search)}%'`
+    const whereClause = (search && searchColumn)
+        ? matchMode === "equals"
+            ? ` WHERE "${escapePgIdentifier(searchColumn)}"::text = '${escapePgLiteral(search)}'`
+            : matchMode === "starts"
+            ? ` WHERE "${escapePgIdentifier(searchColumn)}"::text ILIKE '${escapePgLiteral(search)}%'`
+            : matchMode === "ends"
+            ? ` WHERE "${escapePgIdentifier(searchColumn)}"::text ILIKE '%${escapePgLiteral(search)}'`
+            : ` WHERE "${escapePgIdentifier(searchColumn)}"::text ILIKE '%${escapePgLiteral(search)}%'`
         : "";
     const sortClause = sortBy
         ? ` ORDER BY "${escapePgIdentifier(sortBy)}" ${sortDir === "desc" ? "DESC" : "ASC"} NULLS LAST`

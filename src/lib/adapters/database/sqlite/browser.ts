@@ -136,14 +136,20 @@ export async function getTableData(
     config: Record<string, unknown>,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
+    const { table, page, pageSize, sortBy, sortDir, search, searchColumn, matchMode } = options;
     const offset = (page - 1) * pageSize;
     const dbPath = config.path as string;
     const mode = (config.mode as string) || "local";
     const binaryPath = (config.sqliteBinaryPath as string) || "sqlite3";
     const tblId = `"${escapeIdentifier(table)}"`;
-    const whereClause = search && searchColumn
-        ? ` WHERE "${escapeIdentifier(searchColumn)}" LIKE '%${escapeSqliteLiteral(search)}%'`
+    const whereClause = (search && searchColumn)
+        ? matchMode === "equals"
+            ? ` WHERE "${escapeIdentifier(searchColumn)}" = '${escapeSqliteLiteral(search)}'`
+            : matchMode === "starts"
+            ? ` WHERE "${escapeIdentifier(searchColumn)}" LIKE '${escapeSqliteLiteral(search)}%'`
+            : matchMode === "ends"
+            ? ` WHERE "${escapeIdentifier(searchColumn)}" LIKE '%${escapeSqliteLiteral(search)}'`
+            : ` WHERE "${escapeIdentifier(searchColumn)}" LIKE '%${escapeSqliteLiteral(search)}%'`
         : "";
     const sortClause = sortBy
         ? ` ORDER BY "${escapeIdentifier(sortBy)}" ${sortDir === "desc" ? "DESC" : "ASC"}`
