@@ -326,7 +326,50 @@ describe("PostgreSQL Connection - getDatabasesWithStats()", () => {
     });
 
     it("returns parsed stats from tab-separated psql output", async () => {
-        execSucceeds("postgres\t8192000\t5\napp_db\t204800\t12\n");
+        execSucceeds("postgres\t8192000\napp_db\t204800\n");
+
+        const result = await getDatabasesWithStats(buildConfig());
+
+        expect(result).toEqual([
+            { name: "postgres", sizeInBytes: 8192000 },
+            { name: "app_db", sizeInBytes: 204800 },
+        ]);
+    });
+
+    it("defaults to 0 for unparseable size field", async () => {
+        execSucceeds("broken\tnot_a_number\n");
+
+        const result = await getDatabasesWithStats(buildConfig());
+
+        expect(result).toEqual([
+            { name: "broken", sizeInBytes: 0 },
+        ]);
+    });
+
+    it("filters out empty lines", async () => {
+        execSucceeds("db1\t1024\n\n");
+
+        const result = await getDatabasesWithStats(buildConfig());
+
+        expect(result).toHaveLength(1);
+    });
+
+    it("populates tableCount via per-database query when count succeeds", async () => {
+        // stats query
+        mockExecFileCb.mockImplementationOnce((...args: unknown[]) => {
+            const cb = args[args.length - 1] as (err: null, result: { stdout: string; stderr: string }) => void;
+            cb(null, { stdout: "postgres\t8192000\napp_db\t204800\n", stderr: "" });
+        });
+        // table count for postgres
+        mockExecFileCb.mockImplementationOnce((...args: unknown[]) => {
+            const cb = args[args.length - 1] as (err: null, result: { stdout: string; stderr: string }) => void;
+            cb(null, { stdout: "5\n", stderr: "" });
+        });
+        // table count for app_db
+        mockExecFileCb.mockImplementationOnce((...args: unknown[]) => {
+            const cb = args[args.length - 1] as (err: null, result: { stdout: string; stderr: string }) => void;
+            cb(null, { stdout: "12\n", stderr: "" });
+        });
 
         const result = await getDatabasesWithStats(buildConfig());
 
@@ -336,22 +379,21 @@ describe("PostgreSQL Connection - getDatabasesWithStats()", () => {
         ]);
     });
 
-    it("defaults to 0 for unparseable numeric fields", async () => {
-        execSucceeds("broken\tnot_a_number\talso_broken\n");
+    it("omits tableCount when per-database count query fails", async () => {
+        // stats query succeeds
+        mockExecFileCb.mockImplementationOnce((...args: unknown[]) => {
+            const cb = args[args.length - 1] as (err: null, result: { stdout: string; stderr: string }) => void;
+            cb(null, { stdout: "app_db\t204800\n", stderr: "" });
+        });
+        // table count query fails (e.g., permission denied)
+        mockExecFileCb.mockImplementationOnce((...args: unknown[]) => {
+            const cb = args[args.length - 1] as (err: Error) => void;
+            cb(Object.assign(new Error("permission denied"), { stderr: "" }));
+        });
 
         const result = await getDatabasesWithStats(buildConfig());
 
-        expect(result).toEqual([
-            { name: "broken", sizeInBytes: 0, tableCount: 0 },
-        ]);
-    });
-
-    it("filters out empty lines", async () => {
-        execSucceeds("db1\t1024\t2\n\n");
-
-        const result = await getDatabasesWithStats(buildConfig());
-
-        expect(result).toHaveLength(1);
+        expect(result).toEqual([{ name: "app_db", sizeInBytes: 204800 }]);
     });
 
     it("throws when all connection attempts fail", async () => {
@@ -366,22 +408,22 @@ describe("PostgreSQL Connection - getDatabasesWithStats()", () => {
         mockIsSSHMode.mockReturnValue(true);
         mockSshExec.mockResolvedValue({
             code: 0,
-            stdout: "mydb\t512000\t3\n",
+            stdout: "mydb\t512000\n",
             stderr: "",
         });
 
         const result = await getDatabasesWithStats(buildConfig());
 
-        expect(result).toEqual([{ name: "mydb", sizeInBytes: 512000, tableCount: 3 }]);
+        expect(result).toEqual([{ name: "mydb", sizeInBytes: 512000 }]);
     });
 
     it("handles missing password in SSH getDatabasesWithStats env setup", async () => {
         mockIsSSHMode.mockReturnValue(true);
-        mockSshExec.mockResolvedValue({ code: 0, stdout: "db1\t1024\t3\n", stderr: "" });
+        mockSshExec.mockResolvedValue({ code: 0, stdout: "db1\t1024\n", stderr: "" });
 
         const result = await getDatabasesWithStats(buildConfig({ password: "" }));
 
-        expect(result).toEqual([{ name: "db1", sizeInBytes: 1024, tableCount: 3 }]);
+        expect(result).toEqual([{ name: "db1", sizeInBytes: 1024 }]);
     });
 
     it("throws via SSH when all exec calls return non-zero", async () => {
