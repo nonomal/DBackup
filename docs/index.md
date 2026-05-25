@@ -53,6 +53,9 @@ features:
   - icon: 📊
     title: Dashboard & Analytics
     details: Interactive charts, real-time progress tracking, storage usage history, and auto-refreshing activity feeds.
+  - icon: 🗂️
+    title: Database Explorer
+    details: Browse databases, tables, and live data directly from DBackup. Server-side pagination, full-text search, schema inspection, and deep-link URLs - for all 7 database engines.
   - icon: 🔍
     title: Storage Explorer
     details: Browse backup files across all destinations, inspect metadata, download files, or generate direct download links.

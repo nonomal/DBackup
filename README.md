@@ -83,6 +83,7 @@ Whether you're running a single MySQL database or managing multiple PostgreSQL, 
 
 - **Live Backup Progress** - Real-time progress tracking shows exactly what's happening during backup and restore operations
 - **Interactive Dashboard** - Activity charts, job status overview, KPI cards, and auto-refreshing activity feeds
+- **Database Explorer** - Browse databases, tables, and live data directly from DBackup with server-side pagination, full-text search, schema inspection, and deep-link URL support across all 7 database engines
 - **Storage Usage History** - Track storage growth over time with area charts and trend indicators
 - **Execution History** - Full log of every backup and restore with duration, file size, status, and error details
 
