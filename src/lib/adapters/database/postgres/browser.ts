@@ -137,15 +137,18 @@ export async function getTableData(
     config: PostgresConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
     const offset = (page - 1) * pageSize;
     const tblId = `"${escapePgIdentifier(table)}"`;
+    const whereClause = search && searchColumn
+        ? ` WHERE "${escapePgIdentifier(searchColumn)}"::text ILIKE '%${escapePgLiteral(search)}%'`
+        : "";
     const sortClause = sortBy
         ? ` ORDER BY "${escapePgIdentifier(sortBy)}" ${sortDir === "desc" ? "DESC" : "ASC"} NULLS LAST`
         : "";
     const colQuery = columnsQuery(database, table);
-    const countQuery = `SELECT COUNT(*) FROM ${tblId}`;
-    const dataQuery = `SELECT * FROM ${tblId}${sortClause} LIMIT ${pageSize} OFFSET ${offset}`;
+    const countQuery = `SELECT COUNT(*) FROM ${tblId}${whereClause}`;
+    const dataQuery = `SELECT * FROM ${tblId}${whereClause}${sortClause} LIMIT ${pageSize} OFFSET ${offset}`;
     const pgEnv = { ...process.env, PGPASSWORD: config.password };
     const envMap: Record<string, string | undefined> = {};
     if (config.password) envMap.PGPASSWORD = config.password;

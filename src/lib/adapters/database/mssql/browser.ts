@@ -48,13 +48,17 @@ export async function getTableData(
     config: MSSQLConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
     const offset = (page - 1) * pageSize;
     const dbId = escapeMssqlIdentifier(database);
     const tblId = escapeMssqlIdentifier(table);
     const sortColExpr = sortBy
         ? `[${escapeMssqlIdentifier(sortBy)}] ${sortDir === "desc" ? "DESC" : "ASC"}`
         : "(SELECT NULL)";
+    const searchActive = !!(search && searchColumn);
+    const whereClause = searchActive
+        ? ` WHERE CAST([${escapeMssqlIdentifier(searchColumn!)}] AS NVARCHAR(MAX)) LIKE @searchTerm`
+        : "";
     let pool: sql.ConnectionPool | null = null;
 
     try {
@@ -62,8 +66,17 @@ export async function getTableData(
         pool = new sql.ConnectionPool(connCfg);
         await pool.connect();
 
+        const colReq = pool.request();
+        const countReq = pool.request();
+        const dataReq = pool.request();
+
+        if (searchActive) {
+            countReq.input("searchTerm", sql.NVarChar, `%${search}%`);
+            dataReq.input("searchTerm", sql.NVarChar, `%${search}%`);
+        }
+
         const [colResult, countResult, dataResult] = await Promise.all([
-            pool.request().query(`
+            colReq.query(`
                 SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE,
                     CASE WHEN COLUMN_NAME IN (
                         SELECT kcu.COLUMN_NAME FROM [${dbId}].INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
@@ -76,9 +89,9 @@ export async function getTableData(
                 WHERE TABLE_NAME = '${tblId}' AND TABLE_SCHEMA = 'dbo'
                 ORDER BY ORDINAL_POSITION
             `),
-            pool.request().query(`SELECT COUNT(*) AS total FROM [${dbId}].[dbo].[${tblId}]`),
-            pool.request().query(`
-                SELECT * FROM [${dbId}].[dbo].[${tblId}]
+            countReq.query(`SELECT COUNT(*) AS total FROM [${dbId}].[dbo].[${tblId}]${whereClause}`),
+            dataReq.query(`
+                SELECT * FROM [${dbId}].[dbo].[${tblId}]${whereClause}
                 ORDER BY ${sortColExpr}
                 OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY
             `),

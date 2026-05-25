@@ -120,11 +120,15 @@ export async function getTableData(
     config: MongoDBConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
     const offset = (page - 1) * pageSize;
     const dbNameJs = JSON.stringify(database);
     const collNameJs = JSON.stringify(table);
     const sortObj = sortBy ? `{${JSON.stringify(sortBy)}:${sortDir === "desc" ? -1 : 1}}` : "{}";
+    const filterObj = search && searchColumn
+        ? { [searchColumn]: { $regex: search, $options: "i" } }
+        : {};
+    const filterJson = JSON.stringify(filterObj);
 
     if (isSSHMode(config)) {
         const ssh = new SshClient();
@@ -132,7 +136,7 @@ export async function getTableData(
             await ssh.connect(extractSshConfig(config)!);
             const mongoshBin = await remoteBinaryCheck(ssh, "mongosh", "mongo");
             const args = buildMongoArgs(config);
-            const script = `var col=db.getSiblingDB(${dbNameJs}).getCollection(${collNameJs});var cnt=col.countDocuments({});var docs=col.find({}).sort(${sortObj}).skip(${offset}).limit(${pageSize}).toArray();var out={total:cnt,docs:docs};try{print(EJSON.stringify(out))}catch(e){print(JSON.stringify(out))}`;
+            const script = `var col=db.getSiblingDB(${dbNameJs}).getCollection(${collNameJs});var filter=${filterJson};var cnt=col.countDocuments(filter);var docs=col.find(filter).sort(${sortObj}).skip(${offset}).limit(${pageSize}).toArray();var out={total:cnt,docs:docs};try{print(EJSON.stringify(out))}catch(e){print(JSON.stringify(out))}`;
             const cmd = `${mongoshBin} ${args.join(" ")} --quiet --eval '${script}'`;
             const result = await ssh.exec(cmd);
             if (result.code !== 0) throw new Error(`Failed to fetch documents: ${result.stderr}`);
@@ -153,10 +157,10 @@ export async function getTableData(
         const collection = client.db(database).collection(table);
         const sortSpec = sortBy ? { [sortBy]: sortDir === "desc" ? -1 : 1 } as Record<string, 1 | -1> : undefined;
         const [totalCount, rawDocs] = await Promise.all([
-            collection.countDocuments({}),
+            collection.countDocuments(filterObj),
             sortSpec
-                ? collection.find({}).sort(sortSpec).skip(offset).limit(pageSize).toArray()
-                : collection.find({}).skip(offset).limit(pageSize).toArray(),
+                ? collection.find(filterObj).sort(sortSpec).skip(offset).limit(pageSize).toArray()
+                : collection.find(filterObj).skip(offset).limit(pageSize).toArray(),
         ]);
         const docs = rawDocs.map(d => flattenDoc(d as unknown as Record<string, unknown>));
         const columns = deriveColumns(docs);

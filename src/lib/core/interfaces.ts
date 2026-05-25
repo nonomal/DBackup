@@ -105,6 +105,8 @@ export interface TableDataOptions {
     pageSize: number;
     /** Optional text search term applied server-side. */
     search?: string;
+    /** Column name to restrict the search to. When set, search only applies to this column. */
+    searchColumn?: string;
     /** Column name to sort by. */
     sortBy?: string;
     /** Sort direction. Defaults to ascending. */

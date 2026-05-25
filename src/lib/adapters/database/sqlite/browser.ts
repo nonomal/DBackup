@@ -46,6 +46,11 @@ function parseDataRows(
         });
 }
 
+/** Sanitize a SQLite string value for use in a single-quoted SQL literal. */
+function escapeSqliteLiteral(value: string): string {
+    return value.replace(/'/g, "''").replace(/\0/g, "");
+}
+
 export async function getTables(config: Record<string, unknown>, _database: string): Promise<TableInfo[]> {
     const dbPath = config.path as string;
     const mode = (config.mode as string) || "local";
@@ -131,18 +136,21 @@ export async function getTableData(
     config: Record<string, unknown>,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { table, page, pageSize, sortBy, sortDir } = options;
+    const { table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
     const offset = (page - 1) * pageSize;
     const dbPath = config.path as string;
     const mode = (config.mode as string) || "local";
     const binaryPath = (config.sqliteBinaryPath as string) || "sqlite3";
     const tblId = `"${escapeIdentifier(table)}"`;
+    const whereClause = search && searchColumn
+        ? ` WHERE "${escapeIdentifier(searchColumn)}" LIKE '%${escapeSqliteLiteral(search)}%'`
+        : "";
     const sortClause = sortBy
         ? ` ORDER BY "${escapeIdentifier(sortBy)}" ${sortDir === "desc" ? "DESC" : "ASC"}`
         : "";
     const pragmaQuery = `PRAGMA table_info(${tblId});`;
-    const countQuery = `SELECT COUNT(*) FROM ${tblId};`;
-    const dataQuery = `SELECT * FROM ${tblId}${sortClause} LIMIT ${pageSize} OFFSET ${offset};`;
+    const countQuery = `SELECT COUNT(*) FROM ${tblId}${whereClause};`;
+    const dataQuery = `SELECT * FROM ${tblId}${whereClause}${sortClause} LIMIT ${pageSize} OFFSET ${offset};`;
 
     if (mode === "ssh") {
         const sshConfig = extractSqliteSshConfig(config);

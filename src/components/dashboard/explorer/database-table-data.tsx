@@ -24,6 +24,20 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+    Popover,
+    PopoverContent,
+    PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+    Command,
+    CommandEmpty,
+    CommandGroup,
+    CommandInput,
+    CommandItem,
+    CommandList,
+} from "@/components/ui/command";
+import { Separator } from "@/components/ui/separator";
+import {
     AlertTriangle,
     TableIcon,
     ChevronLeft,
@@ -36,6 +50,9 @@ import {
     ArrowUpDown,
     ArrowUp,
     ArrowDown,
+    PlusCircle,
+    Check,
+    X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -79,6 +96,8 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
     const [error, setError] = useState<string | null>(null);
     const [schemaSearch, setSchemaSearch] = useState("");
     const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+    const [searchColumn, setSearchColumn] = useState<string | null>(null);
+    const [columnPickerOpen, setColumnPickerOpen] = useState(false);
     const [sortBy, setSortBy] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
@@ -111,7 +130,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
             const res = await fetch("/api/adapters/database-table-data", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sourceId, database, table, page, pageSize, search: debouncedSearch || undefined, sortBy: sortBy ?? undefined, sortDir: sortBy ? sortDir : undefined }),
+                body: JSON.stringify({ sourceId, database, table, page, pageSize, search: (debouncedSearch && searchColumn) ? debouncedSearch : undefined, searchColumn: searchColumn || undefined, sortBy: sortBy ?? undefined, sortDir: sortBy ? sortDir : undefined }),
             });
             const data = await res.json();
 
@@ -129,7 +148,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
         } finally {
             setIsLoading(false);
         }
-    }, [sourceId, database, table, page, pageSize, debouncedSearch, sortBy, sortDir]);
+    }, [sourceId, database, table, page, pageSize, debouncedSearch, searchColumn, sortBy, sortDir]);
 
     useEffect(() => {
         fetchData();
@@ -183,16 +202,69 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                             {/* Toolbar */}
                             <div className="flex items-center justify-between gap-2">
                                 <div className="flex items-center gap-2">
-                                    {!isRedis && !isMongo && (
+                                    {!isRedis && (
                                         <div className="relative">
                                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                             <Input
-                                                placeholder="Search rows..."
+                                                placeholder={searchColumn ? `Search in ${searchColumn}...` : "Search rows..."}
                                                 value={search}
                                                 onChange={e => setSearch(e.target.value)}
-                                                className="pl-8 h-9 w-52"
+                                                className="pl-8 h-8 w-52"
                                             />
                                         </div>
+                                    )}
+                                    {!isRedis && columns.length > 0 && (
+                                        <Popover open={columnPickerOpen} onOpenChange={setColumnPickerOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" size="sm" className="h-8">
+                                                    <PlusCircle className="mr-2 h-4 w-4" />
+                                                    Column
+                                                    {searchColumn && (
+                                                        <>
+                                                            <Separator orientation="vertical" className="mx-2 h-4" />
+                                                            <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+                                                                {searchColumn}
+                                                            </Badge>
+                                                        </>
+                                                    )}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-50 p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Column..." />
+                                                    <CommandList>
+                                                        <CommandEmpty>No columns found.</CommandEmpty>
+                                                        <CommandGroup>
+                                                            {columns.map(col => (
+                                                                <CommandItem
+                                                                    key={col.name}
+                                                                    value={col.name}
+                                                                    onSelect={() => {
+                                                                        setSearchColumn(prev => prev === col.name ? null : col.name);
+                                                                        setPage(1);
+                                                                        setColumnPickerOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check className={cn("mr-2 h-4 w-4 shrink-0", searchColumn === col.name ? "opacity-100" : "opacity-0")} />
+                                                                    {col.name}
+                                                                </CommandItem>
+                                                            ))}
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
+                                    )}
+                                    {!isRedis && (searchColumn || search) && (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 px-2 lg:px-3"
+                                            onClick={() => { setSearch(""); setSearchColumn(null); setPage(1); }}
+                                        >
+                                            Reset
+                                            <X className="ml-2 h-4 w-4" />
+                                        </Button>
                                     )}
                                 </div>
                                 <div className="flex items-center space-x-2">

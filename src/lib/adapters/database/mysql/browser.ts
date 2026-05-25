@@ -17,6 +17,10 @@ import { execFileAsync } from "./connection";
 function escapeMysqlIdentifier(name: string): string {
     return name.replace(/`/g, "``").replace(/\0/g, "");
 }
+/** Sanitize a MySQL string value for use in a single-quoted SQL literal. */
+function escapeMysqlLiteral(value: string): string {
+    return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'").replace(/\0/g, "");
+}
 
 const tablesQuery = (db: string) => `
     SELECT TABLE_NAME, TABLE_TYPE, TABLE_ROWS, COALESCE(DATA_LENGTH + INDEX_LENGTH, 0)
@@ -126,15 +130,18 @@ export async function getTableData(
     config: MySQLConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize, sortBy, sortDir } = options;
+    const { database, table, page, pageSize, sortBy, sortDir, search, searchColumn } = options;
     const offset = (page - 1) * pageSize;
     const dbId = escapeMysqlIdentifier(database);
     const tblId = escapeMysqlIdentifier(table);
+    const whereClause = search && searchColumn
+        ? ` WHERE \`${escapeMysqlIdentifier(searchColumn)}\` LIKE '%${escapeMysqlLiteral(search)}%'`
+        : "";
     const sortClause = sortBy
         ? ` ORDER BY \`${escapeMysqlIdentifier(sortBy)}\` ${sortDir === "desc" ? "DESC" : "ASC"}`
         : "";
-    const countQuery = `SELECT COUNT(*) FROM \`${dbId}\`.\`${tblId}\``;
-    const dataQuery = `SELECT * FROM \`${dbId}\`.\`${tblId}\`${sortClause} LIMIT ${pageSize} OFFSET ${offset}`;
+    const countQuery = `SELECT COUNT(*) FROM \`${dbId}\`.\`${tblId}\`${whereClause}`;
+    const dataQuery = `SELECT * FROM \`${dbId}\`.\`${tblId}\`${whereClause}${sortClause} LIMIT ${pageSize} OFFSET ${offset}`;
     const colQuery = columnsQuery(database, table);
 
     if (isSSHMode(config)) {
