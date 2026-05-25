@@ -16,6 +16,14 @@ import {
     SelectValue,
 } from "@/components/ui/select";
 import {
+    DropdownMenu,
+    DropdownMenuCheckboxItem,
+    DropdownMenuContent,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
     AlertTriangle,
     TableIcon,
     ChevronLeft,
@@ -23,7 +31,10 @@ import {
     ChevronsLeft,
     ChevronsRight,
     Search,
+    Settings2,
+    RefreshCw,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
 interface ColumnInfo {
@@ -64,6 +75,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [schemaSearch, setSchemaSearch] = useState("");
+    const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
 
     // Debounce search input
     useEffect(() => {
@@ -126,6 +138,8 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
     const isRedis = adapterId === REDIS_ADAPTER;
     const isMongo = adapterId === MONGO_ADAPTER;
 
+    const visibleCols = columns.filter(col => !hiddenColumns.has(col.name));
+
     return (
         <div className="space-y-4 min-w-0 w-full">
             <Tabs defaultValue="data">
@@ -143,16 +157,17 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                 <TabsContent value="data" className="mt-4">
                     <Card>
                         <CardHeader className="pb-3">
-                            <div className="flex items-center justify-between gap-4 flex-wrap">
-                                <div>
-                                    <CardTitle className="text-base">{table}</CardTitle>
-                                    <CardDescription>
-                                        {isLoading
-                                            ? "Loading..."
-                                            : `${totalCount.toLocaleString()} ${isMongo ? "document" : isRedis ? "key" : "row"}${totalCount !== 1 ? "s" : ""} total`}
-                                    </CardDescription>
-                                </div>
-                                <div className="flex items-center gap-2 flex-wrap">
+                            <CardTitle className="text-base">{table}</CardTitle>
+                            <CardDescription>
+                                {isLoading
+                                    ? "Loading..."
+                                    : `${totalCount.toLocaleString()} ${isMongo ? "document" : isRedis ? "key" : "row"}${totalCount !== 1 ? "s" : ""} total`}
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                            {/* Toolbar */}
+                            <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-2">
                                     {!isRedis && !isMongo && (
                                         <div className="relative">
                                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -165,9 +180,50 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                         </div>
                                     )}
                                 </div>
+                                <div className="flex items-center space-x-2">
+                                    {columns.length > 0 && !isRedis && (
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="outline" size="sm" className="h-8 hidden lg:flex ml-auto">
+                                                    <Settings2 className="mr-2 h-4 w-4" />
+                                                    View
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end" className="w-37.5">
+                                                <DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
+                                                <DropdownMenuSeparator />
+                                                {columns.map(col => (
+                                                    <DropdownMenuCheckboxItem
+                                                        key={col.name}
+                                                        className="capitalize"
+                                                        checked={!hiddenColumns.has(col.name)}
+                                                        onCheckedChange={(value) => {
+                                                            setHiddenColumns(prev => {
+                                                                const next = new Set(prev);
+                                                                if (value) next.delete(col.name);
+                                                                else next.add(col.name);
+                                                                return next;
+                                                            });
+                                                        }}
+                                                    >
+                                                        {col.name}
+                                                    </DropdownMenuCheckboxItem>
+                                                ))}
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    )}
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={fetchData}
+                                        title="Refresh"
+                                        className="h-8 w-8 p-0"
+                                        disabled={isLoading}
+                                    >
+                                        <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+                                    </Button>
+                                </div>
                             </div>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
                             {error ? (
                                 <div className="flex items-center gap-3 text-destructive py-4">
                                     <AlertTriangle className="h-5 w-5 shrink-0" />
@@ -200,7 +256,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                     <Table>
                                         <TableHeader className="bg-muted/50">
                                             <TableRow className="hover:bg-transparent">
-                                                {columns.map(col => (
+                                                {visibleCols.map(col => (
                                                     <TableHead key={col.name} className="whitespace-nowrap">
                                                         <span className="flex items-center gap-1.5">
                                                             {col.primaryKey && (
@@ -218,7 +274,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                         <TableBody>
                                             {rows.map((row, i) => (
                                                 <TableRow key={i}>
-                                                    {columns.map(col => {
+                                                    {visibleCols.map(col => {
                                                         const val = row[col.name];
                                                         const isEmpty = val === null || val === undefined || val === "";
                                                         return (
