@@ -20,6 +20,8 @@ import {
     TableIcon,
     ChevronLeft,
     ChevronRight,
+    ChevronsLeft,
+    ChevronsRight,
     Search,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -162,20 +164,6 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                             />
                                         </div>
                                     )}
-                                    <span className="text-sm text-muted-foreground">Rows per page</span>
-                                    <Select
-                                        value={String(pageSize)}
-                                        onValueChange={v => { setPageSize(Number(v)); setPage(1); }}
-                                    >
-                                        <SelectTrigger className="h-8 w-20">
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {[10, 25, 50, 100].map(n => (
-                                                <SelectItem key={n} value={String(n)}>{n}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                             </div>
                         </CardHeader>
@@ -256,30 +244,71 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
 
                             {/* Pagination */}
                             {!error && !isLoading && rows.length > 0 && (
-                                <div className="flex items-center justify-between pt-2">
-                                    <p className="text-sm text-muted-foreground">
-                                        Page {page} of {pageCount}
+                                <div className="flex items-center justify-between px-2 py-4">
+                                    <div className="flex-1 text-sm text-muted-foreground">
+                                        {totalCount.toLocaleString()} {isMongo ? "document" : isRedis ? "key" : "row"}{totalCount !== 1 ? "s" : ""} total
                                         {isRedis && totalCount > rows.length && (
                                             <span className="ml-1 text-xs">(showing first {rows.length})</span>
                                         )}
-                                    </p>
-                                    <div className="flex items-center gap-1">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                                            disabled={page <= 1}
-                                        >
-                                            <ChevronLeft className="h-4 w-4" />
-                                        </Button>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => setPage(p => Math.min(pageCount, p + 1))}
-                                            disabled={page >= pageCount}
-                                        >
-                                            <ChevronRight className="h-4 w-4" />
-                                        </Button>
+                                    </div>
+                                    <div className="flex items-center space-x-6 lg:space-x-8">
+                                        <div className="flex items-center space-x-2">
+                                            <p className="text-sm font-medium">Rows per page</p>
+                                            <Select
+                                                value={String(pageSize)}
+                                                onValueChange={v => { setPageSize(Number(v)); setPage(1); }}
+                                            >
+                                                <SelectTrigger className="h-8 w-17.5">
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent side="top">
+                                                    {[10, 25, 50, 100].map(n => (
+                                                        <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex w-25 items-center justify-center text-sm font-medium">
+                                            Page {page} of {pageCount}
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Button
+                                                variant="outline"
+                                                className="hidden h-8 w-8 p-0 lg:flex"
+                                                onClick={() => setPage(1)}
+                                                disabled={page <= 1}
+                                            >
+                                                <span className="sr-only">Go to first page</span>
+                                                <ChevronsLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => setPage(p => Math.max(1, p - 1))}
+                                                disabled={page <= 1}
+                                            >
+                                                <span className="sr-only">Go to previous page</span>
+                                                <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="h-8 w-8 p-0"
+                                                onClick={() => setPage(p => Math.min(pageCount, p + 1))}
+                                                disabled={page >= pageCount}
+                                            >
+                                                <span className="sr-only">Go to next page</span>
+                                                <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                                variant="outline"
+                                                className="hidden h-8 w-8 p-0 lg:flex"
+                                                onClick={() => setPage(pageCount)}
+                                                disabled={page >= pageCount}
+                                            >
+                                                <span className="sr-only">Go to last page</span>
+                                                <ChevronsRight className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
                             )}
