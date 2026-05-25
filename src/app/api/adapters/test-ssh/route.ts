@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    checkPermissionWithContext(ctx, PERMISSIONS.SOURCES.READ);
+    checkPermissionWithContext(ctx, PERMISSIONS.SOURCES.VIEW);
 
     try {
         const body = await req.json();

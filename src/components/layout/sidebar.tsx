@@ -54,7 +54,7 @@ const sidebarGroups: SidebarGroup[] = [
     {
         label: "Backup",
         items: [
-            { icon: Database, label: "Sources", href: "/dashboard/sources", permission: PERMISSIONS.SOURCES.READ },
+            { icon: Database, label: "Sources", href: "/dashboard/sources", permission: PERMISSIONS.SOURCES.VIEW },
             { icon: HardDrive, label: "Destinations", href: "/dashboard/destinations", permission: PERMISSIONS.DESTINATIONS.READ },
             { icon: Bell, label: "Notifications", href: "/dashboard/notifications", permission: PERMISSIONS.NOTIFICATIONS.READ },
             { icon: CalendarClock, label: "Jobs", href: "/dashboard/jobs", permission: PERMISSIONS.JOBS.READ },
@@ -64,7 +64,7 @@ const sidebarGroups: SidebarGroup[] = [
         label: "Explorer",
         items: [
             { icon: FolderOpen, label: "Storage Explorer", href: "/dashboard/storage", permission: PERMISSIONS.STORAGE.READ },
-            { icon: SearchCode, label: "Database Explorer", href: "/dashboard/explorer", permission: PERMISSIONS.SOURCES.READ },
+            { icon: SearchCode, label: "Database Explorer", href: "/dashboard/explorer", permission: PERMISSIONS.SOURCES.VIEW },
             { icon: History, label: "History", href: "/dashboard/history", permission: PERMISSIONS.HISTORY.READ },
         ],
     },

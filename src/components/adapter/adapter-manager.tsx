@@ -202,8 +202,8 @@ export function AdapterManager({ type, title, description, canManage = true, per
                 // If lastHeathCheck is null, default to PENDING
                 const status = lastCheck ? (row.original.lastStatus || "ONLINE") : "PENDING";
 
-                // Health history popover requires sources:read (database) or destinations:read (storage)
-                const healthPerm = type === "database" ? PERMISSIONS.SOURCES.READ : PERMISSIONS.DESTINATIONS.READ;
+                // Health history popover requires sources:view (database) or destinations:read (storage)
+                const healthPerm = type === "database" ? PERMISSIONS.SOURCES.VIEW : PERMISSIONS.DESTINATIONS.READ;
                 const canViewHealth = permissions.includes(healthPerm);
 
                 return (

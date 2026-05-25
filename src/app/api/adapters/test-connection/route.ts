@@ -17,7 +17,7 @@ registerAdapters();
 // Helper to determine permission based on adapter type
 function getPermissionForAdapter(adapterId: string): Permission | null {
     if (/mysql|postgres|mongo|mssql|sqlite/i.test(adapterId)) {
-        return PERMISSIONS.SOURCES.READ;
+        return PERMISSIONS.SOURCES.VIEW;
     } else if (/local-filesystem|s3|sftp|smb|ftp|webdav|rsync|google-drive|dropbox|onedrive/i.test(adapterId)) {
         return PERMISSIONS.DESTINATIONS.READ;
     } else if (/discord|email|smtp|slack/i.test(adapterId)) {

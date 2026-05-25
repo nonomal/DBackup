@@ -41,9 +41,10 @@ interface SourceOption {
 
 interface DatabaseExplorerProps {
     sources: SourceOption[];
+    canBrowse: boolean;
 }
 
-export function DatabaseExplorer({ sources }: DatabaseExplorerProps) {
+export function DatabaseExplorer({ sources, canBrowse }: DatabaseExplorerProps) {
     const searchParams = useSearchParams();
     const router = useRouter();
     const initialSourceId = searchParams.get("sourceId") ?? "";
@@ -59,7 +60,7 @@ export function DatabaseExplorer({ sources }: DatabaseExplorerProps) {
     const [serverVersion, setServerVersion] = useState<string | null>(null);
     const [comboboxOpen, setComboboxOpen] = useState(false);
     const [hasAutoLoaded, setHasAutoLoaded] = useState(false);
-    const [activeTab, setActiveTab] = useState<string>(initialDatabase ? "databases" : "general");
+    const [activeTab, setActiveTab] = useState<string>(canBrowse && initialDatabase ? "databases" : "general");
 
     const selectedAdapter = sources.find((s) => s.id === selectedSource);
 
@@ -232,7 +233,7 @@ export function DatabaseExplorer({ sources }: DatabaseExplorerProps) {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList>
                         <TabsTrigger value="general">General</TabsTrigger>
-                        <TabsTrigger value="databases">Databases</TabsTrigger>
+                        {canBrowse && <TabsTrigger value="databases">Databases</TabsTrigger>}
                     </TabsList>
 
                     {/* GENERAL TAB */}

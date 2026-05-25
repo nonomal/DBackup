@@ -22,7 +22,7 @@ export async function GET(
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    checkPermissionWithContext(ctx, PERMISSIONS.SOURCES.READ);
+    checkPermissionWithContext(ctx, PERMISSIONS.SOURCES.VIEW);
 
     const params = await props.params;
 
