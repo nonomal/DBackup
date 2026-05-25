@@ -37,6 +37,7 @@ interface AdapterConfig {
     id: string;
     name: string;
     adapterId: string;
+    metadata?: string;
 }
 
 interface DbConfig {
@@ -520,6 +521,15 @@ export function RestoreClient() {
                                         <SelectContent>
                                             {sources
                                                 .filter(s => {
+                                                    // Filter out restore-excluded sources
+                                                    try {
+                                                        if (s.metadata) {
+                                                            const meta = JSON.parse(s.metadata);
+                                                            if (meta.isRestoreExcluded) return false;
+                                                        }
+                                                    } catch { }
+
+                                                    // Filter by source type compatibility
                                                     if (!file?.sourceType) return true;
                                                     const type = file.sourceType.toLowerCase();
                                                     const adapter = s.adapterId.toLowerCase();
