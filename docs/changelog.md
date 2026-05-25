@@ -13,6 +13,7 @@ All notable changes to DBackup are documented here.
 
 - **Naming Templates**: Fixed date tokens (e.g. `mm` for minutes, `dd` for day) being incorrectly expanded inside job or database names. Job names containing these substrings (e.g. "Immich" containing "mm", "Grimmory" containing "mm") no longer produce corrupted filenames. Date tokens are now resolved before job/db names are substituted. ([#90](https://github.com/Skyfay/DBackup/issues/90))
 - **DatabasePicker**: Fixed the backup job edit dialog becoming unusable when a large number of databases are selected. The trigger button now shows at most 8 database badges and collapses the rest into a "+N more" indicator. ([#91](https://github.com/Skyfay/DBackup/issues/91))
+- **Queue**: Fixed scheduled backup jobs remaining stuck as "Pending" indefinitely after a restore operation completes. The restore pipeline now triggers `processQueue()` in its `finally` block, mirroring the behaviour of the backup runner. ([#95](https://github.com/Skyfay/DBackup/issues/95))
 
 ### 🐳 Docker
 

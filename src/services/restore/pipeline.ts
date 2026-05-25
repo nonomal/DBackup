@@ -19,6 +19,7 @@ import { verifyFileChecksum } from "@/lib/crypto/checksum";
 import { notify } from "@/services/notifications/system-notification-service";
 import { NOTIFICATION_EVENTS } from "@/lib/notifications";
 import { registerExecution, unregisterExecution } from "@/lib/execution/abort";
+import { processQueue } from "@/lib/execution/queue-manager";
 import type { RestoreInput } from "./types";
 import { resolveDecryptionKey } from "./smart-recovery";
 
@@ -541,5 +542,7 @@ export async function runRestorePipeline(executionId: string, input: RestoreInpu
         }
         await flushLogs(true);
         unregisterExecution(executionId);
+        // Trigger queue so any backup jobs pending during this restore can start.
+        processQueue().catch((e) => svcLog.error("Post-restore queue trigger failed", {}, wrapError(e)));
     }
 }

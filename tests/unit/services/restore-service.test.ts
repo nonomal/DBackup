@@ -39,6 +39,11 @@ vi.mock('@/lib/adapters', () => ({
     registerAdapters: vi.fn(),
 }));
 
+const mockProcessQueue = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/lib/execution/queue-manager', () => ({
+    processQueue: () => mockProcessQueue(),
+}));
+
 describe('RestoreService', () => {
     let service: RestoreService;
 
@@ -395,5 +400,76 @@ describe('RestoreService', () => {
         const updateCalls = prismaMock.execution.update.mock.calls;
         const lastCall = updateCalls[updateCalls.length - 1];
         expect(lastCall).toBeTruthy();
+    });
+
+    describe('Queue trigger after restore (#95)', () => {
+        it('should call processQueue after a successful restore so pending backup jobs are unblocked', async () => {
+            const executionId = 'exec-queue-trigger';
+            const mockStorageAdapter = {
+                download: vi.fn().mockResolvedValueOnce(false).mockResolvedValueOnce(true),
+                read: vi.fn().mockResolvedValue(null),
+            } as unknown as StorageAdapter;
+
+            const mockDbAdapter = {
+                restore: vi.fn().mockResolvedValue({ success: true, logs: [] }),
+                prepareRestore: vi.fn().mockResolvedValue(true),
+            } as unknown as DatabaseAdapter;
+
+            prismaMock.execution.create.mockResolvedValue({ id: executionId } as any);
+            prismaMock.execution.update.mockResolvedValue({} as any);
+
+            prismaMock.adapterConfig.findUnique
+                .mockResolvedValueOnce(mockSourceConfig as any)
+                .mockResolvedValueOnce(mockStorageConfig as any)
+                .mockResolvedValueOnce(mockStorageConfig as any)
+                .mockResolvedValueOnce(mockSourceConfig as any);
+
+            vi.mocked(registry.get)
+                .mockReturnValueOnce(mockDbAdapter)
+                .mockReturnValueOnce(mockStorageAdapter)
+                .mockReturnValueOnce(mockDbAdapter)
+                .mockReturnValueOnce(mockStorageAdapter)
+                .mockReturnValueOnce(mockDbAdapter);
+
+            await service.restore({
+                storageConfigId: 'storage-1',
+                file: 'backup.sql',
+                targetSourceId: 'source-1',
+            });
+
+            await flushPromises();
+
+            expect(mockProcessQueue).toHaveBeenCalled();
+        });
+
+        it('should call processQueue even when restore fails so pending backup jobs are not blocked', async () => {
+            const executionId = 'exec-queue-trigger-fail';
+            const mockStorageAdapter = {
+                download: vi.fn().mockResolvedValue(false), // triggers immediate failure
+            } as unknown as StorageAdapter;
+
+            prismaMock.execution.create.mockResolvedValue({ id: executionId } as any);
+            prismaMock.execution.update.mockResolvedValue({} as any);
+
+            prismaMock.adapterConfig.findUnique
+                .mockResolvedValueOnce(mockSourceConfig as any)
+                .mockResolvedValueOnce(mockStorageConfig as any)
+                .mockResolvedValueOnce(mockSourceConfig as any);
+
+            vi.mocked(registry.get)
+                .mockReturnValueOnce({} as any)
+                .mockReturnValueOnce(mockStorageAdapter)
+                .mockReturnValueOnce({} as any);
+
+            await service.restore({
+                storageConfigId: 'storage-1',
+                file: 'backup.sql',
+                targetSourceId: 'source-1',
+            });
+
+            await flushPromises();
+
+            expect(mockProcessQueue).toHaveBeenCalled();
+        });
     });
 });
