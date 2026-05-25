@@ -131,15 +131,18 @@ export async function getTableData(
     config: Record<string, unknown>,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { table, page, pageSize } = options;
+    const { table, page, pageSize, sortBy, sortDir } = options;
     const offset = (page - 1) * pageSize;
     const dbPath = config.path as string;
     const mode = (config.mode as string) || "local";
     const binaryPath = (config.sqliteBinaryPath as string) || "sqlite3";
     const tblId = `"${escapeIdentifier(table)}"`;
+    const sortClause = sortBy
+        ? ` ORDER BY "${escapeIdentifier(sortBy)}" ${sortDir === "desc" ? "DESC" : "ASC"}`
+        : "";
     const pragmaQuery = `PRAGMA table_info(${tblId});`;
     const countQuery = `SELECT COUNT(*) FROM ${tblId};`;
-    const dataQuery = `SELECT * FROM ${tblId} LIMIT ${pageSize} OFFSET ${offset};`;
+    const dataQuery = `SELECT * FROM ${tblId}${sortClause} LIMIT ${pageSize} OFFSET ${offset};`;
 
     if (mode === "ssh") {
         const sshConfig = extractSqliteSshConfig(config);

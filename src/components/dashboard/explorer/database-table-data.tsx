@@ -33,6 +33,9 @@ import {
     Search,
     Settings2,
     RefreshCw,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -76,6 +79,18 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
     const [error, setError] = useState<string | null>(null);
     const [schemaSearch, setSchemaSearch] = useState("");
     const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
+    const [sortBy, setSortBy] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+    const handleSort = (colName: string) => {
+        if (sortBy === colName) {
+            setSortDir(d => d === "asc" ? "desc" : "asc");
+        } else {
+            setSortBy(colName);
+            setSortDir("asc");
+        }
+        setPage(1);
+    };
 
     // Debounce search input
     useEffect(() => {
@@ -96,7 +111,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
             const res = await fetch("/api/adapters/database-table-data", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ sourceId, database, table, page, pageSize, search: debouncedSearch || undefined }),
+                body: JSON.stringify({ sourceId, database, table, page, pageSize, search: debouncedSearch || undefined, sortBy: sortBy ?? undefined, sortDir: sortBy ? sortDir : undefined }),
             });
             const data = await res.json();
 
@@ -114,7 +129,7 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
         } finally {
             setIsLoading(false);
         }
-    }, [sourceId, database, table, page, pageSize, debouncedSearch]);
+    }, [sourceId, database, table, page, pageSize, debouncedSearch, sortBy, sortDir]);
 
     useEffect(() => {
         fetchData();
@@ -258,7 +273,10 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                             <TableRow className="hover:bg-transparent">
                                                 {visibleCols.map(col => (
                                                     <TableHead key={col.name} className="whitespace-nowrap">
-                                                        <span className="flex items-center gap-1.5">
+                                                        <button
+                                                            className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+                                                            onClick={() => handleSort(col.name)}
+                                                        >
                                                             {col.primaryKey && (
                                                                 <span className="text-xs font-bold text-primary" title="Primary Key">PK</span>
                                                             )}
@@ -266,7 +284,14 @@ export function DatabaseTableData({ sourceId, database, table, adapterId }: Data
                                                             <span className="text-xs text-muted-foreground font-normal normal-case">
                                                                 {col.dataType}
                                                             </span>
-                                                        </span>
+                                                            {sortBy === col.name ? (
+                                                                sortDir === "asc"
+                                                                    ? <ArrowUp className="h-3 w-3 shrink-0" />
+                                                                    : <ArrowDown className="h-3 w-3 shrink-0" />
+                                                            ) : (
+                                                                <ArrowUpDown className="h-3 w-3 shrink-0 opacity-40" />
+                                                            )}
+                                                        </button>
                                                     </TableHead>
                                                 ))}
                                             </TableRow>

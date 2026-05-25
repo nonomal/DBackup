@@ -48,10 +48,13 @@ export async function getTableData(
     config: MSSQLConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize } = options;
+    const { database, table, page, pageSize, sortBy, sortDir } = options;
     const offset = (page - 1) * pageSize;
     const dbId = escapeMssqlIdentifier(database);
     const tblId = escapeMssqlIdentifier(table);
+    const sortColExpr = sortBy
+        ? `[${escapeMssqlIdentifier(sortBy)}] ${sortDir === "desc" ? "DESC" : "ASC"}`
+        : "(SELECT NULL)";
     let pool: sql.ConnectionPool | null = null;
 
     try {
@@ -76,7 +79,7 @@ export async function getTableData(
             pool.request().query(`SELECT COUNT(*) AS total FROM [${dbId}].[dbo].[${tblId}]`),
             pool.request().query(`
                 SELECT * FROM [${dbId}].[dbo].[${tblId}]
-                ORDER BY (SELECT NULL)
+                ORDER BY ${sortColExpr}
                 OFFSET ${offset} ROWS FETCH NEXT ${pageSize} ROWS ONLY
             `),
         ]);

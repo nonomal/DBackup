@@ -105,6 +105,10 @@ export interface TableDataOptions {
     pageSize: number;
     /** Optional text search term applied server-side. */
     search?: string;
+    /** Column name to sort by. */
+    sortBy?: string;
+    /** Sort direction. Defaults to ascending. */
+    sortDir?: "asc" | "desc";
 }
 
 /**

@@ -126,12 +126,15 @@ export async function getTableData(
     config: MySQLConfig,
     options: TableDataOptions
 ): Promise<TableDataResult> {
-    const { database, table, page, pageSize } = options;
+    const { database, table, page, pageSize, sortBy, sortDir } = options;
     const offset = (page - 1) * pageSize;
     const dbId = escapeMysqlIdentifier(database);
     const tblId = escapeMysqlIdentifier(table);
+    const sortClause = sortBy
+        ? ` ORDER BY \`${escapeMysqlIdentifier(sortBy)}\` ${sortDir === "desc" ? "DESC" : "ASC"}`
+        : "";
     const countQuery = `SELECT COUNT(*) FROM \`${dbId}\`.\`${tblId}\``;
-    const dataQuery = `SELECT * FROM \`${dbId}\`.\`${tblId}\` LIMIT ${pageSize} OFFSET ${offset}`;
+    const dataQuery = `SELECT * FROM \`${dbId}\`.\`${tblId}\`${sortClause} LIMIT ${pageSize} OFFSET ${offset}`;
     const colQuery = columnsQuery(database, table);
 
     if (isSSHMode(config)) {
