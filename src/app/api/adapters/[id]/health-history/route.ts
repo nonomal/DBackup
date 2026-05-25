@@ -17,11 +17,11 @@ export async function GET(
     if (!ctx) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     // Permission check - Reading health history requires READ on sources OR destinations
-    const hasSourcesRead = ctx.permissions.includes(PERMISSIONS.SOURCES.READ);
+    const hasSourcesRead = ctx.permissions.includes(PERMISSIONS.SOURCES.VIEW);
     const hasDestinationsRead = ctx.permissions.includes(PERMISSIONS.DESTINATIONS.READ);
 
     if (!ctx.isSuperAdmin && !hasSourcesRead && !hasDestinationsRead) {
-        return NextResponse.json({ error: "Permission denied: sources:read or destinations:read required" }, { status: 403 });
+        return NextResponse.json({ error: "Permission denied: sources:view or destinations:read required" }, { status: 403 });
     }
 
     const { id } = await context.params;

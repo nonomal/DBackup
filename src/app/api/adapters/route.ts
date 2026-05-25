@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
 
     try {
         if (type === 'database') {
-            checkPermissionWithContext(ctx, PERMISSIONS.SOURCES.READ);
+            checkPermissionWithContext(ctx, PERMISSIONS.SOURCES.VIEW);
         } else if (type === 'storage') {
             checkPermissionWithContext(ctx, PERMISSIONS.DESTINATIONS.READ);
         } else if (type === 'notification') {

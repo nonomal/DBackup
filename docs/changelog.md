@@ -2,6 +2,32 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.4.0 - Database Explorer Browser, Drill-down Data Viewer, and Bug Fixes
+*Released: May 25, 2026*
+
+### ✨ Features
+
+- **Database Explorer**: Added drill-down table and data viewer with server-side pagination, search, schema inspection, and deep-link URL support for all 7 database adapters. ([#92](https://github.com/Skyfay/DBackup/issues/92))
+- **sources**: Added an "Exclude from Restore" toggle to database source settings. Sources marked as excluded are hidden from the restore target dropdown - backups can still be created from them. Thanks @iberlob ([#97](https://github.com/Skyfay/DBackup/pull/97))
+
+### 🐛 Bug Fixes
+
+- **Naming Templates**: Fixed date tokens (e.g. `mm` for minutes, `dd` for day) being incorrectly expanded inside job or database names. Job names containing these substrings (e.g. "Immich" containing "mm", "Grimmory" containing "mm") no longer produce corrupted filenames. Date tokens are now resolved before job/db names are substituted. ([#90](https://github.com/Skyfay/DBackup/issues/90))
+- **DatabasePicker**: Fixed the backup job edit dialog becoming unusable when a large number of databases are selected. The trigger button now shows at most 8 database badges and collapses the rest into a "+N more" indicator. ([#91](https://github.com/Skyfay/DBackup/issues/91))
+- **Queue**: Fixed scheduled backup jobs remaining stuck as "Pending" indefinitely after a restore operation completes. The restore pipeline now triggers `processQueue()` in its `finally` block, mirroring the behaviour of the backup runner. ([#95](https://github.com/Skyfay/DBackup/issues/95))
+
+### 🧪 Tests
+
+- **Database Browser**: Added unit tests for all 6 `browser.ts` adapter modules (MySQL, PostgreSQL, MongoDB, MSSQL, Redis, SQLite). Covers `getTables` and `getTableData` including parser logic, type mapping, TTL formatting, and search modes. 36 tests total.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.4.0`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.3.3 - Multiple Bug Fixes across MSSQL, Redis, Email, and Storage Adapters
 *Released: May 19, 2026*
 

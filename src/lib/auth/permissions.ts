@@ -9,6 +9,7 @@ export const PERMISSIONS = {
     WRITE: "groups:write",
   },
   SOURCES: {
+    VIEW: "sources:view",
     READ: "sources:read",
     WRITE: "sources:write",
   },
@@ -73,6 +74,7 @@ export type Permission =
   | typeof PERMISSIONS.USERS.WRITE
   | typeof PERMISSIONS.GROUPS.READ
   | typeof PERMISSIONS.GROUPS.WRITE
+  | typeof PERMISSIONS.SOURCES.VIEW
   | typeof PERMISSIONS.SOURCES.READ
   | typeof PERMISSIONS.SOURCES.WRITE
   | typeof PERMISSIONS.DESTINATIONS.READ
@@ -114,7 +116,8 @@ export const AVAILABLE_PERMISSIONS = [
   { id: PERMISSIONS.GROUPS.WRITE, label: "Manage Groups", category: "Groups" },
 
   // Resources
-  { id: PERMISSIONS.SOURCES.READ, label: "View Sources", category: "Sources" },
+  { id: PERMISSIONS.SOURCES.VIEW, label: "View Sources", category: "Sources" },
+  { id: PERMISSIONS.SOURCES.READ, label: "Browse Database Explorer (Tables & Data)", category: "Sources" },
   { id: PERMISSIONS.SOURCES.WRITE, label: "Manage Sources (Create/Edit/Delete)", category: "Sources" },
   { id: PERMISSIONS.DESTINATIONS.READ, label: "View Destinations", category: "Destinations" },
   { id: PERMISSIONS.DESTINATIONS.WRITE, label: "Manage Destinations (Create/Edit/Delete)", category: "Destinations" },
