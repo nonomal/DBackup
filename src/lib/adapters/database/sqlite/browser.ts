@@ -62,7 +62,7 @@ export async function getTables(config: Record<string, unknown>, _database: stri
             const bin = await remoteBinaryCheck(client, binaryPath);
             const result = await client.exec(`${shellEscape(bin)} ${shellEscape(dbPath)} ${shellEscape(query)}`);
             if (result.code !== 0) throw new Error(`Failed to list tables: ${result.stderr}`);
-            return result.stdout
+            const tables: TableInfo[] = result.stdout
                 .split("\n")
                 .map(l => l.trim())
                 .filter(Boolean)
@@ -70,13 +70,14 @@ export async function getTables(config: Record<string, unknown>, _database: stri
                     const [name, rawType] = line.split("|");
                     return { name, type: rawType === "view" ? "view" as const : "table" as const };
                 });
+            return await enrichWithRowCountsSsh(client, bin, dbPath, tables);
         } finally {
             client.end();
         }
     }
 
     const { stdout } = await execFileAsync(binaryPath, [dbPath, query]);
-    return stdout
+    const tables: TableInfo[] = stdout
         .split("\n")
         .map(l => l.trim())
         .filter(Boolean)
@@ -84,6 +85,46 @@ export async function getTables(config: Record<string, unknown>, _database: stri
             const [name, rawType] = line.split("|");
             return { name, type: rawType === "view" ? "view" as const : "table" as const };
         });
+    return enrichWithRowCounts(binaryPath, dbPath, tables);
+}
+
+async function enrichWithRowCounts(binaryPath: string, dbPath: string, tables: TableInfo[]): Promise<TableInfo[]> {
+    const tableNames = tables.filter(t => t.type === "table").map(t => t.name);
+    if (tableNames.length === 0) return tables;
+    const countQuery = tableNames
+        .map(name => `SELECT count(*) FROM "${escapeIdentifier(name)}"`)
+        .join(" UNION ALL ");
+    try {
+        const { stdout: countOut } = await execFileAsync(binaryPath, [dbPath, `${countQuery};`]);
+        const rowCounts = new Map<string, number>();
+        countOut.split("\n").map(l => l.trim()).filter(Boolean).forEach((line, i) => {
+            if (i < tableNames.length) {
+                const count = parseInt(line, 10);
+                if (!isNaN(count)) rowCounts.set(tableNames[i], count);
+            }
+        });
+        return tables.map(t => (t.type === "table" && rowCounts.has(t.name) ? { ...t, rowCount: rowCounts.get(t.name) } : t));
+    } catch {
+        return tables;
+    }
+}
+
+async function enrichWithRowCountsSsh(client: SshClient, bin: string, dbPath: string, tables: TableInfo[]): Promise<TableInfo[]> {
+    const tableNames = tables.filter(t => t.type === "table").map(t => t.name);
+    if (tableNames.length === 0) return tables;
+    const countQuery = tableNames
+        .map(name => `SELECT count(*) FROM "${escapeIdentifier(name)}"`)
+        .join(" UNION ALL ");
+    const countResult = await client.exec(`${shellEscape(bin)} ${shellEscape(dbPath)} ${shellEscape(`${countQuery};`)}`);
+    if (countResult.code !== 0) return tables;
+    const rowCounts = new Map<string, number>();
+    countResult.stdout.split("\n").map(l => l.trim()).filter(Boolean).forEach((line, i) => {
+        if (i < tableNames.length) {
+            const count = parseInt(line, 10);
+            if (!isNaN(count)) rowCounts.set(tableNames[i], count);
+        }
+    });
+    return tables.map(t => (t.type === "table" && rowCounts.has(t.name) ? { ...t, rowCount: rowCounts.get(t.name) } : t));
 }
 
 export async function getTableData(
