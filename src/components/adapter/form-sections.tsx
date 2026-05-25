@@ -141,7 +141,7 @@ function RestoreExcludedSwitch({
             <div className="space-y-0.5">
                 <Label htmlFor="restore-excluded">Exclude from Restore</Label>
                 <p className="text-sm text-muted-foreground">
-                    This source will not appear as a restore target when recovering backups. Backups can still be created from this source.
+                    This source will not appear as a restore target when recovering backups.
                 </p>
             </div>
             <Switch
