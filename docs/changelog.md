@@ -7,21 +7,21 @@ All notable changes to DBackup are documented here.
 
 ### 🐛 Bug Fixes
 
-- **MSSQL SSH**: Fixed backup abort and missing remote cleanup when backing up more than ~10 databases via SSH file transfer. `getSftp()` was opening a new SFTP subsystem channel on every call (`download`, `upload`, `deleteRemote`, `exists`). SSH servers cap concurrent channels (OpenSSH default: 10), so channel 11+ was rejected mid-download with "Channel open failure: open failed". The SFTP session is now cached and reused for the lifetime of the SSH connection, and `end()` explicitly closes the session before disconnecting.
-- **MSSQL**: Fixed "Arithmetic overflow error converting expression to data type int" crash in the Database Explorer and Restore database list for large databases. The size queries now cast page counts to `BIGINT` before multiplying by 8192, preventing `INT` overflow on databases larger than ~2 GB.
-- **SMB**: Fixed orphaned `.connection-test-*` files occasionally surviving on SMB shares. The previous fix used a `remoteFileCreated` flag, but if `sendFile` threw after the file was already written on the server (e.g. a network hiccup before the final ACK arrived), the flag was never set and no cleanup was attempted. The `finally` block now always calls `deleteFile` unconditionally, covering that edge case.
-- **retention**: Fixed SMART/GFS retention tier overlap that could collapse Daily, Weekly, and Monthly selection onto the same newest backup and delete too aggressively. Weekly and larger tiers now retain additional older period representatives instead of reusing already selected buckets. ([#101](https://github.com/Skyfay/DBackup/issues/101))
-- **S3 / SFTP / FTP / OneDrive**: Fixed file descriptor leak that caused deleted temporary `.tar` backup files to hold their disk blocks open indefinitely. After a backup upload completed, the `ReadStream` passed to the upload client was never explicitly closed. The kernel only frees the inode once all file descriptors are released, so the space was never reclaimed until the container restarted - leading to 100+ GB of ghost disk usage in production. Each affected adapter now calls `fileStream.destroy()` in a `finally` block. Additionally fixed the same FD-leak pattern in `tar-utils.ts` (`createMultiDbTar`, `extractMultiDbTar`, `extractSelectedDatabases`, `readTarManifest`): anonymous `createReadStream` calls are now stored as variables and destroyed in error handlers. ([#100](https://github.com/Skyfay/DBackup/issues/100))
+- **mssql**: Fixed backup abort and missing remote cleanup when SSH-transferring more than ~10 databases due to SSH channel exhaustion - the SFTP session is now cached and reused instead of opening a new channel per operation.
+- **mssql**: Fixed "Arithmetic overflow" crash in Database Explorer and Restore for databases larger than ~2 GB.
+- **smb**: Fixed `.connection-test-*` probe files not being deleted when `sendFile` throws after the remote file was already created.
+- **retention**: Fixed SMART/GFS tier overlap that incorrectly mapped multiple tiers to the same backup, causing over-aggressive deletion. ([#101](https://github.com/Skyfay/DBackup/issues/101))
+- **storage**: Fixed file descriptor leak causing deleted `.tar` temp files to hold disk blocks until container restart, affecting S3, SFTP, FTP, OneDrive, and tar-utils streams. ([#100](https://github.com/Skyfay/DBackup/issues/100))
 
 ### 🎨 Improvements
 
-- **Terminology**: Corrected the retention algorithm abbreviation from "GVS" to the standard "GFS" (Grandfather-Father-Son) across all documentation, UI labels, test descriptions, and the built-in retention template name via a new database migration.
-- **history**: Improved retention execution logs to include the applied retention template name, including whether the policy came from an explicitly assigned template or the system default template.
+- **retention**: Corrected the retention algorithm abbreviation from "GVS" to "GFS" across UI, documentation, and the built-in retention template.
+- **history**: Retention execution logs now include the applied retention template name.
 
 ### 🧪 Tests
 
-- **SMB**: Added two `test()` unit tests: verifies `deleteFile` is called in the `finally` block even when `sendFile` throws, and verifies the cleanup retry when the first explicit `deleteFile` fails with a server-side error.
-- **retention**: Added SMART/GFS regression coverage for non-overlapping tier selection and runner log coverage for template-name visibility in retention history. ([#101](https://github.com/Skyfay/DBackup/issues/101))
+- **smb**: Added unit tests for `finally`-block cleanup when `sendFile` throws and for cleanup retry when the delete itself fails.
+- **retention**: Added regression tests for GFS non-overlapping tier selection and template-name visibility in retention history. ([#101](https://github.com/Skyfay/DBackup/issues/101))
 
 ### 🐳 Docker
 
