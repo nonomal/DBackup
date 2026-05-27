@@ -24,7 +24,7 @@ All business logic lives here. Server Actions must delegate to Services.
 ```
 job-service.ts      → CRUD for backup jobs
 backup-service.ts   → Triggers runJob()
-retention-service.ts → GVS (Grandfather-Father-Son) algorithm
+retention-service.ts → GFS (Grandfather-Father-Son) algorithm
 restore-service.ts  → Restore orchestration
 ```
 

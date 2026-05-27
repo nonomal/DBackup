@@ -96,11 +96,11 @@ describe('RetentionService', () => {
         });
     });
 
-    describe('Smart Policy (GVS)', () => {
+    describe('Smart Policy (GFS)', () => {
         it('should correctly handle daily, weekly, monthly, and yearly retention', () => {
             const now = new Date('2026-01-24T12:00:00Z');
 
-            // Construct specific GVS scenarios rather than a loop
+            // Construct specific GFS scenarios rather than a loop
             const dates: Date[] = [
                 // DAILY: Days 0-6 (7 backups)
                 now,

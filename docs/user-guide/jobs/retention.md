@@ -10,7 +10,7 @@ Retention policies prevent unlimited storage growth by automatically deleting ol
 | :--- | :--- | :--- |
 | **None** | Keep all backups | Manual management |
 | **Simple** | Keep last N backups | Fixed rotation |
-| **Smart (GVS)** | Grandfather-Father-Son | Long-term archival |
+| **Smart (GFS)** | Grandfather-Father-Son | Long-term archival |
 
 ## Per-Destination Retention
 
@@ -55,7 +55,7 @@ With `Keep Count: 5`:
 - Frequent backups with short retention
 - Simple rotation needs
 
-## Smart Retention (GVS)
+## Smart Retention (GFS)
 
 Grandfather-Father-Son is an intelligent retention strategy that keeps:
 - Recent backups (daily)
@@ -259,7 +259,7 @@ With compression (70% reduction):
 
 ### Wrong Backups Deleted
 
-The GVS algorithm keeps the **oldest** backup in each time bucket. This is intentional:
+The GFS algorithm keeps the **oldest** backup in each time bucket. This is intentional:
 - Weekly: Keeps backup from start of week
 - Monthly: Keeps backup from start of month
 

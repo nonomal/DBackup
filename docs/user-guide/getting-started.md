@@ -13,7 +13,7 @@ DBackup is a self-hosted web application for automating database backups. It sup
 - **Multi-Destination Jobs**: A single job can upload to multiple storage destinations simultaneously
 - **Backup Encryption**: AES-256-GCM encryption with an Encryption Vault, key rotation, and offline Recovery Kits
 - **Compression**: Built-in GZIP and Brotli compression
-- **Scheduling & Retention**: Cron-based scheduling with GVS (Grandfather-Father-Son) retention policies
+- **Scheduling & Retention**: Cron-based scheduling with GFS (Grandfather-Father-Son) retention policies
 - **Notifications**: 9+ adapters including Discord, Slack, Teams, Telegram, Email, and more
 - **Storage Monitoring**: Per-destination alerts for usage spikes, storage limit warnings, and missing backups
 - **Restore**: Browse backup history, verify checksums, and restore directly to a database including database remapping

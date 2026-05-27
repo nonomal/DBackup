@@ -57,7 +57,7 @@ The `.meta.json` file stores compression, encryption metadata (IV, auth tag, pro
 Destinations work with retention policies to automatically clean up old backups:
 
 - **Simple**: Keep last N backups
-- **Smart (GVS)**: Grandfather-Father-Son rotation
+- **Smart (GFS)**: Grandfather-Father-Son rotation
 
 See [Retention Policies](/user-guide/jobs/retention) for details.
 - [FTP / FTPS](/user-guide/destinations/ftp)

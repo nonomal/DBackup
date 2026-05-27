@@ -1,6 +1,6 @@
 # Retention System
 
-The Retention System automatically manages backup storage by implementing smart rotation policies based on the Grandfather-Father-Son (GVS) algorithm.
+The Retention System automatically manages backup storage by implementing smart rotation policies based on the Grandfather-Father-Son (GFS) algorithm.
 
 ## Overview
 
@@ -10,11 +10,11 @@ DBackup supports three retention modes:
 | :--- | :--- |
 | **None** | Keep all backups (no deletion) |
 | **Simple** | Keep the last N backups |
-| **Smart (GVS)** | Grandfather-Father-Son strategy |
+| **Smart (GFS)** | Grandfather-Father-Son strategy |
 
-## Grandfather-Father-Son (GVS)
+## Grandfather-Father-Son (GFS)
 
-The GVS algorithm keeps backups at decreasing frequencies as they age:
+The GFS algorithm keeps backups at decreasing frequencies as they age:
 
 ```
 Today ←──── Daily ────→ Weekly ────→ Monthly ────→ Yearly
@@ -108,7 +108,7 @@ export const RetentionService = {
         keep = sorted.slice(0, config.simple!.keepCount);
         break;
       case "SMART":
-        keep = this.applyGVS(sorted, config.smart!);
+        keep = this.applyGFS(sorted, config.smart!);
         break;
     }
 
@@ -122,7 +122,7 @@ export const RetentionService = {
     };
   },
 
-  applyGVS(files: FileInfo[], config: SmartConfig): FileInfo[] {
+  applyGFS(files: FileInfo[], config: SmartConfig): FileInfo[] {
     const keep = new Set<string>();
 
     // Daily buckets
