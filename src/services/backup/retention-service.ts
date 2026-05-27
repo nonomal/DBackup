@@ -1,6 +1,6 @@
 import { FileInfo } from '@/lib/core/interfaces';
 import { RetentionConfiguration } from '@/lib/core/retention';
-import { format, getISOWeek, getYear } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 
 type FileWithReasons = {
     file: FileInfo;
@@ -56,57 +56,67 @@ export class RetentionService {
     private static applySmartPolicy(files: FileWithReasons[], policy: NonNullable<RetentionConfiguration['smart']>) {
         const { daily, weekly, monthly, yearly } = policy;
 
-        // Track used slots
-        const usedDays = new Set<string>();
-        const usedWeeks = new Set<string>();
-        const usedMonths = new Set<string>();
-        const usedYears = new Set<string>();
+        // SMART/GFS is applied as non-overlapping tiers.
+        // Daily picks newest unique days first.
+        // Weekly/Monthly/Yearly then pick additional representatives from older buckets.
+        this.applyTier(
+            files,
+            daily,
+            (date) => formatInTimeZone(date, 'UTC', 'yyyy-MM-dd'),
+            'Daily'
+        );
 
+        this.applyTier(
+            files,
+            weekly,
+            (date) => formatInTimeZone(date, 'UTC', "RRRR-'W'II"),
+            'Weekly'
+        );
+
+        this.applyTier(
+            files,
+            monthly,
+            (date) => formatInTimeZone(date, 'UTC', 'yyyy-MM'),
+            'Monthly'
+        );
+
+        this.applyTier(
+            files,
+            yearly,
+            (date) => formatInTimeZone(date, 'UTC', 'yyyy'),
+            'Yearly'
+        );
+    }
+
+    private static applyTier(
+        files: FileWithReasons[],
+        limit: number,
+        getBucketKey: (date: Date) => string,
+        reasonPrefix: string
+    ) {
+        if (limit <= 0) return;
+
+        const usedBuckets = new Set<string>();
+
+        // Existing keeps from earlier tiers reserve their bucket in this tier.
         for (const entry of files) {
-            const date = entry.file.lastModified;
+            if (!entry.keep) continue;
+            usedBuckets.add(getBucketKey(entry.file.lastModified));
+        }
 
-            // Keys based on local time or UTC? Ideally UTC strictly, but date-fns objects work well.
-            // Using standard formats
-            const dayKey = format(date, 'yyyy-MM-dd');
-            const weekKey = `${getYear(date)}-W${getISOWeek(date)}`;
-            const monthKey = format(date, 'yyyy-MM');
-            const yearKey = format(date, 'yyyy');
+        let keptInTier = 0;
+        for (const entry of files) {
+            if (entry.keep) continue;
 
-            // 1. Daily Check
-            if (usedDays.size < daily) {
-                if (!usedDays.has(dayKey)) {
-                    entry.keep = true;
-                    entry.reasons.push(`Daily (${dayKey})`);
-                    usedDays.add(dayKey);
-                }
-            }
+            const bucketKey = getBucketKey(entry.file.lastModified);
+            if (usedBuckets.has(bucketKey)) continue;
 
-            // 2. Weekly Check
-            if (usedWeeks.size < weekly) {
-                if (!usedWeeks.has(weekKey)) {
-                    entry.keep = true;
-                    entry.reasons.push(`Weekly (${weekKey})`);
-                    usedWeeks.add(weekKey);
-                }
-            }
+            entry.keep = true;
+            entry.reasons.push(`${reasonPrefix} (${bucketKey})`);
+            usedBuckets.add(bucketKey);
+            keptInTier++;
 
-            // 3. Monthly Check
-            if (usedMonths.size < monthly) {
-                if (!usedMonths.has(monthKey)) {
-                    entry.keep = true;
-                    entry.reasons.push(`Monthly (${monthKey})`);
-                    usedMonths.add(monthKey);
-                }
-            }
-
-            // 4. Yearly Check
-            if (usedYears.size < yearly) {
-                if (!usedYears.has(yearKey)) {
-                    entry.keep = true;
-                    entry.reasons.push(`Yearly (${yearKey})`);
-                    usedYears.add(yearKey);
-                }
-            }
+            if (keptInTier >= limit) break;
         }
     }
 }

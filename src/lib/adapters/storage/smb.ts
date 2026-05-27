@@ -201,10 +201,12 @@ export const SMBAdapter: StorageAdapter = {
 
     async test(config: SMBConfig): Promise<{ success: boolean; message: string }> {
         const testFileName = `.connection-test-${Date.now()}`;
-        try {
-            const client = createClient(config);
-            const destination = resolvePath(config, testFileName);
+        const tmpPath = path.join(os.tmpdir(), testFileName);
+        // Initialized outside try/catch so they are always accessible in the finally block.
+        const client = createClient(config);
+        const destination = resolvePath(config, testFileName);
 
+        try {
             // Ensure pathPrefix directory exists if set
             if (config.pathPrefix) {
                 try {
@@ -215,27 +217,25 @@ export const SMBAdapter: StorageAdapter = {
             }
 
             // Create a temp file to upload
-            const tmpPath = path.join(os.tmpdir(), testFileName);
             await fs.writeFile(tmpPath, "Connection Test");
 
-            let remoteFileCreated = false;
-            try {
-                // 1. Write Test
-                await client.sendFile(tmpPath, destination);
-                remoteFileCreated = true;
+            // 1. Write Test
+            await client.sendFile(tmpPath, destination);
 
-                // 2. Delete Test
-                await client.deleteFile(destination);
-                remoteFileCreated = false;
+            // 2. Delete Test
+            await client.deleteFile(destination);
 
-                return { success: true, message: "Connection successful (Write/Delete verified)" };
-            } finally {
-                if (remoteFileCreated) await client.deleteFile(destination).catch(() => {});
-                await fs.unlink(tmpPath).catch(() => {});
-            }
+            return { success: true, message: "Connection successful (Write/Delete verified)" };
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : String(error);
             return { success: false, message: `SMB Connection failed: ${message}` };
+        } finally {
+            // Always attempt remote cleanup. This guards against the edge case where
+            // sendFile partially succeeded (file exists on the SMB share) but then
+            // threw before the explicit deleteFile call was reached. "File not found"
+            // errors from the redundant delete in the success path are silently ignored.
+            await client.deleteFile(destination).catch(() => {});
+            await fs.unlink(tmpPath).catch(() => {});
         }
     },
 };

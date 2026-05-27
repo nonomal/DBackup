@@ -20,6 +20,7 @@ const log = logger.child({ adapter: "mssql", module: "ssh-transfer" });
 export class MssqlSshTransfer {
     private client: Client;
     private connected = false;
+    private sftpSession: SFTPWrapper | null = null;
 
     constructor() {
         this.client = new Client();
@@ -211,20 +212,28 @@ export class MssqlSshTransfer {
      */
     public end(): void {
         if (this.connected) {
+            if (this.sftpSession) {
+                this.sftpSession.end();
+                this.sftpSession = null;
+            }
             this.client.end();
             this.connected = false;
         }
     }
 
     /**
-     * Get SFTP subsystem from the SSH connection
+     * Get SFTP subsystem from the SSH connection.
+     * Reuses an existing session - opening a new channel per call exhausts
+     * the SSH server's channel limit when backing up many databases.
      */
     private getSftp(): Promise<SFTPWrapper> {
+        if (this.sftpSession) return Promise.resolve(this.sftpSession);
         return new Promise((resolve, reject) => {
             this.client.sftp((err, sftp) => {
                 if (err) {
                     reject(new Error(`Failed to initialize SFTP: ${err.message}`));
                 } else {
+                    this.sftpSession = sftp;
                     resolve(sftp);
                 }
             });

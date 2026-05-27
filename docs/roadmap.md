@@ -169,7 +169,7 @@ For a full list of completed features, see the [Changelog](/changelog).
 - ✅ GZIP and Brotli compression
 - ✅ S3, SFTP, Local, WebDAV, SMB, FTP/FTPS storage adapters
 - ✅ Discord and Email notifications
-- ✅ Cron-based scheduling with GVS retention
+- ✅ Cron-based scheduling with GFS retention
 - ✅ RBAC permission system
 - ✅ SSO/OIDC authentication (Authentik, PocketID, Generic)
 - ✅ TOTP and Passkey 2FA

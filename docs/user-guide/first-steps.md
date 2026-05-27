@@ -95,7 +95,7 @@ In the **General** tab, use the Schedule picker:
 
 In the **Destinations** tab, expand a destination row and configure its retention policy:
 - **Simple**: Keep last N backups
-- **Smart (GVS)**: Grandfather-Father-Son rotation
+- **Smart (GFS)**: Grandfather-Father-Son rotation
 
 ## Step 4: Run Your First Backup
 

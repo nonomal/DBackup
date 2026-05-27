@@ -271,6 +271,30 @@ describe("SMBAdapter", () => {
             expect(result.success).toBe(false);
             expect(result.message).toContain("ECONNREFUSED");
         });
+
+        it("attempts remote cleanup when sendFile throws (partial upload guard)", async () => {
+            // Simulate: file was created on the SMB share but sendFile threw before
+            // the client received the final ACK (e.g. network hiccup mid-transfer).
+            mockSendFile.mockRejectedValue(new Error("connection reset"));
+
+            await SMBAdapter.test!(config);
+
+            // deleteFile must be called in the finally block even though sendFile threw,
+            // so orphaned .connection-test-* files cannot accumulate on the share.
+            expect(mockDeleteFile).toHaveBeenCalled();
+        });
+
+        it("does not leave orphaned files when deleteFile throws after successful upload", async () => {
+            // sendFile succeeds, deleteFile fails on first attempt (server-side error),
+            // but the finally block retries it unconditionally.
+            mockDeleteFile.mockRejectedValueOnce(new Error("NT_STATUS_SHARING_VIOLATION"));
+
+            const result = await SMBAdapter.test!(config);
+
+            expect(result.success).toBe(false);
+            // finally block must have retried deleteFile after the explicit call failed
+            expect(mockDeleteFile).toHaveBeenCalledTimes(2);
+        });
     });
 
     // ===== resolvePath without pathPrefix =====

@@ -128,7 +128,7 @@ src/services/
 ├── job-service.ts        # Job CRUD
 ├── backup-service.ts     # Backup triggering
 ├── restore-service.ts    # Restore orchestration
-├── retention-service.ts  # GVS algorithm
+├── retention-service.ts  # GFS algorithm
 ├── encryption-service.ts # Key management
 ├── user-service.ts       # User management
 └── oidc-provider-service.ts
@@ -205,7 +205,7 @@ Executes backups through discrete steps:
 │ Completion │◀──│ Retention  │◀────────┘
 │            │   │            │
 │ • Cleanup  │   │ • Apply    │
-│ • Notify   │   │   GVS      │
+│ • Notify   │   │   GFS      │
 │ • Finalize │   │ • Delete   │
 └────────────┘   └────────────┘
 ```
@@ -286,7 +286,7 @@ Runner Pipeline:
          │      └── Cleanup, notify, update status
          │
          └── stepRetention()
-                └── Apply GVS, delete old backups
+                └── Apply GFS, delete old backups
 ```
 
 ## Security Architecture

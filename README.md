@@ -97,7 +97,7 @@ Whether you're running a single MySQL database or managing multiple PostgreSQL, 
 ### ⏰ Scheduling & Retention
 
 - **Cron-based Scheduling** - Flexible job scheduling with a visual Schedule Picker (Simple Mode + Cron Mode)
-- **GVS Retention Policies** - Grandfather-Father-Son rotation with per-destination retention settings
+- **GFS Retention Policies** - Grandfather-Father-Son rotation with per-destination retention settings
 - **Automated Config Backups** - Self-backup of the entire DBackup configuration to any storage adapter
 
 ### 👥 Access Control & Security

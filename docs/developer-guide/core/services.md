@@ -9,7 +9,7 @@ src/services/
 ├── job-service.ts        # CRUD for backup jobs
 ├── backup-service.ts     # Trigger backups
 ├── restore-service.ts    # Restore orchestration
-├── retention-service.ts  # GVS algorithm
+├── retention-service.ts  # GFS algorithm
 ├── encryption-service.ts # Encryption profiles
 ├── integrity-service.ts  # SHA-256 checksum verification
 ├── notification-log-service.ts # Notification log recording & queries

@@ -37,7 +37,7 @@ features:
     details: Each backup job can target multiple storage destinations simultaneously for redundancy or off-site copies.
   - icon: 📅
     title: Scheduling & Retention
-    details: Cron-based job scheduling with GVS (Grandfather-Father-Son) retention policies for automatic rotation.
+    details: Cron-based job scheduling with GFS (Grandfather-Father-Son) retention policies for automatic rotation.
   - icon: 🔔
     title: Notifications
     details: 9+ notification adapters including Discord, Slack, Teams, Telegram, Gotify, ntfy, Webhook, SMS, and Email (SMTP).

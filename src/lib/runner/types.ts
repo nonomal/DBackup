@@ -19,6 +19,8 @@ export interface DestinationContext {
     adapter: StorageAdapter;
     config: Record<string, unknown>; // decrypted adapter config
     retention: RetentionConfiguration;
+    retentionPolicyName?: string;
+    retentionPolicySource?: 'template' | 'default' | 'legacy' | 'none';
     priority: number;
     adapterId: string;
     uploadResult?: {

@@ -108,7 +108,7 @@ export function RetentionPolicyList() {
         return `Simple - keep ${parsed.simple?.keepCount ?? "?"} backups`;
       if (parsed.mode === "SMART") {
         const s = parsed.smart;
-        return `Smart GVS (${s?.daily ?? 0}/${s?.weekly ?? 0}/${s?.monthly ?? 0}/${s?.yearly ?? 0})`;
+        return `Smart GFS (${s?.daily ?? 0}/${s?.weekly ?? 0}/${s?.monthly ?? 0}/${s?.yearly ?? 0})`;
       }
     } catch {
       // ignore
@@ -358,7 +358,7 @@ export function RetentionPolicyDialog({
               id="rp-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Smart GVS Production"
+              placeholder="e.g. Smart GFS Production"
             />
           </div>
           <div className="space-y-1.5">

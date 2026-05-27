@@ -2,6 +2,36 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.4.1 - Multiple Bug Fixes across MSSQL, SMB, Retention, and Storage Adapters
+*Released: May 27, 2026*
+
+### 🐛 Bug Fixes
+
+- **mssql**: Fixed backup abort and missing remote cleanup when SSH-transferring more than ~10 databases due to SSH channel exhaustion - the SFTP session is now cached and reused instead of opening a new channel per operation.
+- **mssql**: Fixed "Arithmetic overflow" crash in Database Explorer and Restore for databases larger than ~2 GB.
+- **smb**: Fixed `.connection-test-*` probe files not being deleted when `sendFile` throws after the remote file was already created.
+- **retention**: Fixed SMART/GFS tier overlap that incorrectly mapped multiple tiers to the same backup, causing over-aggressive deletion. ([#101](https://github.com/Skyfay/DBackup/issues/101))
+- **storage**: Fixed file descriptor leak causing deleted `.tar` temp files to hold disk blocks until container restart, affecting S3, SFTP, FTP, OneDrive, and tar-utils streams. ([#100](https://github.com/Skyfay/DBackup/issues/100))
+
+### 🎨 Improvements
+
+- **retention**: Corrected the retention algorithm abbreviation from "GVS" to "GFS" across UI, documentation, and the built-in retention template.
+- **history**: Retention execution logs now include the applied retention template name.
+
+### 🧪 Tests
+
+- **smb**: Added unit tests for `finally`-block cleanup when `sendFile` throws and for cleanup retry when the delete itself fails.
+- **retention**: Added regression tests for GFS non-overlapping tier selection and template-name visibility in retention history. ([#101](https://github.com/Skyfay/DBackup/issues/101))
+- **ftp/sftp**: Fixed broken upload unit tests by adding missing `destroy: vi.fn()` to the `createReadStream` mock - the adapter calls `fileStream.destroy()` in the `finally` block, which threw a TypeError without this mock method.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.4.1`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.4.0 - Database Explorer Browser, Drill-down Data Viewer, and Bug Fixes
 *Released: May 25, 2026*
 
