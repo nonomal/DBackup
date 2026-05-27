@@ -151,6 +151,27 @@ describe('stepRetention', () => {
         expect(ctx.log).toHaveBeenCalledWith(expect.stringContaining('Keeping 1, Deleting 1'));
     });
 
+    it('logs the selected retention template name when applying policy', async () => {
+        const { RetentionService } = await import('@/services/backup/retention-service');
+        (RetentionService.calculateRetention as ReturnType<typeof vi.fn>).mockReturnValue({
+            keep: [],
+            delete: [],
+        });
+
+        const dest = makeDestination({
+            retention: { mode: 'SMART', smart: { daily: 1, weekly: 1, monthly: 1, yearly: 0 } } as any,
+            retentionPolicyName: 'Default GFS',
+            retentionPolicySource: 'template',
+        });
+        const ctx = makeCtx({ destinations: [dest] });
+
+        await stepRetention(ctx);
+
+        expect(ctx.log).toHaveBeenCalledWith(
+            expect.stringContaining('Retention: Applying policy SMART (template: Default GFS)...')
+        );
+    });
+
     it('logs an error but does not throw when a delete fails', async () => {
         const { RetentionService } = await import('@/services/backup/retention-service');
         (RetentionService.calculateRetention as ReturnType<typeof vi.fn>).mockReturnValue({

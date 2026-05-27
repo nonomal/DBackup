@@ -45,7 +45,22 @@ async function applyRetentionForDestination(ctx: RunnerContext, dest: Destinatio
         return 0;
     }
 
-    ctx.log(`${destLabel} Retention: Applying policy ${policy.mode}...`);
+    const policyDetails = (() => {
+        if (dest.retentionPolicyName) {
+            if (dest.retentionPolicySource === 'default') {
+                return `${policy.mode} (default template: ${dest.retentionPolicyName})`;
+            }
+            return `${policy.mode} (template: ${dest.retentionPolicyName})`;
+        }
+
+        if (dest.retentionPolicySource === 'legacy') {
+            return `${policy.mode} (legacy inline policy)`;
+        }
+
+        return policy.mode;
+    })();
+
+    ctx.log(`${destLabel} Retention: Applying policy ${policyDetails}...`);
 
     if (!dest.adapter.list) {
         ctx.log(`${destLabel} Retention warning: Storage adapter does not support listing files. Skipped.`);

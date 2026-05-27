@@ -67,20 +67,27 @@ export async function stepInitialize(ctx: RunnerContext) {
         }
 
         let retention: RetentionConfiguration = { mode: 'NONE' };
+        let retentionPolicyName: string | undefined;
+        let retentionPolicySource: DestinationContext['retentionPolicySource'] = 'none';
         try {
             if (dest.retentionPolicyId) {
                 // Policy template takes priority over the legacy per-destination retention JSON
                 const policy = await prisma.retentionPolicy.findUnique({ where: { id: dest.retentionPolicyId } });
                 if (policy?.config) {
                     retention = JSON.parse(policy.config as string);
+                    retentionPolicyName = policy.name;
+                    retentionPolicySource = 'template';
                 }
             } else if (dest.retention && dest.retention !== '{}') {
                 retention = JSON.parse(dest.retention);
+                retentionPolicySource = 'legacy';
             } else {
                 // No per-destination policy and no legacy config - fall back to the system default retention policy
                 const defaultPolicy = await prisma.retentionPolicy.findFirst({ where: { isDefault: true } });
                 if (defaultPolicy?.config) {
                     retention = JSON.parse(defaultPolicy.config as string);
+                    retentionPolicyName = defaultPolicy.name;
+                    retentionPolicySource = 'default';
                 }
             }
         } catch {
@@ -93,6 +100,8 @@ export async function stepInitialize(ctx: RunnerContext) {
             adapter,
             config: await resolveAdapterConfig(dest.config) as any,
             retention,
+            retentionPolicyName,
+            retentionPolicySource,
             priority: dest.priority,
             adapterId: dest.config.adapterId,
         };

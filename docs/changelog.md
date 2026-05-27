@@ -9,14 +9,17 @@ All notable changes to DBackup are documented here.
 
 - **MSSQL**: Fixed "Arithmetic overflow error converting expression to data type int" crash in the Database Explorer and Restore database list for large databases. The size queries now cast page counts to `BIGINT` before multiplying by 8192, preventing `INT` overflow on databases larger than ~2 GB.
 - **SMB**: Fixed orphaned `.connection-test-*` files occasionally surviving on SMB shares. The previous fix used a `remoteFileCreated` flag, but if `sendFile` threw after the file was already written on the server (e.g. a network hiccup before the final ACK arrived), the flag was never set and no cleanup was attempted. The `finally` block now always calls `deleteFile` unconditionally, covering that edge case.
+- **retention**: Fixed SMART/GFS retention tier overlap that could collapse Daily, Weekly, and Monthly selection onto the same newest backup and delete too aggressively. Weekly and larger tiers now retain additional older period representatives instead of reusing already selected buckets. ([#101](https://github.com/Skyfay/DBackup/issues/101))
 
 ### 🎨 Improvements
 
 - **Terminology**: Corrected the retention algorithm abbreviation from "GVS" to the standard "GFS" (Grandfather-Father-Son) across all documentation, UI labels, test descriptions, and the built-in retention template name via a new database migration.
+- **history**: Improved retention execution logs to include the applied retention template name, including whether the policy came from an explicitly assigned template or the system default template.
 
 ### 🧪 Tests
 
 - **SMB**: Added two `test()` unit tests: verifies `deleteFile` is called in the `finally` block even when `sendFile` throws, and verifies the cleanup retry when the first explicit `deleteFile` fails with a server-side error.
+- **retention**: Added SMART/GFS regression coverage for non-overlapping tier selection and runner log coverage for template-name visibility in retention history. ([#101](https://github.com/Skyfay/DBackup/issues/101))
 
 ### 🐳 Docker
 

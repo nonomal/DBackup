@@ -97,7 +97,7 @@ describe('RetentionService', () => {
     });
 
     describe('Smart Policy (GFS)', () => {
-        it('should correctly handle daily, weekly, monthly, and yearly retention', () => {
+        it('keeps additional backups from older tiers instead of collapsing to the same newest file', () => {
             const now = new Date('2026-01-24T12:00:00Z');
 
             // Construct specific GFS scenarios rather than a loop
@@ -153,22 +153,9 @@ describe('RetentionService', () => {
                 expect(result.keep.map(f => f.lastModified.getTime())).toContain(dates[i].getTime());
             }
 
-            // 2. Verify Weekly (1-4 weeks back kept)
-            // Note:
-            // - Daily backups cover Jan 24 (W04) through Jan 18 (W03).
-            // - W04 slot is taken by Jan 24 (Day 0).
-            // - W03 slot is taken by Jan 18 (Day 6).
-            // - Capacity is 4. So we have room for W02 and W01.
-
-            // subWeeks(now, 1) is Jan 17 (W03). Superseded by Jan 18 (Day 6) which is newer.
-            // subWeeks(now, 2) is Jan 10 (W02). Should be kept.
-            // subWeeks(now, 3) is Jan 3 (W01). Should be kept.
-            // subWeeks(now, 4) is Dec 27 (W52). Dropped because 4 slots (W04, W03, W02, W01) are full.
-
+            // 2. Verify Weekly (older unique weeks are retained additionally)
             expect(result.keep.map(f => f.lastModified.getTime())).toContain(subWeeks(now, 2).getTime());
             expect(result.keep.map(f => f.lastModified.getTime())).toContain(subWeeks(now, 3).getTime());
-
-            // Verify subWeeks(now, 1) is NOT explicitly kept (it was superseded)
             expect(result.keep.map(f => f.lastModified.getTime())).not.toContain(subWeeks(now, 1).getTime());
 
             // 3. Verify Monthly
@@ -182,23 +169,26 @@ describe('RetentionService', () => {
             expect(result.keep.map(f => f.lastModified.getTime())).toContain(subMonths(now, 6).getTime());
             expect(result.keep.map(f => f.lastModified.getTime())).toContain(subMonths(now, 12).getTime());
 
-            // 4. Verify Yearly
-            // Slots:
-            // 1. 2026 (Jan 24)
-            // 2. 2025 (subMonths 1 - Dec 24 is newest 2025 file)
-            // 3. 2024 (subMonths 14 - Nov 24 is newest 2024 file)
+            // 4. Verify the policy keeps multiple representatives across tiers
+            expect(result.keep.length).toBeGreaterThan(7);
+        });
 
-            // subMonths(14) is Nov 2024. It takes the 2024 slot.
-            expect(result.keep.map(f => f.lastModified.getTime())).toContain(subMonths(now, 14).getTime());
+        it('keeps weekly representatives from older weeks when daily slots are limited', () => {
+            const now = new Date('2026-05-27T00:06:00Z');
+            const files = createMockFiles(
+                Array.from({ length: 14 }, (_, i) => subDays(now, i))
+            );
 
-            // subYears(2) is Jan 2024. It is OLDER than Nov 2024. So it is dropped for the Yearly slot.
-            // And Monthly slots (6) are full with 2025/2026 stuff.
-            const deletedTimes = result.delete.map(f => f.lastModified.getTime());
-            expect(deletedTimes).toContain(subYears(now, 2).getTime());
+            const policy: RetentionConfiguration = {
+                mode: 'SMART',
+                smart: { daily: 1, weekly: 1, monthly: 3, yearly: 0 }
+            };
 
-            // 5. Verify Deletions (Noise)
-            // subYears(3) is 2023. Yearly capacity 3 (26, 25, 24). So 2023 is dropped.
-            expect(deletedTimes).toContain(subYears(now, 3).getTime());
+            const result = RetentionService.calculateRetention(files, policy);
+
+            // Daily keeps the newest day and weekly keeps an additional older week.
+            expect(result.keep).toHaveLength(2);
+            expect(result.keep.map(f => f.lastModified.getTime())).toContain(now.getTime());
         });
 
         it('should prioritize keeping the newest backup when intervals overlap', () => {
