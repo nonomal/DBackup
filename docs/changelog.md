@@ -2,6 +2,25 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### 🐛 Bug Fixes
+
+- **SMB**: Fixed orphaned `.connection-test-*` files occasionally surviving on SMB shares. The previous fix used a `remoteFileCreated` flag, but if `sendFile` threw after the file was already written on the server (e.g. a network hiccup before the final ACK arrived), the flag was never set and no cleanup was attempted. The `finally` block now always calls `deleteFile` unconditionally, covering that edge case.
+
+### 🧪 Tests
+
+- **SMB**: Added two `test()` unit tests: verifies `deleteFile` is called in the `finally` block even when `sendFile` throws, and verifies the cleanup retry when the first explicit `deleteFile` fails with a server-side error.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.4.0 - Database Explorer Browser, Drill-down Data Viewer, and Bug Fixes
 *Released: May 25, 2026*
 
