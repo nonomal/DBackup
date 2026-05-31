@@ -52,7 +52,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
       </CardHeader>
       <CardContent>
         {hasData ? (
-          <ChartContainer config={chartConfig} className="h-[250px] w-full">
+          <ChartContainer config={chartConfig} className="h-62.5 w-full">
             <BarChart data={data} accessibilityLayer>
               <CartesianGrid vertical={false} />
               <XAxis
@@ -104,7 +104,7 @@ export function ActivityChart({ data }: ActivityChartProps) {
             </BarChart>
           </ChartContainer>
         ) : (
-          <div className="flex h-[250px] items-center justify-center text-sm text-muted-foreground">
+          <div className="flex h-62.5 items-center justify-center text-sm text-muted-foreground">
             No execution data yet. Run your first backup to see activity here.
           </div>
         )}

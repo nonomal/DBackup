@@ -16,23 +16,17 @@ All notable changes to DBackup are documented here.
 - **mssql**: Fixed Database Explorer showing "No tables found" for databases that use non-dbo schemas - tables in all schemas are now returned and displayed with a `schema.table` prefix for non-dbo objects.
 - **mssql**: Fixed "Total Size" showing "undefined" in the Database Explorer General tab - BIGINT size values returned as strings by the database driver are now converted to numbers.
 
+### 🔒 Security
+
+- **deps**: Updated `better-auth`, `@better-auth/passkey`, `@better-auth/sso` 1.6.9 → 1.6.13 (GHSA-34r5-q4jw-r36m SAML XML injection, passkey replay attack). Added pnpm overrides: `fast-xml-builder` → `^1.2.0` (GHSA-5wm8-gmm8-39j9 HIGH + GHSA-45c6-75p6-83cc, via `webdav`), `brace-expansion@5` → `5.0.6` (GHSA-jxxr-4gwj-5jf2, via `eslint-config-next`), `qs` → `^6.15.2` (GHSA-q8mj-m7cp-5q26, via `googleapis`), `uuid` → `^11.1.1` (GHSA-w5hq-g745-h8pq, via `mssql > tedious > @azure/msal-node`).
+
 ### 🎨 Improvements
 
-- **storage**: SFTP, FTP, SMB, Rsync, and OneDrive adapters now reuse a single connection for the metadata sidecar (`.meta.json`) and the backup file upload per job. Previously each upload performed a full connect/auth/disconnect cycle, doubling the SSH/FTP handshake and OneDrive OAuth token requests. Introduced an optional `openSession()` method on the `StorageAdapter` interface; adapters without it transparently fall back to the previous stateless behavior, so S3, WebDAV, Dropbox, Google Drive, and local filesystem remain unchanged.
+- **storage**: SFTP, FTP, SMB, Rsync, and OneDrive adapters now reuse a single connection for the metadata sidecar (`.meta.json`) and the backup file upload per job. Previously each upload performed a full connect/auth/disconnect cycle, doubling the SSH/FTP handshake and OneDrive OAuth token requests. Introduced an optional `openSession()` method on the `StorageAdapter` interface, adapters without it transparently fall back to the previous stateless behavior, so S3, WebDAV, Dropbox, Google Drive, and local filesystem remain unchanged.
 
 ### 🔧 CI/CD
 
-- **deps**: Updated `better-auth`, `@better-auth/passkey`, `@better-auth/sso` 1.6.9 → 1.6.13 (security fix: SAML XML injection vulnerability GHSA-34r5-q4jw-r36m in `@better-auth/sso`, passkey replay attack prevention).
-- **deps**: Updated `next` + `eslint-config-next` 16.2.4 → 16.2.6.
-- **deps**: Updated `react` + `react-dom` 19.2.5 → 19.2.6.
-- **deps**: Updated `mssql` 12.5.0 → 12.5.5, `nodemailer` 8.0.7 → 8.0.10, `basic-ftp` 6.0.0 → 6.0.1, `zod` 4.4.1 → 4.4.3.
-- **deps**: Updated `vitest` + `@vitest/coverage-v8` 4.1.5 → 4.1.7, `@types/react` 19.2.14 → 19.2.15.
-- **deps (docs)**: Updated `vue` 3.5.28 → 3.5.35.
-- **deps**: Updated `@aws-sdk/client-s3` + `@aws-sdk/lib-storage` 3.1039.0 → 3.1057.0, `@hookform/resolvers` 5.2.2 → 5.4.0, `date-fns` 4.1.0 → 4.4.0, `lucide-react` 1.14.0 → 1.17.0, `react-hook-form` 7.74.0 → 7.77.0, `tailwind-merge` 3.5.0 → 3.6.0, `tailwindcss` + `@tailwindcss/postcss` 4.2.4 → 4.3.0.
-
-### 🔒 Security
-
-- **deps**: Added pnpm overrides to fix 5 audit vulnerabilities: `fast-xml-builder` forced to `^1.2.0` (GHSA-5wm8-gmm8-39j9 HIGH + GHSA-45c6-75p6-83cc moderate, via `webdav`), `brace-expansion@5` forced to `5.0.6` (GHSA-jxxr-4gwj-5jf2 moderate, via `eslint-config-next`), `qs` forced to `^6.15.2` (GHSA-q8mj-m7cp-5q26 moderate, via `googleapis`), `uuid` forced to `^11.1.1` (GHSA-w5hq-g745-h8pq moderate, via `mssql > tedious > @azure/msal-node`).
+- **deps**: Updated `next` + `eslint-config-next` 16.2.4 → 16.2.6, `react` + `react-dom` 19.2.5 → 19.2.6, `mssql` 12.5.0 → 12.5.5, `nodemailer` 8.0.7 → 8.0.10, `basic-ftp` 6.0.0 → 6.0.1, `zod` 4.4.1 → 4.4.3, `vitest` + `@vitest/coverage-v8` 4.1.5 → 4.1.7, `@types/react` 19.2.14 → 19.2.15, `vue` (docs) 3.5.28 → 3.5.35, `@aws-sdk/client-s3` + `@aws-sdk/lib-storage` 3.1039.0 → 3.1057.0, `@hookform/resolvers` 5.2.2 → 5.4.0, `date-fns` 4.1.0 → 4.4.0, `lucide-react` 1.14.0 → 1.17.0, `react-hook-form` 7.74.0 → 7.77.0, `tailwind-merge` 3.5.0 → 3.6.0, `tailwindcss` + `@tailwindcss/postcss` 4.2.4 → 4.3.0.
 
 ### 🐳 Docker
 
@@ -60,6 +54,7 @@ All notable changes to DBackup are documented here.
 
 ### 🧪 Tests
 
+- **notifications**: Updated `events.test.ts` event count assertions to reflect the new `db_version_changed` event - `NOTIFICATION_EVENTS` now has 15 keys (was 14) and `EVENT_DEFINITIONS` now has 13 entries (was 12).
 - **smb**: Added unit tests for `finally`-block cleanup when `sendFile` throws and for cleanup retry when the delete itself fails.
 - **retention**: Added regression tests for GFS non-overlapping tier selection and template-name visibility in retention history. ([#101](https://github.com/Skyfay/DBackup/issues/101))
 - **ftp/sftp**: Fixed broken upload unit tests by adding missing `destroy: vi.fn()` to the `createReadStream` mock - the adapter calls `fileStream.destroy()` in the `finally` block, which threw a TypeError without this mock method.

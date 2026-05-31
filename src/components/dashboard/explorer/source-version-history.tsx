@@ -41,25 +41,27 @@ export function SourceVersionHistory({ sourceId, currentVersion }: SourceVersion
         if (!sourceId) return;
 
         let cancelled = false;
-        setIsLoading(true);
-        setError(null);
 
-        fetch(`/api/adapters/${sourceId}/version-history?limit=200`)
-            .then((res) => res.json())
-            .then((data) => {
+        async function load() {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const res = await fetch(`/api/adapters/${sourceId}/version-history?limit=200`);
+                const data = await res.json();
                 if (cancelled) return;
                 if (data.success && Array.isArray(data.history)) {
                     setHistory(data.history);
                 } else {
                     setError(data.message || "Failed to load version history");
                 }
-            })
-            .catch(() => {
+            } catch {
                 if (!cancelled) setError("Failed to load version history");
-            })
-            .finally(() => {
+            } finally {
                 if (!cancelled) setIsLoading(false);
-            });
+            }
+        }
+
+        load();
 
         return () => {
             cancelled = true;
