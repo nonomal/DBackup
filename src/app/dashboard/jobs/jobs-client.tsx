@@ -335,7 +335,7 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
                 );
             }
         }
-    ], [canManage, canExecute, runJob, cloneTarget, cloningJobId, router]);
+    ], [canManage, canExecute, runJob, cloningJobId, router]);
 
     if (isLoading) {
         return (

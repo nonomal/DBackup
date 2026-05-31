@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
     Dialog,
     DialogContent,
@@ -25,12 +25,14 @@ interface CloneDialogProps {
 
 export function CloneDialog({ open, onOpenChange, defaultName, existingNames, onConfirm, isLoading }: CloneDialogProps) {
     const [name, setName] = useState("");
+    const [prevOpen, setPrevOpen] = useState(open);
 
-    useEffect(() => {
+    if (prevOpen !== open) {
+        setPrevOpen(open);
         if (open) {
             setName(`${defaultName} (Copy)`);
         }
-    }, [open, defaultName]);
+    }
 
     const trimmed = name.trim();
     const isDuplicate = existingNames.some((n) => n.toLowerCase() === trimmed.toLowerCase());
