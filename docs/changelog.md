@@ -30,6 +30,10 @@ All notable changes to DBackup are documented here.
 - **deps (docs)**: Updated `vue` 3.5.28 → 3.5.35.
 - **deps**: Updated `@aws-sdk/client-s3` + `@aws-sdk/lib-storage` 3.1039.0 → 3.1057.0, `@hookform/resolvers` 5.2.2 → 5.4.0, `date-fns` 4.1.0 → 4.4.0, `lucide-react` 1.14.0 → 1.17.0, `react-hook-form` 7.74.0 → 7.77.0, `tailwind-merge` 3.5.0 → 3.6.0, `tailwindcss` + `@tailwindcss/postcss` 4.2.4 → 4.3.0.
 
+### 🔒 Security
+
+- **deps**: Added pnpm overrides to fix 5 audit vulnerabilities: `fast-xml-builder` forced to `^1.2.0` (GHSA-5wm8-gmm8-39j9 HIGH + GHSA-45c6-75p6-83cc moderate, via `webdav`), `brace-expansion@5` forced to `5.0.6` (GHSA-jxxr-4gwj-5jf2 moderate, via `eslint-config-next`), `qs` forced to `^6.15.2` (GHSA-q8mj-m7cp-5q26 moderate, via `googleapis`), `uuid` forced to `^11.1.1` (GHSA-w5hq-g745-h8pq moderate, via `mssql > tedious > @azure/msal-node`).
+
 ### 🐳 Docker
 
 - **Image**: `skyfay/dbackup:vNEXT`
