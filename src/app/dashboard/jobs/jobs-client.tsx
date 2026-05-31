@@ -34,6 +34,7 @@ import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { useUserPreferences } from "@/hooks/use-user-preferences";
+import { CloneDialog } from "@/components/ui/clone-dialog";
 
 // Extended destination with config relation from API
 interface JobDestinationWithConfig {
@@ -70,6 +71,7 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
     const [editingJob, setEditingJob] = useState<Job | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [cloningJobId, setCloningJobId] = useState<string | null>(null);
+    const [cloneTarget, setCloneTarget] = useState<{ id: string; name: string } | null>(null);
     const [apiTriggerJob, setApiTriggerJob] = useState<{ id: string; name: string } | null>(null);
     const router = useRouter();
     const { autoRedirectOnJobStart } = useUserPreferences();
@@ -132,10 +134,14 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
         setDeletingId(null);
     };
 
-    const cloneJob = useCallback(async (id: string) => {
+    const cloneJob = useCallback(async (id: string, name: string) => {
         setCloningJobId(id);
         try {
-            const res = await fetch(`/api/jobs/${id}/clone`, { method: "POST" });
+            const res = await fetch(`/api/jobs/${id}/clone`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+            });
             const data = await res.json();
             if (res.ok) {
                 toast.success("Job cloned successfully");
@@ -145,7 +151,10 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
                 toast.error(data.error || "Failed to clone job");
             }
         } catch { toast.error("Error cloning job"); }
-        finally { setCloningJobId(null); }
+        finally {
+            setCloningJobId(null);
+            setCloneTarget(null);
+        }
     }, []);
 
     const runJob = useCallback(async (id: string) => {
@@ -292,7 +301,7 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
                         )}
                         {canManage && (
                             <>
-                                <Button variant="ghost" size="icon" onClick={() => cloneJob(row.original.id)} disabled={cloningJobId === row.original.id} title="Clone Job">
+                                <Button variant="ghost" size="icon" onClick={() => setCloneTarget({ id: row.original.id, name: row.original.name })} disabled={cloningJobId === row.original.id} title="Clone Job">
                                     <Copy className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" onClick={() => { setEditingJob(row.original); setIsDialogOpen(true); }}>
@@ -307,7 +316,7 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
                 );
             }
         }
-    ], [canManage, canExecute, runJob, cloneJob, cloningJobId, router]);
+    ], [canManage, canExecute, runJob, cloneTarget, cloningJobId, router]);
 
     if (isLoading) {
         return (
@@ -420,6 +429,15 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
                     onOpenChange={(open) => !open && setApiTriggerJob(null)}
                 />
             )}
+
+            <CloneDialog
+                open={!!cloneTarget}
+                onOpenChange={(open) => !open && setCloneTarget(null)}
+                defaultName={cloneTarget?.name ?? ""}
+                existingNames={jobs.map((j) => j.name)}
+                isLoading={!!cloningJobId}
+                onConfirm={(name) => cloneJob(cloneTarget!.id, name)}
+            />
         </div>
     );
 }

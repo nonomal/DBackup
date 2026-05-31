@@ -43,13 +43,21 @@ export async function POST(
 
         checkPermissionWithContext(ctx, getWritePermissionForType(original.type));
 
-        // Generate a unique name: "X (Copy)", then "X (Copy 2)", etc.
-        const baseName = `${original.name} (Copy)`;
-        let uniqueName = baseName;
-        let counter = 2;
-        while (await prisma.adapterConfig.findFirst({ where: { name: uniqueName, type: original.type } })) {
-            uniqueName = `${original.name} (Copy ${counter})`;
-            counter++;
+        // Use provided name or generate a unique one: "X (Copy)", then "X (Copy 2)", etc.
+        let body: { name?: string } = {};
+        try { body = await req.json(); } catch { /* no body is fine */ }
+
+        let uniqueName: string;
+        if (body.name && body.name.trim()) {
+            uniqueName = body.name.trim();
+        } else {
+            const baseName = `${original.name} (Copy)`;
+            uniqueName = baseName;
+            let counter = 2;
+            while (await prisma.adapterConfig.findFirst({ where: { name: uniqueName, type: original.type } })) {
+                uniqueName = `${original.name} (Copy ${counter})`;
+                counter++;
+            }
         }
 
         const cloned = await prisma.adapterConfig.create({
