@@ -22,6 +22,7 @@ export const NOTIFICATION_EVENTS = {
   UPDATE_AVAILABLE: "update_available",
   CONNECTION_OFFLINE: "connection_offline",
   CONNECTION_ONLINE: "connection_online",
+  DB_VERSION_CHANGED: "db_version_changed",
 } as const;
 
 export type NotificationEventType =
@@ -172,6 +173,16 @@ export interface ConnectionOnlineData {
   timestamp: string;
 }
 
+export interface DbVersionChangedData {
+  sourceName: string;
+  sourceId: string;
+  adapterId: string;
+  previousVersion: string | null;
+  newVersion: string;
+  edition?: string;
+  timestamp: string;
+}
+
 /** Union of all event data types for type-safe template dispatch */
 export type NotificationEventData =
   | { eventType: typeof NOTIFICATION_EVENTS.USER_LOGIN; data: UserLoginData }
@@ -187,7 +198,8 @@ export type NotificationEventData =
   | { eventType: typeof NOTIFICATION_EVENTS.STORAGE_MISSING_BACKUP; data: StorageMissingBackupData }
   | { eventType: typeof NOTIFICATION_EVENTS.UPDATE_AVAILABLE; data: UpdateAvailableData }
   | { eventType: typeof NOTIFICATION_EVENTS.CONNECTION_OFFLINE; data: ConnectionOfflineData }
-  | { eventType: typeof NOTIFICATION_EVENTS.CONNECTION_ONLINE; data: ConnectionOnlineData };
+  | { eventType: typeof NOTIFICATION_EVENTS.CONNECTION_ONLINE; data: ConnectionOnlineData }
+  | { eventType: typeof NOTIFICATION_EVENTS.DB_VERSION_CHANGED; data: DbVersionChangedData };
 
 /** Persisted notification configuration (stored as JSON in SystemSetting) */
 export interface SystemNotificationConfig {

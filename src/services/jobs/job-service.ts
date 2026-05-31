@@ -52,7 +52,12 @@ const jobInclude = {
     },
     notifications: true,
     encryptionProfile: { select: { id: true, name: true } },
-    schedulePreset: { select: { id: true, name: true, schedule: true } }
+    schedulePreset: { select: { id: true, name: true, schedule: true } },
+    executions: {
+        take: 1,
+        orderBy: { startedAt: 'desc' as const },
+        select: { startedAt: true, status: true }
+    }
 };
 
 export class JobService {
@@ -186,7 +191,7 @@ export class JobService {
         return deletedJob;
     }
 
-    async cloneJob(id: string) {
+    async cloneJob(id: string, name?: string) {
         const original = await prisma.job.findUnique({
             where: { id },
             include: {
@@ -199,13 +204,18 @@ export class JobService {
             throw new Error(`Job with id "${id}" not found.`);
         }
 
-        // Generate a unique name: "X (Copy)", then "X (Copy 2)", etc.
-        const baseName = `${original.name} (Copy)`;
-        let uniqueName = baseName;
-        let counter = 2;
-        while (await prisma.job.findFirst({ where: { name: uniqueName } })) {
-            uniqueName = `${original.name} (Copy ${counter})`;
-            counter++;
+        // Use provided name or generate a unique one: "X (Copy)", then "X (Copy 2)", etc.
+        let uniqueName: string;
+        if (name) {
+            uniqueName = name;
+        } else {
+            const baseName = `${original.name} (Copy)`;
+            uniqueName = baseName;
+            let counter = 2;
+            while (await prisma.job.findFirst({ where: { name: uniqueName } })) {
+                uniqueName = `${original.name} (Copy ${counter})`;
+                counter++;
+            }
         }
 
         const clonedJob = await prisma.job.create({

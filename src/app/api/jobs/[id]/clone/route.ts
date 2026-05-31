@@ -20,8 +20,11 @@ export async function POST(
     checkPermissionWithContext(ctx, PERMISSIONS.JOBS.WRITE);
 
     const params = await props.params;
+    let body: { name?: string } = {};
+    try { body = await req.json(); } catch { /* no body is fine */ }
+
     try {
-        const clonedJob = await jobService.cloneJob(params.id);
+        const clonedJob = await jobService.cloneJob(params.id, body.name?.trim() || undefined);
         return NextResponse.json(clonedJob, { status: 201 });
     } catch (error: unknown) {
         log.error("Clone job error", { jobId: params.id }, wrapError(error));

@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { DatabaseTableList } from "./database-table-list";
 import { DatabaseTableData } from "./database-table-data";
+import { SourceVersionHistory } from "./source-version-history";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -234,6 +235,7 @@ export function DatabaseExplorer({ sources, canBrowse }: DatabaseExplorerProps) 
                     <TabsList>
                         <TabsTrigger value="general">General</TabsTrigger>
                         {canBrowse && <TabsTrigger value="databases">Databases</TabsTrigger>}
+                        <TabsTrigger value="versions">Version History</TabsTrigger>
                     </TabsList>
 
                     {/* GENERAL TAB */}
@@ -484,6 +486,14 @@ export function DatabaseExplorer({ sources, canBrowse }: DatabaseExplorerProps) 
                                 </CardContent>
                             </Card>
                         )}
+                    </TabsContent>
+
+                    {/* VERSION HISTORY TAB */}
+                    <TabsContent value="versions" className="mt-4">
+                        <SourceVersionHistory
+                            sourceId={selectedSource}
+                            currentVersion={serverVersion}
+                        />
                     </TabsContent>
                 </Tabs>
             )}

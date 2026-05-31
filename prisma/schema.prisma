@@ -37,6 +37,7 @@ model AdapterConfig {
   consecutiveFailures  Int           @default(0) // Zähler für Logik (Grün -> Orange -> Rot)
 
   healthLogs           HealthCheckLog[]
+  versionHistory       DbVersionHistory[]
 }
 
 model CredentialProfile {
@@ -305,6 +306,22 @@ model HealthCheckLog {
   adapterConfig   AdapterConfig @relation(fields: [adapterConfigId], references: [id], onDelete: Cascade)
 
   @@index([adapterConfigId, createdAt])
+}
+
+// Persistent history of database engine version changes detected by the
+// "Update Database Versions" system task. One row is inserted only when the
+// detected version differs from the latest stored entry for the same source.
+model DbVersionHistory {
+  id              String        @id @default(uuid())
+  adapterConfigId String
+  previousVersion String?       // null for the first recorded entry per source
+  newVersion      String
+  edition         String?       // optional adapter-specific info (e.g. MSSQL edition)
+  detectedAt      DateTime      @default(now())
+
+  adapterConfig   AdapterConfig @relation(fields: [adapterConfigId], references: [id], onDelete: Cascade)
+
+  @@index([adapterConfigId, detectedAt])
 }
 
 model AuditLog {

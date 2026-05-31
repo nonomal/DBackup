@@ -27,6 +27,7 @@ import { AdapterIcon } from "@/components/adapter/adapter-icon";
 import { HealthStatusBadge } from "@/components/ui/health-status-badge";
 import { StorageHistoryModal } from "@/components/dashboard/widgets/storage-history-modal";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { CloneDialog } from "@/components/ui/clone-dialog";
 
 export function AdapterManager({ type, title, description, canManage = true, permissions = [] }: AdapterManagerProps) {
     const [configs, setConfigs] = useState<AdapterConfig[]>([]);
@@ -37,6 +38,7 @@ export function AdapterManager({ type, title, description, canManage = true, per
     const [editingId, setEditingId] = useState<string | null>(null);
     const [deletingId, setDeletingId] = useState<string | null>(null);
     const [cloningId, setCloningId] = useState<string | null>(null);
+    const [cloneTarget, setCloneTarget] = useState<{ id: string; name: string } | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [historyAdapter, setHistoryAdapter] = useState<{ id: string; name: string } | null>(null);
     const router = useRouter();
@@ -109,10 +111,14 @@ export function AdapterManager({ type, title, description, canManage = true, per
         }
     };
 
-    const cloneAdapter = async (id: string) => {
+    const cloneAdapter = async (id: string, name: string) => {
         setCloningId(id);
         try {
-            const res = await fetch(`/api/adapters/${id}/clone`, { method: "POST" });
+            const res = await fetch(`/api/adapters/${id}/clone`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name }),
+            });
             const data = await res.json();
             if (res.ok) {
                 toast.success("Configuration cloned successfully");
@@ -124,6 +130,7 @@ export function AdapterManager({ type, title, description, canManage = true, per
             toast.error("Error cloning configuration");
         } finally {
             setCloningId(null);
+            setCloneTarget(null);
         }
     };
 
@@ -288,7 +295,7 @@ export function AdapterManager({ type, title, description, canManage = true, per
                                     size="icon"
                                     title="Clone"
                                     disabled={cloningId === row.original.id}
-                                    onClick={() => cloneAdapter(row.original.id)}
+                                    onClick={() => setCloneTarget({ id: row.original.id, name: row.original.name })}
                                 >
                                     <Copy className="h-4 w-4" />
                                 </Button>
@@ -454,6 +461,15 @@ export function AdapterManager({ type, title, description, canManage = true, per
                     adapterName={historyAdapter.name}
                 />
             )}
+
+            <CloneDialog
+                open={!!cloneTarget}
+                onOpenChange={(open) => !open && setCloneTarget(null)}
+                defaultName={cloneTarget?.name ?? ""}
+                existingNames={configs.map((c) => c.name)}
+                isLoading={!!cloningId}
+                onConfirm={(name) => cloneAdapter(cloneTarget!.id, name)}
+            />
         </div>
     );
 }

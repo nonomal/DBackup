@@ -43,6 +43,9 @@ vi.mock('@/services/dashboard-service', () => ({
     refreshStorageStatsCache: vi.fn().mockResolvedValue(undefined),
     cleanupOldSnapshots: vi.fn().mockResolvedValue(3),
 }));
+vi.mock('@/services/system/db-version-service', () => ({
+    recordVersionIfChanged: vi.fn().mockResolvedValue({ changed: false, previousVersion: null, newVersion: '' }),
+}));
 
 describe('SystemTaskService', () => {
     let service: SystemTaskService;
@@ -613,6 +616,117 @@ describe('SystemTaskService', () => {
             const result = await service.getTaskLastRunAt(SYSTEM_TASKS.HEALTH_CHECK);
 
             expect(result).toBeNull();
+        });
+    });
+
+    describe('UPDATE_DB_VERSIONS - version-change notifications', () => {
+        it('dispatches db_version_changed notification when version differs from previous entry', async () => {
+            const { registry: reg } = await import('@/lib/core/registry');
+            const { resolveAdapterConfig } = await import('@/lib/adapters/config-resolver');
+            const { recordVersionIfChanged } = await import('@/services/system/db-version-service');
+            const { notify } = await import('@/services/notifications/system-notification-service');
+
+            prismaMock.adapterConfig.findMany.mockResolvedValue([
+                { id: 'src-mssql', name: 'Prod MSSQL', adapterId: 'mssql', type: 'database', metadata: '{}' }
+            ] as any);
+            vi.mocked(reg.get).mockReturnValue({
+                test: vi.fn().mockResolvedValue({ success: true, version: '15.0.4360.2', edition: 'Enterprise Edition' })
+            } as any);
+            vi.mocked(resolveAdapterConfig).mockResolvedValue({} as any);
+            prismaMock.adapterConfig.update.mockResolvedValue({} as any);
+            vi.mocked(recordVersionIfChanged).mockResolvedValue({
+                changed: true,
+                previousVersion: '15.0.4280.7',
+                newVersion: '15.0.4360.2',
+            });
+
+            await service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS);
+
+            expect(recordVersionIfChanged).toHaveBeenCalledWith('src-mssql', '15.0.4360.2', 'Enterprise Edition');
+            expect(notify).toHaveBeenCalledWith(expect.objectContaining({
+                eventType: 'db_version_changed',
+                data: expect.objectContaining({
+                    sourceName: 'Prod MSSQL',
+                    sourceId: 'src-mssql',
+                    adapterId: 'mssql',
+                    previousVersion: '15.0.4280.7',
+                    newVersion: '15.0.4360.2',
+                    edition: 'Enterprise Edition',
+                }),
+            }));
+        });
+
+        it('skips notification on first observation (previousVersion === null baseline)', async () => {
+            const { registry: reg } = await import('@/lib/core/registry');
+            const { resolveAdapterConfig } = await import('@/lib/adapters/config-resolver');
+            const { recordVersionIfChanged } = await import('@/services/system/db-version-service');
+            const { notify } = await import('@/services/notifications/system-notification-service');
+
+            prismaMock.adapterConfig.findMany.mockResolvedValue([
+                { id: 'src-mysql', name: 'New MySQL', adapterId: 'mysql', type: 'database', metadata: '{}' }
+            ] as any);
+            vi.mocked(reg.get).mockReturnValue({
+                test: vi.fn().mockResolvedValue({ success: true, version: '8.0.31' })
+            } as any);
+            vi.mocked(resolveAdapterConfig).mockResolvedValue({} as any);
+            prismaMock.adapterConfig.update.mockResolvedValue({} as any);
+            vi.mocked(notify).mockClear();
+            vi.mocked(recordVersionIfChanged).mockResolvedValue({
+                changed: true,
+                previousVersion: null,
+                newVersion: '8.0.31',
+            });
+
+            await service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS);
+
+            expect(recordVersionIfChanged).toHaveBeenCalled();
+            expect(notify).not.toHaveBeenCalledWith(expect.objectContaining({ eventType: 'db_version_changed' }));
+        });
+
+        it('does not notify when recordVersionIfChanged reports no change', async () => {
+            const { registry: reg } = await import('@/lib/core/registry');
+            const { resolveAdapterConfig } = await import('@/lib/adapters/config-resolver');
+            const { recordVersionIfChanged } = await import('@/services/system/db-version-service');
+            const { notify } = await import('@/services/notifications/system-notification-service');
+
+            prismaMock.adapterConfig.findMany.mockResolvedValue([
+                { id: 'src-pg', name: 'PG', adapterId: 'postgres', type: 'database', metadata: '{}' }
+            ] as any);
+            vi.mocked(reg.get).mockReturnValue({
+                test: vi.fn().mockResolvedValue({ success: true, version: '16.2' })
+            } as any);
+            vi.mocked(resolveAdapterConfig).mockResolvedValue({} as any);
+            prismaMock.adapterConfig.update.mockResolvedValue({} as any);
+            vi.mocked(notify).mockClear();
+            vi.mocked(recordVersionIfChanged).mockResolvedValue({
+                changed: false,
+                previousVersion: '16.2',
+                newVersion: '16.2',
+            });
+
+            await service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS);
+
+            expect(notify).not.toHaveBeenCalledWith(expect.objectContaining({ eventType: 'db_version_changed' }));
+        });
+
+        it('does not crash the task when recordVersionIfChanged throws', async () => {
+            const { registry: reg } = await import('@/lib/core/registry');
+            const { resolveAdapterConfig } = await import('@/lib/adapters/config-resolver');
+            const { recordVersionIfChanged } = await import('@/services/system/db-version-service');
+
+            prismaMock.adapterConfig.findMany.mockResolvedValue([
+                { id: 'src-redis', name: 'Redis', adapterId: 'redis', type: 'database', metadata: '{}' }
+            ] as any);
+            vi.mocked(reg.get).mockReturnValue({
+                test: vi.fn().mockResolvedValue({ success: true, version: '7.2.0' })
+            } as any);
+            vi.mocked(resolveAdapterConfig).mockResolvedValue({} as any);
+            prismaMock.adapterConfig.update.mockResolvedValue({} as any);
+            vi.mocked(recordVersionIfChanged).mockRejectedValue(new Error('db down'));
+
+            await expect(service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS)).resolves.toBeUndefined();
+            // adapterConfig.update for the metadata version write still happened
+            expect(prismaMock.adapterConfig.update).toHaveBeenCalled();
         });
     });
 });

@@ -297,4 +297,93 @@ describe('JobService', () => {
             expect(result).toEqual(deletedJob);
         });
     });
+
+    describe('cloneJob', () => {
+        const originalJob = {
+            id: 'job-1',
+            name: 'Production Backup',
+            schedule: '0 3 * * *',
+            sourceId: 'src-1',
+            databases: '["db1"]',
+            encryptionProfileId: 'enc-1',
+            compression: 'GZIP',
+            pgCompression: '',
+            notificationEvents: 'ALWAYS',
+            schedulePresetId: null,
+            notifications: [{ id: 'notif-1' }],
+            destinations: [
+                { configId: 'dest-1', priority: 0, retention: '{}' },
+                { configId: 'dest-2', priority: 1, retention: '{"keep":5}' },
+            ],
+        };
+
+        it('throws when the source job is not found', async () => {
+            prismaMock.job.findUnique.mockResolvedValue(null);
+
+            await expect(service.cloneJob('missing')).rejects.toThrow('Job with id "missing" not found.');
+            expect(prismaMock.job.create).not.toHaveBeenCalled();
+        });
+
+        it('uses provided custom name without uniqueness probing', async () => {
+            prismaMock.job.findUnique.mockResolvedValue(originalJob as any);
+            prismaMock.job.create.mockResolvedValue({ id: 'cloned' } as any);
+
+            await service.cloneJob('job-1', 'My Custom Copy');
+
+            expect(prismaMock.job.findFirst).not.toHaveBeenCalled();
+            expect(prismaMock.job.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({
+                        name: 'My Custom Copy',
+                        enabled: false,
+                        sourceId: 'src-1',
+                        encryptionProfileId: 'enc-1',
+                        compression: 'GZIP',
+                        notifications: { connect: [{ id: 'notif-1' }] },
+                        destinations: {
+                            create: [
+                                { configId: 'dest-1', priority: 0, retention: '{}' },
+                                { configId: 'dest-2', priority: 1, retention: '{"keep":5}' },
+                            ],
+                        },
+                    }),
+                })
+            );
+            expect(scheduler.refresh).toHaveBeenCalledTimes(1);
+        });
+
+        it('generates "(Copy)" suffix when no name is provided and the base name is free', async () => {
+            prismaMock.job.findUnique.mockResolvedValue(originalJob as any);
+            prismaMock.job.findFirst.mockResolvedValue(null);
+            prismaMock.job.create.mockResolvedValue({ id: 'cloned' } as any);
+
+            await service.cloneJob('job-1');
+
+            expect(prismaMock.job.findFirst).toHaveBeenCalledWith({
+                where: { name: 'Production Backup (Copy)' },
+            });
+            expect(prismaMock.job.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ name: 'Production Backup (Copy)' }),
+                })
+            );
+        });
+
+        it('increments counter when "(Copy)" already exists', async () => {
+            prismaMock.job.findUnique.mockResolvedValue(originalJob as any);
+            prismaMock.job.findFirst
+                .mockResolvedValueOnce({ id: 'existing-copy' } as any) // "X (Copy)" exists
+                .mockResolvedValueOnce({ id: 'existing-copy-2' } as any) // "X (Copy 2)" exists
+                .mockResolvedValueOnce(null); // "X (Copy 3)" is free
+            prismaMock.job.create.mockResolvedValue({ id: 'cloned' } as any);
+
+            await service.cloneJob('job-1');
+
+            expect(prismaMock.job.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    data: expect.objectContaining({ name: 'Production Backup (Copy 3)' }),
+                })
+            );
+        });
+    });
 });

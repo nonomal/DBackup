@@ -2,6 +2,43 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.5.0 - Version History & General Improvements
+*Released: May 31, 2026*
+
+### ✨ Features
+
+- **Jobs Table**: Added "Last Run" and "Next Run" columns to the Backup Jobs table. "Last Run" shows the start time of the most recent execution. "Next Run" is computed from the job's cron schedule using the system timezone and displayed in the user's configured timezone and date/time format.
+- **Clone Modal**: Cloning a Job, Source, Destination, or Notification now opens a confirmation dialog where the name for the clone can be customized before it is created. The default name is pre-filled as "Original Name (Copy)".
+- **Database Explorer**: Added a new "Version History" tab per source showing the current engine version, a step-line timeline chart of detected version changes over time, and a change log table (previous version → new version, edition, detected at). History entries are persisted to a new `DbVersionHistory` table.
+- **System Tasks**: The hourly "Update Database Versions" task now records a new `DbVersionHistory` entry whenever the detected server engine version (or edition for MSSQL) changes since the last check. The first observation per source is stored as a baseline.
+- **Notifications**: Added a new `db_version_changed` system notification event that fires when a database server's engine version changes between two consecutive checks. The initial baseline observation does not trigger a notification.
+
+### 🐛 Bug Fixes
+
+- **mssql**: Fixed Database Explorer showing "No tables found" for databases that use non-dbo schemas - tables in all schemas are now returned and displayed with a `schema.table` prefix for non-dbo objects.
+- **mssql**: Fixed "Total Size" showing "undefined" in the Database Explorer General tab - BIGINT size values returned as strings by the database driver are now converted to numbers.
+
+### 🔒 Security
+
+- **deps**: Updated `better-auth`, `@better-auth/passkey`, `@better-auth/sso` 1.6.9 → 1.6.13 (GHSA-34r5-q4jw-r36m SAML XML injection, passkey replay attack). Added pnpm overrides: `fast-xml-builder` → `^1.2.0` (GHSA-5wm8-gmm8-39j9 HIGH + GHSA-45c6-75p6-83cc, via `webdav`), `brace-expansion@5` → `5.0.6` (GHSA-jxxr-4gwj-5jf2, via `eslint-config-next`), `qs` → `^6.15.2` (GHSA-q8mj-m7cp-5q26, via `googleapis`), `uuid` → `^11.1.1` (GHSA-w5hq-g745-h8pq, via `mssql > tedious > @azure/msal-node`).
+
+### 🎨 Improvements
+
+- **storage**: SFTP, FTP, SMB, Rsync, and OneDrive adapters now reuse a single connection for the metadata sidecar (`.meta.json`) and the backup file upload per job. Previously each upload performed a full connect/auth/disconnect cycle, doubling the SSH/FTP handshake and OneDrive OAuth token requests. Introduced an optional `openSession()` method on the `StorageAdapter` interface, adapters without it transparently fall back to the previous stateless behavior, so S3, WebDAV, Dropbox, Google Drive, and local filesystem remain unchanged.
+
+### 🔧 CI/CD
+
+- **deps**: Updated `next` + `eslint-config-next` 16.2.4 → 16.2.6, `react` + `react-dom` 19.2.5 → 19.2.6, `mssql` 12.5.0 → 12.5.5, `nodemailer` 8.0.7 → 8.0.10, `basic-ftp` 6.0.0 → 6.0.1, `zod` 4.4.1 → 4.4.3, `vitest` + `@vitest/coverage-v8` 4.1.5 → 4.1.7, `@types/react` 19.2.14 → 19.2.15, `vue` (docs) 3.5.28 → 3.5.35, `@aws-sdk/client-s3` + `@aws-sdk/lib-storage` 3.1039.0 → 3.1057.0, `@hookform/resolvers` 5.2.2 → 5.4.0, `date-fns` 4.1.0 → 4.4.0, `lucide-react` 1.14.0 → 1.17.0, `react-hook-form` 7.74.0 → 7.77.0, `tailwind-merge` 3.5.0 → 3.6.0, `tailwindcss` + `@tailwindcss/postcss` 4.2.4 → 4.3.0.
+- **deps**: Added pnpm override `kysely` → `0.28.17` to work around a bug in `@better-auth/kysely-adapter@1.6.13` that imports the removed `DEFAULT_MIGRATION_LOCK_TABLE` export from `kysely@0.29.x`, which Turbopack now catches as a hard build error.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.5.0`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.4.1 - Multiple Bug Fixes across MSSQL, SMB, Retention, and Storage Adapters
 *Released: May 27, 2026*
 
@@ -20,6 +57,7 @@ All notable changes to DBackup are documented here.
 
 ### 🧪 Tests
 
+- **notifications**: Updated `events.test.ts` event count assertions to reflect the new `db_version_changed` event - `NOTIFICATION_EVENTS` now has 15 keys (was 14) and `EVENT_DEFINITIONS` now has 13 entries (was 12).
 - **smb**: Added unit tests for `finally`-block cleanup when `sendFile` throws and for cleanup retry when the delete itself fails.
 - **retention**: Added regression tests for GFS non-overlapping tier selection and template-name visibility in retention history. ([#101](https://github.com/Skyfay/DBackup/issues/101))
 - **ftp/sftp**: Fixed broken upload unit tests by adding missing `destroy: vi.fn()` to the `createReadStream` mock - the adapter calls `fileStream.destroy()` in the `finally` block, which threw a TypeError without this mock method.

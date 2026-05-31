@@ -642,6 +642,67 @@ describe("Notification Templates", () => {
         expect(fieldNames).not.toContain("Downtime");
       });
     });
+
+    describe("DB_VERSION_CHANGED", () => {
+      it("renders payload with all fields including edition", () => {
+        const payload = renderTemplate({
+          eventType: NOTIFICATION_EVENTS.DB_VERSION_CHANGED,
+          data: {
+            sourceName: "prod-mssql",
+            sourceId: "src-1",
+            adapterId: "mssql",
+            previousVersion: "15.0.4280.7",
+            newVersion: "15.0.4360.2",
+            edition: "Enterprise Edition",
+            timestamp: "2026-05-31T10:00:00Z",
+          },
+        });
+
+        expect(payload.title).toBe("Database Version Changed: prod-mssql");
+        expect(payload.message).toContain("prod-mssql");
+        expect(payload.message).toContain("15.0.4280.7");
+        expect(payload.message).toContain("15.0.4360.2");
+        expect(payload.success).toBe(true);
+        expect(payload.color).toBe("#3b82f6");
+        expect(payload.badge).toBe("Version");
+
+        const fieldNames = payload.fields?.map((f) => f.name) ?? [];
+        expect(fieldNames).toEqual(
+          expect.arrayContaining([
+            "Source",
+            "Adapter",
+            "Previous Version",
+            "New Version",
+            "Edition",
+            "Time",
+          ])
+        );
+      });
+
+      it("falls back to 'unknown' for previousVersion=null and omits edition when missing", () => {
+        const payload = renderTemplate({
+          eventType: NOTIFICATION_EVENTS.DB_VERSION_CHANGED,
+          data: {
+            sourceName: "prod-mysql",
+            sourceId: "src-2",
+            adapterId: "mysql",
+            previousVersion: null,
+            newVersion: "8.0.31",
+            timestamp: "2026-05-31T10:00:00Z",
+          },
+        });
+
+        expect(payload.message).toContain("unknown");
+        expect(payload.message).toContain("8.0.31");
+        const fieldNames = payload.fields?.map((f) => f.name) ?? [];
+        expect(fieldNames).not.toContain("Edition");
+        expect(payload.fields).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ name: "Previous Version", value: "unknown" }),
+          ])
+        );
+      });
+    });
   });
 });
 
