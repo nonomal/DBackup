@@ -22,6 +22,7 @@ import {
   UpdateAvailableData,
   ConnectionOfflineData,
   ConnectionOnlineData,
+  DbVersionChangedData,
 } from "./types";
 
 // ── Individual Template Functions ──────────────────────────────
@@ -379,6 +380,29 @@ function connectionOnlineTemplate(
   };
 }
 
+function dbVersionChangedTemplate(
+  data: DbVersionChangedData
+): NotificationPayload {
+  const from = data.previousVersion ?? "unknown";
+  return {
+    title: `Database Version Changed: ${data.sourceName}`,
+    message: `Source '${data.sourceName}' reported a new engine version (${from} → ${data.newVersion}).`,
+    fields: [
+      { name: "Source", value: data.sourceName, inline: true },
+      { name: "Adapter", value: data.adapterId, inline: true },
+      { name: "Previous Version", value: from, inline: true },
+      { name: "New Version", value: data.newVersion, inline: true },
+      ...(data.edition
+        ? [{ name: "Edition", value: data.edition, inline: true }]
+        : []),
+      { name: "Time", value: data.timestamp, inline: true },
+    ],
+    color: "#3b82f6", // blue
+    success: true,
+    badge: "Version",
+  };
+}
+
 // ── Template Dispatcher ────────────────────────────────────────
 
 /**
@@ -418,6 +442,8 @@ export function renderTemplate(
       return connectionOfflineTemplate(event.data);
     case NOTIFICATION_EVENTS.CONNECTION_ONLINE:
       return connectionOnlineTemplate(event.data);
+    case NOTIFICATION_EVENTS.DB_VERSION_CHANGED:
+      return dbVersionChangedTemplate(event.data);
     default:
       // Fallback for unknown events
       return {

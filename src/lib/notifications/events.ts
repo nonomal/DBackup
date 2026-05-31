@@ -115,6 +115,13 @@ export const EVENT_DEFINITIONS: NotificationEventDefinition[] = [
     category: "health",
     defaultEnabled: true,
   },
+  {
+    id: NOTIFICATION_EVENTS.DB_VERSION_CHANGED,
+    name: "Database Version Changed",
+    description: "A database server's reported engine version changed between two checks.",
+    category: "health",
+    defaultEnabled: true,
+  },
 ];
 
 /** Look up an event definition by its type string */

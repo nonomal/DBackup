@@ -231,6 +231,18 @@ function buildTestData(eventType: string): any {
         timestamp: now,
       },
     },
+    db_version_changed: {
+      eventType: "db_version_changed",
+      data: {
+        sourceName: "MySQL Production (Test)",
+        sourceId: "test-source-id",
+        adapterId: "mysql",
+        previousVersion: "8.0.36",
+        newVersion: "8.0.40",
+        edition: null,
+        timestamp: now,
+      },
+    },
   };
 
   return testPayloads[eventType] ?? null;

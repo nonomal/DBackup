@@ -2,6 +2,23 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### ✨ Features
+
+- **Database Explorer**: Added a new "Version History" tab per source showing the current engine version, a step-line timeline chart of detected version changes over time, and a change log table (previous version → new version, edition, detected at). History entries are persisted to a new `DbVersionHistory` table.
+- **System Tasks**: The hourly "Update Database Versions" task now records a new `DbVersionHistory` entry whenever the detected server engine version (or edition for MSSQL) changes since the last check. The first observation per source is stored as a baseline.
+- **Notifications**: Added a new `db_version_changed` system notification event that fires when a database server's engine version changes between two consecutive checks. The initial baseline observation does not trigger a notification.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.4.1 - Multiple Bug Fixes across MSSQL, SMB, Retention, and Storage Adapters
 *Released: May 27, 2026*
 

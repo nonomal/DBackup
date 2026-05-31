@@ -13,6 +13,7 @@ import { getEventDefinition } from "@/lib/notifications/events";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { logger } from "@/lib/logging/logger";
 import { wrapError } from "@/lib/logging/errors";
+import { recordVersionIfChanged } from "./db-version-service";
 
 const log = logger.child({ service: "SystemTaskService" });
 
@@ -468,6 +469,33 @@ export class SystemTaskService {
                         data: { metadata: JSON.stringify(newMeta) }
                     });
                     log.info("Updated database version", { sourceName: source.name, version: result.version });
+
+                    // Record version-history entry only when the detected version differs
+                    // from the last stored entry. Dispatches a notification on change.
+                    try {
+                        // The MSSQL adapter additionally returns `edition` even though it's not
+                        // declared on the shared interface.
+                        const edition = (result as { edition?: string }).edition;
+                        const change = await recordVersionIfChanged(source.id, result.version, edition);
+                        if (change.changed && change.previousVersion !== null) {
+                            // Skip notification for the very first recorded entry per source
+                            // (previousVersion === null) - that's just the baseline.
+                            await notify({
+                                eventType: NOTIFICATION_EVENTS.DB_VERSION_CHANGED,
+                                data: {
+                                    sourceName: source.name,
+                                    sourceId: source.id,
+                                    adapterId: source.adapterId,
+                                    previousVersion: change.previousVersion,
+                                    newVersion: change.newVersion,
+                                    edition,
+                                    timestamp: new Date().toISOString(),
+                                },
+                            });
+                        }
+                    } catch (e: unknown) {
+                        log.error("Failed to record/notify version change", { sourceName: source.name }, wrapError(e));
+                    }
                 } else {
                     // Mark as offline or warning?
                      const currentMeta = source.metadata ? JSON.parse(source.metadata) : {};
