@@ -198,7 +198,7 @@ describe('ConfigService Parsing (Offline Restore)', () => {
         // Act & Assert
         await expect(service.parseBackupFile('backup.enc', 'backup.enc.meta.json'))
             .rejects
-            .toThrow('not found');
+            .toThrow('ENCRYPTION_KEY_REQUIRED:missing-profile');
     });
 
     it('should wrap pipeline errors in a descriptive message (lines 105-106)', async () => {

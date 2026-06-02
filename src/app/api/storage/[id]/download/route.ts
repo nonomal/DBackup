@@ -135,7 +135,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
         const body = await req.json();
         const parsed = postBodySchema.safeParse(body);
         if (!parsed.success) {
-            return NextResponse.json({ error: parsed.error.errors[0]?.message ?? "Invalid request body" }, { status: 400 });
+            return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "Invalid request body" }, { status: 400 });
         }
 
         const { file, rawKeyHex } = parsed.data;
