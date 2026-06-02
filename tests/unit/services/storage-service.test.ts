@@ -843,7 +843,7 @@ describe('StorageService', () => {
                 mockGetProfileMasterKey.mockRejectedValueOnce(new Error('Key not found'));
 
                 await expect(service.downloadFile('conf-123', 'remote.enc', '/local/out.sql', true))
-                    .rejects.toThrow('Decryption failed: Key not found');
+                    .rejects.toThrow('ENCRYPTION_KEY_REQUIRED:p');
             });
 
             it('should fall through to download fallback when adapter.read throws', async () => {

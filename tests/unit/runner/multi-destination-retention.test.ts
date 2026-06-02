@@ -5,7 +5,10 @@ import { RetentionService } from '@/services/backup/retention-service';
 
 // Mock dependencies
 vi.mock('@/lib/prisma', () => ({
-    default: { execution: { update: vi.fn() } }
+    default: {
+        execution: { update: vi.fn() },
+        systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },
+    }
 }));
 vi.mock('@/lib/logging/logger', () => ({
     logger: { child: () => ({ warn: vi.fn(), error: vi.fn(), info: vi.fn(), debug: vi.fn() }) },
@@ -124,7 +127,8 @@ describe('Step 05 - Per-Destination Retention', () => {
 
         expect(RetentionService.calculateRetention).toHaveBeenCalledWith(
             expect.arrayContaining([expect.objectContaining({ name: expect.any(String) })]),
-            expect.objectContaining({ mode: 'SIMPLE' })
+            expect.objectContaining({ mode: 'SIMPLE' }),
+            expect.any(String)
         );
         // 2 files to delete × 2 (backup + meta each)
         expect(mockDelete).toHaveBeenCalledTimes(4);

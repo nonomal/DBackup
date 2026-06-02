@@ -136,6 +136,20 @@ function isValidDecryptedContent(chunk: Buffer, compressionMeta: CompressionType
         return true;
     }
 
+    // SQLite database file: starts with the fixed 15-byte ASCII string "SQLite format 3"
+    // followed by a NUL byte.  The rest of the header is binary, so the >70% ASCII check
+    // would fail for an otherwise-correct key.
+    if (chunk.length >= 15 && chunk.subarray(0, 15).toString('ascii') === 'SQLite format 3') {
+        return true;
+    }
+
+    // Redis RDB snapshot: starts with the 5-byte ASCII string "REDIS" followed by a
+    // 4-digit version number (e.g. "REDIS0011").  Everything after that is binary BSON-like
+    // data, so the >70% ASCII check would not be reliable.
+    if (chunk.length >= 5 && chunk.subarray(0, 5).toString('ascii') === 'REDIS') {
+        return true;
+    }
+
     // For BROTLI or plain SQL dumps, check for printable ASCII ratio.
     const printable = chunk.filter(b => b >= 0x20 && b <= 0x7e).length;
     return printable / chunk.length > 0.7;

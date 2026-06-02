@@ -22,6 +22,12 @@ vi.mock('@/services/dashboard-service', () => ({
     refreshStorageStatsCache: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/lib/prisma', () => ({
+    default: {
+        systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },
+    },
+}));
+
 // --- Helpers ---
 
 function makeDestination(overrides: Partial<DestinationContext> = {}): DestinationContext {
