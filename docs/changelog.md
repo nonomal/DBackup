@@ -15,6 +15,7 @@ All notable changes to DBackup are documented here.
 
 - **ftp**: Fixed GFS retention on FTP servers without MLSD support by falling back to dates extracted from backup filenames when server-provided modification times are unavailable.
 - **encryption**: Smart Recovery (try-all-keys) is now applied during offline config backup restore and decrypted file downloads from the Storage Explorer - both previously failed with "Encryption Profile not found" when the profile ID changed after a key reimport. ([#108](https://github.com/Skyfay/DBackup/issues/108))
+- **encryption**: Smart Recovery key-match heuristic now correctly identifies SQLite (`.db`) and Redis RDB (`.rdb`) backup files - previously both binary formats were misidentified as "wrong key" because they are not GZIP/PGDMP/TAR/plain-SQL.
 
 ### 🔒 Security
 
