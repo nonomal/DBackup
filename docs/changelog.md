@@ -5,6 +5,8 @@ All notable changes to DBackup are documented here.
 ## vNEXT
 *Release: In Progress*
 
+> 🔒 **Security Update:** This release fixes a security vulnerability in DBackup's own code ([GHSA-h929-x237-c5h2](https://github.com/skyfay/DBackup/security/advisories/GHSA-h929-x237-c5h2)). Update as soon as possible.
+
 ### 🐛 Bug Fixes
 
 - **ftp**: Fixed GFS retention on FTP servers without MLSD support by falling back to dates extracted from backup filenames when server-provided modification times are unavailable.
