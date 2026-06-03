@@ -126,6 +126,13 @@ export interface CredentialProfileShape {
     description: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Which sensitive fields of the (encrypted) payload hold a non-empty value,
+     * e.g. `{ clientSecret: true, refreshToken: false }`. Lets the UI tell whether
+     * an OAUTH profile has been authorized (refreshToken present) WITHOUT exposing
+     * any secret value. Never contains the values themselves.
+     */
+    secretStatus?: Record<string, boolean>;
 }
 
 /**

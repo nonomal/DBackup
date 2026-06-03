@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { headers } from "next/headers";
-import prisma from "@/lib/prisma";
 import { getAuthContext, checkPermissionWithContext } from "@/lib/auth/access-control";
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { getDecryptedCredentialData } from "@/services/auth/credential-service";
@@ -18,7 +17,8 @@ const SCOPES = [
 /**
  * POST /api/adapters/onedrive/auth
  * Generates the Microsoft OAuth authorization URL.
- * Body: { adapterId: string } - The saved adapter config ID to authorize.
+ * Body: { credentialId: string } - The OAUTH credential profile to authorize.
+ * The resulting refresh token is written back into that profile.
  */
 export async function POST(req: NextRequest) {
     const ctx = await getAuthContext(await headers());
@@ -27,30 +27,14 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-        checkPermissionWithContext(ctx, PERMISSIONS.DESTINATIONS.WRITE);
+        checkPermissionWithContext(ctx, PERMISSIONS.CREDENTIALS.WRITE);
 
-        const { adapterId } = await req.json();
-        if (!adapterId) {
-            return NextResponse.json({ error: "Missing adapterId" }, { status: 400 });
+        const { credentialId } = await req.json();
+        if (!credentialId) {
+            return NextResponse.json({ error: "Missing credentialId" }, { status: 400 });
         }
 
-        // Load the adapter config to get clientId and clientSecret
-        const adapterConfig = await prisma.adapterConfig.findUnique({
-            where: { id: adapterId },
-        });
-
-        if (!adapterConfig || adapterConfig.adapterId !== "onedrive") {
-            return NextResponse.json({ error: "Adapter not found or not a OneDrive adapter" }, { status: 404 });
-        }
-
-        // clientId + clientSecret live in the assigned OAUTH profile.
-        if (!adapterConfig.primaryCredentialId) {
-            return NextResponse.json({ error: "Assign an OAuth credential profile (with the client ID + secret) before authorizing." }, { status: 400 });
-        }
-        const profile = (await getDecryptedCredentialData(
-            adapterConfig.primaryCredentialId,
-            "OAUTH"
-        )) as OAuthData;
+        const profile = (await getDecryptedCredentialData(credentialId, "OAUTH")) as OAuthData;
         if (!profile.clientId) {
             return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
         }
@@ -66,9 +50,9 @@ export async function POST(req: NextRequest) {
         authUrl.searchParams.set("scope", SCOPES.join(" "));
         authUrl.searchParams.set("response_mode", "query");
         authUrl.searchParams.set("prompt", "consent"); // Force consent to always get refresh_token
-        authUrl.searchParams.set("state", adapterId); // Pass adapter config ID as state for callback
+        authUrl.searchParams.set("state", credentialId); // Pass credential profile ID as state for callback
 
-        log.info("Generated Microsoft OAuth URL", { adapterId });
+        log.info("Generated Microsoft OAuth URL", { credentialId });
 
         return NextResponse.json({ success: true, data: { authUrl: authUrl.toString() } });
     } catch (error) {

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Dropbox } from "dropbox";
-import prisma from "@/lib/prisma";
 import { checkPermission } from "@/lib/auth/access-control";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { resolveAdapterConfig } from "@/lib/adapters/config-resolver";
+import { getDecryptedCredentialData } from "@/services/auth/credential-service";
+import type { OAuthData } from "@/lib/core/credentials";
 import { logger } from "@/lib/logging/logger";
 import { wrapError } from "@/lib/logging/errors";
 
@@ -14,12 +14,12 @@ const log = logger.child({ route: "system/filesystem/dropbox" });
  * Browse Dropbox folders for the folder picker.
  *
  * Body: {
- *   adapterId: string,   // saved Dropbox adapter config id
- *   folderPath?: string  // Folder to list ("" or undefined = root)
+ *   credentialId: string, // OAUTH credential profile id
+ *   folderPath?: string   // Folder to list ("" or undefined = root)
  * }
  *
- * Credentials are resolved server-side from the adapter's OAUTH credential
- * profile - they never travel through the client.
+ * Credentials are resolved server-side from the OAUTH credential profile - they
+ * never travel through the client.
  *
  * Returns the same shape as the local/remote filesystem API:
  * { success, data: { currentPath, currentName, parentPath, entries: [{ name, type, path }] } }
@@ -29,22 +29,13 @@ export async function POST(req: NextRequest) {
         await checkPermission(PERMISSIONS.DESTINATIONS.READ);
 
         const body = await req.json();
-        const { adapterId, folderPath } = body;
+        const { credentialId, folderPath } = body;
 
-        if (!adapterId) {
-            return NextResponse.json({ success: false, error: "Missing adapterId" }, { status: 400 });
+        if (!credentialId) {
+            return NextResponse.json({ success: false, error: "Missing credentialId" }, { status: 400 });
         }
 
-        const adapterRow = await prisma.adapterConfig.findUnique({ where: { id: adapterId } });
-        if (!adapterRow || adapterRow.adapterId !== "dropbox") {
-            return NextResponse.json({ success: false, error: "Adapter not found" }, { status: 404 });
-        }
-
-        const config = (await resolveAdapterConfig(adapterRow)) as {
-            clientId?: string;
-            clientSecret?: string;
-            refreshToken?: string;
-        };
+        const config = (await getDecryptedCredentialData(credentialId, "OAUTH")) as OAuthData;
 
         if (!config?.clientId || !config?.clientSecret || !config?.refreshToken) {
             return NextResponse.json(

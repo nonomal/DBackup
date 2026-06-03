@@ -24,8 +24,8 @@ interface OneDriveFolderBrowserProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSelect: (folderPath: string) => void;
-    /** Saved adapter config id; credentials are resolved server-side from its OAUTH profile. */
-    adapterConfigId: string;
+    /** OAUTH credential profile id; credentials are resolved server-side from it. */
+    credentialId: string;
     initialPath?: string;
 }
 
@@ -38,7 +38,7 @@ export function OneDriveFolderBrowser({
     open,
     onOpenChange,
     onSelect,
-    adapterConfigId,
+    credentialId,
     initialPath,
 }: OneDriveFolderBrowserProps) {
     const [currentPath, setCurrentPath] = useState(initialPath || "");
@@ -63,7 +63,7 @@ export function OneDriveFolderBrowser({
             const res = await fetch("/api/system/filesystem/onedrive", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ adapterId: adapterConfigId, folderPath }),
+                body: JSON.stringify({ credentialId, folderPath }),
             });
 
             const json = await res.json();

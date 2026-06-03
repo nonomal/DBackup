@@ -52,6 +52,8 @@ export interface CredentialProfileSummary {
     description: string | null;
     createdAt: string | Date;
     updatedAt: string | Date;
+    /** Which sensitive fields are set (e.g. OAUTH `refreshToken`) - no values. */
+    secretStatus?: Record<string, boolean>;
 }
 
 interface Props {

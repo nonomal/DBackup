@@ -40,6 +40,7 @@ import { DropboxFolderBrowser } from "./dropbox-folder-browser";
 import { OneDriveOAuthButton } from "./onedrive-oauth-button";
 import { OneDriveFolderBrowser } from "./onedrive-folder-browser";
 import { CredentialPicker } from "./credential-picker";
+import type { CredentialProfileSummary } from "@/components/settings/credential-profile-dialog";
 import { AdapterConfig } from "./types";
 
 interface CredentialPickerHostProps {
@@ -66,7 +67,8 @@ function PrimaryCredentialPickerSlot({
     adapter,
     primaryCredentialId,
     onPrimaryChange,
-}: { adapter: AdapterDefinition } & CredentialPickerHostProps) {
+    onSelectedProfile,
+}: { adapter: AdapterDefinition; onSelectedProfile?: (p: CredentialProfileSummary | null) => void } & CredentialPickerHostProps) {
     const required = adapter.credentials?.primary;
     if (!required || !onPrimaryChange) return null;
     return (
@@ -76,6 +78,7 @@ function PrimaryCredentialPickerSlot({
             value={primaryCredentialId ?? null}
             onChange={onPrimaryChange}
             label="Credential Profile"
+            onSelectedProfile={onSelectedProfile}
         />
     );
 }
@@ -658,7 +661,7 @@ function SshConfigSection({ adapter, sshAuthType, sshCredentialId, description }
 
 export function StorageFormContent({
     adapter,
-    initialData,
+    initialData: _initialData,
     healthNotificationsDisabled,
     onHealthNotificationsDisabledChange,
     primaryCredentialId,
@@ -676,21 +679,16 @@ export function StorageFormContent({
     const isGoogleDrive = adapter.id === 'google-drive';
     const isDropbox = adapter.id === 'dropbox';
     const isOneDrive = adapter.id === 'onedrive';
-    const isOAuthAdapter = isGoogleDrive || isDropbox || isOneDrive;
 
-    // For OAuth adapters: filter out refreshToken from connection keys (auto-managed via OAuth)
-    const connectionKeys = isOAuthAdapter
-        ? STORAGE_CONNECTION_KEYS.filter(k => k !== 'refreshToken')
-        : STORAGE_CONNECTION_KEYS;
+    const connectionKeys = STORAGE_CONNECTION_KEYS;
+    const configKeys = STORAGE_CONFIG_KEYS;
 
-    // For OAuth adapters: filter out refreshToken from config keys too
-    const configKeys = isOAuthAdapter
-        ? STORAGE_CONFIG_KEYS.filter(k => k !== 'refreshToken')
-        : STORAGE_CONFIG_KEYS;
-
-    // Check if a refresh token is stored (for existing/authorized adapters).
-    // The list DTO redacts the value, so we rely on the `secretStatus` flag.
-    const hasRefreshToken = initialData?.secretStatus?.refreshToken === true;
+    // OAuth authorization now lives on the credential profile: the refresh token
+    // is stored there, not on the adapter. We read the selected profile's
+    // `secretStatus` to know whether it's authorized - so it reflects reality
+    // even before the destination itself is saved.
+    const [selectedProfile, setSelectedProfile] = useState<CredentialProfileSummary | null>(null);
+    const authorized = selectedProfile?.secretStatus?.refreshToken === true;
 
     return (
         <Tabs defaultValue="connection" className="w-full">
@@ -706,6 +704,7 @@ export function StorageFormContent({
                     adapter={adapter}
                     primaryCredentialId={primaryCredentialId}
                     onPrimaryChange={onPrimaryChange}
+                    onSelectedProfile={setSelectedProfile}
                 />
                 {(adapter.id === 'sftp' || adapter.id === 'rsync') ? (
                     <div className="space-y-4">
@@ -729,29 +728,20 @@ export function StorageFormContent({
                         )}
                     </div>
                 ) : isGoogleDrive ? (
-                    <div className="space-y-4">
-                        <FieldList keys={['clientId', 'clientSecret']} adapter={adapter} />
-                        <GoogleDriveOAuthButton
-                            adapterId={initialData?.id}
-                            hasRefreshToken={hasRefreshToken}
-                        />
-                    </div>
+                    <GoogleDriveOAuthButton
+                        credentialId={primaryCredentialId ?? undefined}
+                        authorized={authorized}
+                    />
                 ) : isDropbox ? (
-                    <div className="space-y-4">
-                        <FieldList keys={['clientId', 'clientSecret']} adapter={adapter} />
-                        <DropboxOAuthButton
-                            adapterId={initialData?.id}
-                            hasRefreshToken={hasRefreshToken}
-                        />
-                    </div>
+                    <DropboxOAuthButton
+                        credentialId={primaryCredentialId ?? undefined}
+                        authorized={authorized}
+                    />
                 ) : isOneDrive ? (
-                    <div className="space-y-4">
-                        <FieldList keys={['clientId', 'clientSecret']} adapter={adapter} />
-                        <OneDriveOAuthButton
-                            adapterId={initialData?.id}
-                            hasRefreshToken={hasRefreshToken}
-                        />
-                    </div>
+                    <OneDriveOAuthButton
+                        credentialId={primaryCredentialId ?? undefined}
+                        authorized={authorized}
+                    />
                 ) : (
                     <FieldList keys={connectionKeys} adapter={adapter} />
                 )}
@@ -762,20 +752,20 @@ export function StorageFormContent({
                     {isGoogleDrive ? (
                         <GoogleDriveFolderField
                             adapter={adapter}
-                            hasRefreshToken={hasRefreshToken}
-                            adapterConfigId={initialData?.id}
+                            authorized={authorized}
+                            credentialId={primaryCredentialId ?? undefined}
                         />
                     ) : isDropbox ? (
                         <DropboxFolderField
                             adapter={adapter}
-                            hasRefreshToken={hasRefreshToken}
-                            adapterConfigId={initialData?.id}
+                            authorized={authorized}
+                            credentialId={primaryCredentialId ?? undefined}
                         />
                     ) : isOneDrive ? (
                         <OneDriveFolderField
                             adapter={adapter}
-                            hasRefreshToken={hasRefreshToken}
-                            adapterConfigId={initialData?.id}
+                            authorized={authorized}
+                            credentialId={primaryCredentialId ?? undefined}
                         />
                     ) : hasRealConfigKeys ? (
                         <>
@@ -870,12 +860,12 @@ export function GenericFormContent({ adapter, detectedVersion }: { adapter: Adap
  */
 function GoogleDriveFolderField({
     adapter: _adapter,
-    hasRefreshToken,
-    adapterConfigId,
+    authorized,
+    credentialId,
 }: {
     adapter: AdapterDefinition;
-    hasRefreshToken: boolean;
-    adapterConfigId?: string;
+    authorized: boolean;
+    credentialId?: string;
 }) {
     const { setValue, watch } = useFormContext();
     const [isBrowserOpen, setIsBrowserOpen] = useState(false);
@@ -884,7 +874,7 @@ function GoogleDriveFolderField({
 
     // Secrets (clientSecret/refreshToken) live in the vault and are resolved
     // server-side by adapterId; the browser only needs the saved adapter id.
-    const canBrowse = hasRefreshToken && !!adapterConfigId;
+    const canBrowse = authorized && !!credentialId;
 
     return (
         <div className="space-y-4">
@@ -928,7 +918,7 @@ function GoogleDriveFolderField({
                         setValue("config.folderId", selectedId);
                         setFolderName(selectedName);
                     }}
-                    adapterConfigId={adapterConfigId!}
+                    credentialId={credentialId!}
                     initialFolderId={folderId || undefined}
                 />
             )}
@@ -942,18 +932,18 @@ function GoogleDriveFolderField({
  */
 function DropboxFolderField({
     adapter: _adapter,
-    hasRefreshToken,
-    adapterConfigId,
+    authorized,
+    credentialId,
 }: {
     adapter: AdapterDefinition;
-    hasRefreshToken: boolean;
-    adapterConfigId?: string;
+    authorized: boolean;
+    credentialId?: string;
 }) {
     const { setValue, watch } = useFormContext();
     const [isBrowserOpen, setIsBrowserOpen] = useState(false);
     const folderPath = watch("config.folderPath") || "";
 
-    const canBrowse = hasRefreshToken && !!adapterConfigId;
+    const canBrowse = authorized && !!credentialId;
 
     return (
         <div className="space-y-4">
@@ -991,7 +981,7 @@ function DropboxFolderField({
                     onSelect={(selectedPath) => {
                         setValue("config.folderPath", selectedPath);
                     }}
-                    adapterConfigId={adapterConfigId!}
+                    credentialId={credentialId!}
                     initialPath={folderPath || undefined}
                 />
             )}
@@ -1005,18 +995,18 @@ function DropboxFolderField({
  */
 function OneDriveFolderField({
     adapter: _adapter,
-    hasRefreshToken,
-    adapterConfigId,
+    authorized,
+    credentialId,
 }: {
     adapter: AdapterDefinition;
-    hasRefreshToken: boolean;
-    adapterConfigId?: string;
+    authorized: boolean;
+    credentialId?: string;
 }) {
     const { setValue, watch } = useFormContext();
     const [isBrowserOpen, setIsBrowserOpen] = useState(false);
     const folderPath = watch("config.folderPath") || "";
 
-    const canBrowse = hasRefreshToken && !!adapterConfigId;
+    const canBrowse = authorized && !!credentialId;
 
     return (
         <div className="space-y-4">
@@ -1054,7 +1044,7 @@ function OneDriveFolderField({
                     onSelect={(selectedPath) => {
                         setValue("config.folderPath", selectedPath);
                     }}
-                    adapterConfigId={adapterConfigId!}
+                    credentialId={credentialId!}
                     initialPath={folderPath || undefined}
                 />
             )}

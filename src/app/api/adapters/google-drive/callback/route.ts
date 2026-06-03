@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
-import prisma from "@/lib/prisma";
 import { getDecryptedCredentialData, updateCredentialProfile } from "@/services/auth/credential-service";
 import type { OAuthData } from "@/lib/core/credentials";
 import { logger } from "@/lib/logging/logger";
@@ -12,7 +11,8 @@ const log = logger.child({ route: "adapters/google-drive/callback" });
 /**
  * GET /api/adapters/google-drive/callback
  * Handles the OAuth callback from Google.
- * Exchanges auth code for tokens and stores the refresh token in the adapter config.
+ * `state` is the OAUTH credential profile id; the refresh token is written back
+ * into that profile, so every destination referencing it becomes authorized.
  * Redirects back to the destinations page with success/error status.
  */
 export async function GET(req: NextRequest) {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     }
 
     const code = req.nextUrl.searchParams.get("code");
-    const state = req.nextUrl.searchParams.get("state"); // adapter config ID
+    const state = req.nextUrl.searchParams.get("state"); // OAUTH credential profile id
     const error = req.nextUrl.searchParams.get("error");
 
     // Handle user denial
@@ -47,29 +47,8 @@ export async function GET(req: NextRequest) {
     }
 
     try {
-        // Load the adapter config
-        const adapterConfig = await prisma.adapterConfig.findUnique({
-            where: { id: state },
-        });
-
-        if (!adapterConfig || adapterConfig.adapterId !== "google-drive") {
-            return NextResponse.redirect(
-                `${origin}/dashboard/destinations?oauth=error&message=${encodeURIComponent("Adapter not found.")}`
-            );
-        }
-
-        // clientId + clientSecret + refreshToken all live in the OAUTH credential
-        // profile referenced by the adapter.
-        if (!adapterConfig.primaryCredentialId) {
-            return NextResponse.redirect(
-                `${origin}/dashboard/destinations?oauth=error&message=${encodeURIComponent("Assign an OAuth credential profile (with the client ID + secret) before authorizing.")}`
-            );
-        }
-
-        const profile = (await getDecryptedCredentialData(
-            adapterConfig.primaryCredentialId,
-            "OAUTH"
-        )) as OAuthData;
+        // `state` is the OAUTH credential profile id. Load its clientId + secret.
+        const profile = (await getDecryptedCredentialData(state, "OAUTH")) as OAuthData;
 
         const redirectUri = `${origin}/api/adapters/google-drive/callback`;
 
@@ -83,18 +62,18 @@ export async function GET(req: NextRequest) {
         const { tokens } = await oauth2Client.getToken(code);
 
         if (!tokens.refresh_token) {
-            log.warn("No refresh token received from Google", { adapterId: state });
+            log.warn("No refresh token received from Google", { credentialId: state });
             return NextResponse.redirect(
                 `${origin}/dashboard/destinations?oauth=error&message=${encodeURIComponent("No refresh token received. Please revoke app access in your Google Account settings and try again.")}`
             );
         }
 
-        // Store the refresh token in the credential profile (not the adapter config).
-        await updateCredentialProfile(adapterConfig.primaryCredentialId, {
+        // Store the refresh token in the credential profile.
+        await updateCredentialProfile(state, {
             data: { clientId: profile.clientId, clientSecret: profile.clientSecret, refreshToken: tokens.refresh_token } satisfies OAuthData,
         });
 
-        log.info("Google Drive OAuth completed successfully", { adapterId: state });
+        log.info("Google Drive OAuth completed successfully", { credentialId: state });
 
         return NextResponse.redirect(
             `${origin}/dashboard/destinations?oauth=success&message=${encodeURIComponent("Google Drive authorized successfully!")}`

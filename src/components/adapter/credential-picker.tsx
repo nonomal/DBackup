@@ -35,6 +35,8 @@ interface Props {
     /** Render label/help text inline. */
     label?: string;
     description?: string;
+    /** Notified with the resolved profile object whenever the selection changes (incl. after load). */
+    onSelectedProfile?: (profile: CredentialProfileSummary | null) => void;
 }
 
 const TYPE_BADGE: Record<CredentialType, string> = {
@@ -54,6 +56,7 @@ export function CredentialPicker({
     onChange,
     label,
     description,
+    onSelectedProfile,
 }: Props) {
     const [profiles, setProfiles] = useState<CredentialProfileSummary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -88,6 +91,15 @@ export function CredentialPicker({
     };
 
     const selected = profiles.find((p) => p.id === value);
+
+    // Surface the resolved profile to the parent (e.g. so an OAuth form can read
+    // its `secretStatus` to know whether it's authorized). Keyed on the resolved
+    // id so it also fires once the profile list finishes loading.
+    useEffect(() => {
+        onSelectedProfile?.(selected ?? null);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selected?.id, selected?.updatedAt]);
+
     const defaultLabel = slot === "ssh" ? "SSH Credential Profile" : "Credential Profile";
     const finalLabel = label ?? defaultLabel;
 

@@ -7,31 +7,31 @@ import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface OneDriveOAuthButtonProps {
-    /** The saved adapter config ID (from database) */
-    adapterId?: string;
-    /** Whether a refresh token already exists */
-    hasRefreshToken?: boolean;
+    /** The OAUTH credential profile id to authorize */
+    credentialId?: string;
+    /** Whether the profile already has a refresh token */
+    authorized?: boolean;
 }
 
 /**
  * OAuth authorization button for OneDrive.
- * Must only be shown AFTER the adapter config is saved (needs the DB ID).
+ * Authorizes the selected OAUTH credential profile - no saved destination needed.
  */
-export function OneDriveOAuthButton({ adapterId, hasRefreshToken }: OneDriveOAuthButtonProps) {
+export function OneDriveOAuthButton({ credentialId, authorized }: OneDriveOAuthButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
 
-    if (!adapterId) {
+    if (!credentialId) {
         return (
             <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                    Save the configuration first, then you can authorize with Microsoft.
+                    Select or create an OAuth credential profile (with the client ID + secret) first, then authorize with Microsoft.
                 </AlertDescription>
             </Alert>
         );
     }
 
-    if (hasRefreshToken) {
+    if (authorized) {
         return (
             <Alert className="border-green-500/30 bg-green-500/5 items-center [&>svg]:translate-y-0">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -58,7 +58,7 @@ export function OneDriveOAuthButton({ adapterId, hasRefreshToken }: OneDriveOAut
             const res = await fetch("/api/adapters/onedrive/auth", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ adapterId }),
+                body: JSON.stringify({ credentialId }),
             });
 
             const data = await res.json();
