@@ -3,7 +3,8 @@ import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { getAuthContext, checkPermissionWithContext } from "@/lib/auth/access-control";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { decryptConfig } from "@/lib/crypto";
+import { getDecryptedCredentialData } from "@/services/auth/credential-service";
+import type { OAuthData } from "@/lib/core/credentials";
 import { logger } from "@/lib/logging/logger";
 
 const log = logger.child({ route: "adapters/onedrive/auth" });
@@ -42,10 +43,16 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Adapter not found or not a OneDrive adapter" }, { status: 404 });
         }
 
-        const config = decryptConfig(JSON.parse(adapterConfig.config));
-
-        if (!config.clientId || !config.clientSecret) {
-            return NextResponse.json({ error: "Client ID and Client Secret are required" }, { status: 400 });
+        // clientId + clientSecret live in the assigned OAUTH profile.
+        if (!adapterConfig.primaryCredentialId) {
+            return NextResponse.json({ error: "Assign an OAuth credential profile (with the client ID + secret) before authorizing." }, { status: 400 });
+        }
+        const profile = (await getDecryptedCredentialData(
+            adapterConfig.primaryCredentialId,
+            "OAUTH"
+        )) as OAuthData;
+        if (!profile.clientId) {
+            return NextResponse.json({ error: "Client ID is required" }, { status: 400 });
         }
 
         // Build callback URL from the request origin
@@ -53,7 +60,7 @@ export async function POST(req: NextRequest) {
         const redirectUri = `${origin}/api/adapters/onedrive/callback`;
 
         const authUrl = new URL("https://login.microsoftonline.com/common/oauth2/v2.0/authorize");
-        authUrl.searchParams.set("client_id", config.clientId);
+        authUrl.searchParams.set("client_id", profile.clientId);
         authUrl.searchParams.set("response_type", "code");
         authUrl.searchParams.set("redirect_uri", redirectUri);
         authUrl.searchParams.set("scope", SCOPES.join(" "));

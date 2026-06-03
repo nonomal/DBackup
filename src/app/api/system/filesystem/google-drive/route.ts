@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
+import prisma from "@/lib/prisma";
 import { checkPermission } from "@/lib/auth/access-control";
 import { PERMISSIONS } from "@/lib/auth/permissions";
+import { resolveAdapterConfig } from "@/lib/adapters/config-resolver";
 import { logger } from "@/lib/logging/logger";
 import { wrapError } from "@/lib/logging/errors";
 
@@ -12,9 +14,12 @@ const log = logger.child({ route: "system/filesystem/google-drive" });
  * Browse Google Drive folders for the folder picker.
  *
  * Body: {
- *   config: { clientId, clientSecret, refreshToken },
+ *   adapterId: string, // saved Google Drive adapter config id
  *   folderId?: string  // Folder to list (undefined = root)
  * }
+ *
+ * Credentials (clientSecret/refreshToken) are resolved server-side from the
+ * adapter's OAUTH credential profile - they never travel through the client.
  *
  * Returns the same shape as the local/remote filesystem API:
  * { success, data: { currentPath, parentPath, entries: [{ name, type, path }] } }
@@ -23,10 +28,25 @@ const log = logger.child({ route: "system/filesystem/google-drive" });
  */
 export async function POST(req: NextRequest) {
     try {
-        await checkPermission(PERMISSIONS.SETTINGS.READ);
+        await checkPermission(PERMISSIONS.DESTINATIONS.READ);
 
         const body = await req.json();
-        const { config, folderId } = body;
+        const { adapterId, folderId } = body;
+
+        if (!adapterId) {
+            return NextResponse.json({ success: false, error: "Missing adapterId" }, { status: 400 });
+        }
+
+        const adapterRow = await prisma.adapterConfig.findUnique({ where: { id: adapterId } });
+        if (!adapterRow || adapterRow.adapterId !== "google-drive") {
+            return NextResponse.json({ success: false, error: "Adapter not found" }, { status: 404 });
+        }
+
+        const config = (await resolveAdapterConfig(adapterRow)) as {
+            clientId?: string;
+            clientSecret?: string;
+            refreshToken?: string;
+        };
 
         if (!config?.clientId || !config?.clientSecret || !config?.refreshToken) {
             return NextResponse.json(

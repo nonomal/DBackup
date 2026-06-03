@@ -43,6 +43,8 @@ const TYPE_BADGE: Record<CredentialType, string> = {
     ACCESS_KEY: "Access Key",
     TOKEN: "Token",
     SMTP: "SMTP",
+    WEBHOOK: "Webhook",
+    OAUTH: "OAuth",
 };
 
 export function CredentialPicker({

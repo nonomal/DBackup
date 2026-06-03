@@ -372,7 +372,7 @@ export function DatabaseFormContent({
                     onPrimaryChange={onPrimaryChange}
                 />
                 <FieldList
-                    keys={['uri', 'host', 'port', 'user', 'username', 'password']}
+                    keys={['host', 'port', 'user', 'username', 'password']}
                     adapter={adapter}
                 />
             </TabsContent>
@@ -509,7 +509,7 @@ function SshAwareTabLayout({
                             onPrimaryChange={onPrimaryChange}
                         />
                         <FieldList
-                            keys={['uri', 'host', 'port', 'user', 'username', 'password']}
+                            keys={['host', 'port', 'user', 'username', 'password']}
                             adapter={adapter}
                         />
                     </TabsContent>
@@ -552,7 +552,7 @@ function SshAwareTabLayout({
                             onPrimaryChange={onPrimaryChange}
                         />
                         <FieldList
-                            keys={['uri', 'host', 'port', 'user', 'username', 'password']}
+                            keys={['host', 'port', 'user', 'username', 'password']}
                             adapter={adapter}
                         />
                     </TabsContent>
@@ -688,18 +688,9 @@ export function StorageFormContent({
         ? STORAGE_CONFIG_KEYS.filter(k => k !== 'refreshToken')
         : STORAGE_CONFIG_KEYS;
 
-    // Check if the config has a refresh token (for existing/authorized adapters)
-    const hasRefreshToken = initialData ? (() => {
-        try {
-            const config = JSON.parse(initialData.config);
-            return !!config.refreshToken;
-        } catch {
-            return false;
-        }
-    })() : false;
-
-    // Watch full config for Google Drive folder browser
-    const config = watch("config");
+    // Check if a refresh token is stored (for existing/authorized adapters).
+    // The list DTO redacts the value, so we rely on the `secretStatus` flag.
+    const hasRefreshToken = initialData?.secretStatus?.refreshToken === true;
 
     return (
         <Tabs defaultValue="connection" className="w-full">
@@ -771,20 +762,20 @@ export function StorageFormContent({
                     {isGoogleDrive ? (
                         <GoogleDriveFolderField
                             adapter={adapter}
-                            config={config}
                             hasRefreshToken={hasRefreshToken}
+                            adapterConfigId={initialData?.id}
                         />
                     ) : isDropbox ? (
                         <DropboxFolderField
                             adapter={adapter}
-                            config={config}
                             hasRefreshToken={hasRefreshToken}
+                            adapterConfigId={initialData?.id}
                         />
                     ) : isOneDrive ? (
                         <OneDriveFolderField
                             adapter={adapter}
-                            config={config}
                             hasRefreshToken={hasRefreshToken}
+                            adapterConfigId={initialData?.id}
                         />
                     ) : hasRealConfigKeys ? (
                         <>
@@ -879,21 +870,21 @@ export function GenericFormContent({ adapter, detectedVersion }: { adapter: Adap
  */
 function GoogleDriveFolderField({
     adapter: _adapter,
-    config,
     hasRefreshToken,
+    adapterConfigId,
 }: {
     adapter: AdapterDefinition;
-    config: Record<string, unknown>;
     hasRefreshToken: boolean;
+    adapterConfigId?: string;
 }) {
     const { setValue, watch } = useFormContext();
     const [isBrowserOpen, setIsBrowserOpen] = useState(false);
     const folderId = watch("config.folderId") || "";
     const [folderName, setFolderName] = useState<string | null>(null);
 
-    // Get refresh token from current form values (might be encrypted in DB but decrypted in form)
-    const refreshToken = config?.refreshToken as string | undefined;
-    const canBrowse = hasRefreshToken && !!refreshToken && !!config?.clientId && !!config?.clientSecret;
+    // Secrets (clientSecret/refreshToken) live in the vault and are resolved
+    // server-side by adapterId; the browser only needs the saved adapter id.
+    const canBrowse = hasRefreshToken && !!adapterConfigId;
 
     return (
         <div className="space-y-4">
@@ -937,11 +928,7 @@ function GoogleDriveFolderField({
                         setValue("config.folderId", selectedId);
                         setFolderName(selectedName);
                     }}
-                    config={{
-                        clientId: config.clientId as string,
-                        clientSecret: config.clientSecret as string,
-                        refreshToken: refreshToken!,
-                    }}
+                    adapterConfigId={adapterConfigId!}
                     initialFolderId={folderId || undefined}
                 />
             )}
@@ -955,19 +942,18 @@ function GoogleDriveFolderField({
  */
 function DropboxFolderField({
     adapter: _adapter,
-    config,
     hasRefreshToken,
+    adapterConfigId,
 }: {
     adapter: AdapterDefinition;
-    config: Record<string, unknown>;
     hasRefreshToken: boolean;
+    adapterConfigId?: string;
 }) {
     const { setValue, watch } = useFormContext();
     const [isBrowserOpen, setIsBrowserOpen] = useState(false);
     const folderPath = watch("config.folderPath") || "";
 
-    const refreshToken = config?.refreshToken as string | undefined;
-    const canBrowse = hasRefreshToken && !!refreshToken && !!config?.clientId && !!config?.clientSecret;
+    const canBrowse = hasRefreshToken && !!adapterConfigId;
 
     return (
         <div className="space-y-4">
@@ -1005,11 +991,7 @@ function DropboxFolderField({
                     onSelect={(selectedPath) => {
                         setValue("config.folderPath", selectedPath);
                     }}
-                    config={{
-                        clientId: config.clientId as string,
-                        clientSecret: config.clientSecret as string,
-                        refreshToken: refreshToken!,
-                    }}
+                    adapterConfigId={adapterConfigId!}
                     initialPath={folderPath || undefined}
                 />
             )}
@@ -1023,19 +1005,18 @@ function DropboxFolderField({
  */
 function OneDriveFolderField({
     adapter: _adapter,
-    config,
     hasRefreshToken,
+    adapterConfigId,
 }: {
     adapter: AdapterDefinition;
-    config: Record<string, unknown>;
     hasRefreshToken: boolean;
+    adapterConfigId?: string;
 }) {
     const { setValue, watch } = useFormContext();
     const [isBrowserOpen, setIsBrowserOpen] = useState(false);
     const folderPath = watch("config.folderPath") || "";
 
-    const refreshToken = config?.refreshToken as string | undefined;
-    const canBrowse = hasRefreshToken && !!refreshToken && !!config?.clientId && !!config?.clientSecret;
+    const canBrowse = hasRefreshToken && !!adapterConfigId;
 
     return (
         <div className="space-y-4">
@@ -1073,11 +1054,7 @@ function OneDriveFolderField({
                     onSelect={(selectedPath) => {
                         setValue("config.folderPath", selectedPath);
                     }}
-                    config={{
-                        clientId: config.clientId as string,
-                        clientSecret: config.clientSecret as string,
-                        refreshToken: refreshToken!,
-                    }}
+                    adapterConfigId={adapterConfigId!}
                     initialPath={folderPath || undefined}
                 />
             )}
@@ -1158,9 +1135,14 @@ function getCredentialManagedKeys(adapter: AdapterDefinition): Set<string> {
     } else if (reqs.primary === "ACCESS_KEY") {
         ["accessKeyId", "secretAccessKey"].forEach((k) => hidden.add(k));
     } else if (reqs.primary === "TOKEN") {
-        ["token", "appToken", "accessToken", "botToken"].forEach((k) => hidden.add(k));
+        ["token", "appToken", "accessToken", "botToken", "authToken"].forEach((k) => hidden.add(k));
     } else if (reqs.primary === "SMTP") {
         ["user", "password"].forEach((k) => hidden.add(k));
+    } else if (reqs.primary === "WEBHOOK") {
+        ["webhookUrl", "url", "authHeader"].forEach((k) => hidden.add(k));
+    } else if (reqs.primary === "OAUTH") {
+        // The whole OAuth-app identity lives in the vault profile.
+        ["clientId", "clientSecret", "refreshToken"].forEach((k) => hidden.add(k));
     }
 
     if (reqs.ssh === "SSH_KEY") {

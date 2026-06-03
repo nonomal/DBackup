@@ -24,11 +24,8 @@ interface GoogleDriveFolderBrowserProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSelect: (folderId: string, folderName: string) => void;
-    config: {
-        clientId: string;
-        clientSecret: string;
-        refreshToken: string;
-    };
+    /** Saved adapter config id; credentials are resolved server-side from its OAUTH profile. */
+    adapterConfigId: string;
     initialFolderId?: string;
 }
 
@@ -41,7 +38,7 @@ export function GoogleDriveFolderBrowser({
     open,
     onOpenChange,
     onSelect,
-    config,
+    adapterConfigId,
     initialFolderId,
 }: GoogleDriveFolderBrowserProps) {
     const [currentFolderId, setCurrentFolderId] = useState(initialFolderId || "root");
@@ -71,7 +68,7 @@ export function GoogleDriveFolderBrowser({
             const res = await fetch("/api/system/filesystem/google-drive", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ config, folderId }),
+                body: JSON.stringify({ adapterId: adapterConfigId, folderId }),
             });
 
             const json = await res.json();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import { decryptConfig, encryptConfig } from "@/lib/crypto";
+import { getDecryptedCredentialData, updateCredentialProfile } from "@/services/auth/credential-service";
+import type { OAuthData } from "@/lib/core/credentials";
 import { logger } from "@/lib/logging/logger";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -57,7 +58,16 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        const config = decryptConfig(JSON.parse(adapterConfig.config));
+        if (!adapterConfig.primaryCredentialId) {
+            return NextResponse.redirect(
+                `${origin}/dashboard/destinations?oauth=error&message=${encodeURIComponent("Assign an OAuth credential profile (with the client ID + secret) before authorizing.")}`
+            );
+        }
+
+        const profile = (await getDecryptedCredentialData(
+            adapterConfig.primaryCredentialId,
+            "OAUTH"
+        )) as OAuthData;
 
         const redirectUri = `${origin}/api/adapters/onedrive/callback`;
 
@@ -70,8 +80,8 @@ export async function GET(req: NextRequest) {
             body: new URLSearchParams({
                 code,
                 grant_type: "authorization_code",
-                client_id: config.clientId,
-                client_secret: config.clientSecret,
+                client_id: profile.clientId,
+                client_secret: profile.clientSecret,
                 redirect_uri: redirectUri,
                 scope: "Files.ReadWrite.All offline_access User.Read",
             }),
@@ -94,19 +104,9 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Update the adapter config with the refresh token
-        const updatedConfig = {
-            ...config,
-            refreshToken: tokenData.refresh_token,
-        };
-
-        const encryptedConfig = encryptConfig(updatedConfig);
-
-        await prisma.adapterConfig.update({
-            where: { id: state },
-            data: {
-                config: JSON.stringify(encryptedConfig),
-            },
+        // Store the refresh token in the credential profile (not the adapter config).
+        await updateCredentialProfile(adapterConfig.primaryCredentialId, {
+            data: { clientId: profile.clientId, clientSecret: profile.clientSecret, refreshToken: tokenData.refresh_token } satisfies OAuthData,
         });
 
         log.info("OneDrive OAuth completed successfully", { adapterId: state });

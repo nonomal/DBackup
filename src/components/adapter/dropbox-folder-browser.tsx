@@ -24,11 +24,8 @@ interface DropboxFolderBrowserProps {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onSelect: (folderPath: string) => void;
-    config: {
-        clientId: string;
-        clientSecret: string;
-        refreshToken: string;
-    };
+    /** Saved adapter config id; credentials are resolved server-side from its OAUTH profile. */
+    adapterConfigId: string;
     initialPath?: string;
 }
 
@@ -41,7 +38,7 @@ export function DropboxFolderBrowser({
     open,
     onOpenChange,
     onSelect,
-    config,
+    adapterConfigId,
     initialPath,
 }: DropboxFolderBrowserProps) {
     const [currentPath, setCurrentPath] = useState(initialPath || "");
@@ -66,7 +63,7 @@ export function DropboxFolderBrowser({
             const res = await fetch("/api/system/filesystem/dropbox", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ config, folderPath }),
+                body: JSON.stringify({ adapterId: adapterConfigId, folderPath }),
             });
 
             const json = await res.json();

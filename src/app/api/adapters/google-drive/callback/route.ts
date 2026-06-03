@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import prisma from "@/lib/prisma";
-import { decryptConfig, encryptConfig } from "@/lib/crypto";
+import { getDecryptedCredentialData, updateCredentialProfile } from "@/services/auth/credential-service";
+import type { OAuthData } from "@/lib/core/credentials";
 import { logger } from "@/lib/logging/logger";
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
@@ -57,13 +58,24 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        const config = decryptConfig(JSON.parse(adapterConfig.config));
+        // clientId + clientSecret + refreshToken all live in the OAUTH credential
+        // profile referenced by the adapter.
+        if (!adapterConfig.primaryCredentialId) {
+            return NextResponse.redirect(
+                `${origin}/dashboard/destinations?oauth=error&message=${encodeURIComponent("Assign an OAuth credential profile (with the client ID + secret) before authorizing.")}`
+            );
+        }
+
+        const profile = (await getDecryptedCredentialData(
+            adapterConfig.primaryCredentialId,
+            "OAUTH"
+        )) as OAuthData;
 
         const redirectUri = `${origin}/api/adapters/google-drive/callback`;
 
         const oauth2Client = new google.auth.OAuth2(
-            config.clientId,
-            config.clientSecret,
+            profile.clientId,
+            profile.clientSecret,
             redirectUri
         );
 
@@ -77,19 +89,9 @@ export async function GET(req: NextRequest) {
             );
         }
 
-        // Update the adapter config with the refresh token
-        const updatedConfig = {
-            ...config,
-            refreshToken: tokens.refresh_token,
-        };
-
-        const encryptedConfig = encryptConfig(updatedConfig);
-
-        await prisma.adapterConfig.update({
-            where: { id: state },
-            data: {
-                config: JSON.stringify(encryptedConfig),
-            },
+        // Store the refresh token in the credential profile (not the adapter config).
+        await updateCredentialProfile(adapterConfig.primaryCredentialId, {
+            data: { clientId: profile.clientId, clientSecret: profile.clientSecret, refreshToken: tokens.refresh_token } satisfies OAuthData,
         });
 
         log.info("Google Drive OAuth completed successfully", { adapterId: state });

@@ -4,7 +4,8 @@ import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { getAuthContext, checkPermissionWithContext } from "@/lib/auth/access-control";
 import { PERMISSIONS } from "@/lib/auth/permissions";
-import { decryptConfig } from "@/lib/crypto";
+import { getDecryptedCredentialData } from "@/services/auth/credential-service";
+import type { OAuthData } from "@/lib/core/credentials";
 import { logger } from "@/lib/logging/logger";
 
 const log = logger.child({ route: "adapters/dropbox/auth" });
@@ -37,9 +38,15 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Adapter not found or not a Dropbox adapter" }, { status: 404 });
         }
 
-        const config = decryptConfig(JSON.parse(adapterConfig.config));
+        if (!adapterConfig.primaryCredentialId) {
+            return NextResponse.json({ error: "Assign an OAuth credential profile (with the app key + secret) before authorizing." }, { status: 400 });
+        }
+        const profile = (await getDecryptedCredentialData(
+            adapterConfig.primaryCredentialId,
+            "OAUTH"
+        )) as OAuthData;
 
-        if (!config.clientId || !config.clientSecret) {
+        if (!profile.clientId || !profile.clientSecret) {
             return NextResponse.json({ error: "App Key and App Secret are required" }, { status: 400 });
         }
 
@@ -48,8 +55,8 @@ export async function POST(req: NextRequest) {
         const redirectUri = `${origin}/api/adapters/dropbox/callback`;
 
         const dbxAuth = new DropboxAuth({
-            clientId: config.clientId,
-            clientSecret: config.clientSecret,
+            clientId: profile.clientId,
+            clientSecret: profile.clientSecret,
             fetch: fetch,
         });
 
