@@ -11,13 +11,15 @@ interface OneDriveOAuthButtonProps {
     credentialId?: string;
     /** Whether the profile already has a refresh token */
     authorized?: boolean;
+    /** Called when authorization completes successfully in the popup. */
+    onAuthorized?: () => void;
 }
 
 /**
  * OAuth authorization button for OneDrive.
  * Authorizes the selected OAUTH credential profile - no saved destination needed.
  */
-export function OneDriveOAuthButton({ credentialId, authorized }: OneDriveOAuthButtonProps) {
+export function OneDriveOAuthButton({ credentialId, authorized, onAuthorized }: OneDriveOAuthButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
 
     if (!credentialId) {
@@ -64,14 +66,48 @@ export function OneDriveOAuthButton({ credentialId, authorized }: OneDriveOAuthB
             const data = await res.json();
 
             if (data.success && data.data?.authUrl) {
-                // Redirect to Microsoft consent screen
-                window.location.href = data.data.authUrl;
+                const popup = window.open(
+                    data.data.authUrl,
+                    "dbackup_oauth",
+                    "width=600,height=700,scrollbars=yes,resizable=yes"
+                );
+
+                if (!popup) {
+                    // Popup blocked - fall back to full navigation.
+                    window.location.href = data.data.authUrl;
+                    return;
+                }
+
+                const handleMessage = (event: MessageEvent) => {
+                    if (event.origin !== window.location.origin) return;
+                    if (event.data?.type !== "oauth_complete") return;
+                    window.removeEventListener("message", handleMessage);
+                    clearInterval(pollClosed);
+                    setIsLoading(false);
+                    if (event.data.status === "success") {
+                        toast.success(event.data.message);
+                        onAuthorized?.();
+                    } else {
+                        toast.error(event.data.message);
+                    }
+                };
+
+                window.addEventListener("message", handleMessage);
+
+                // Fallback: detect when the popup is closed without a message.
+                const pollClosed = setInterval(() => {
+                    if (popup.closed) {
+                        clearInterval(pollClosed);
+                        window.removeEventListener("message", handleMessage);
+                        setIsLoading(false);
+                    }
+                }, 500);
             } else {
                 toast.error(data.error || "Failed to start authorization");
+                setIsLoading(false);
             }
         } catch {
             toast.error("Failed to start Microsoft authorization");
-        } finally {
             setIsLoading(false);
         }
     }

@@ -37,6 +37,8 @@ interface Props {
     description?: string;
     /** Notified with the resolved profile object whenever the selection changes (incl. after load). */
     onSelectedProfile?: (profile: CredentialProfileSummary | null) => void;
+    /** Increment to trigger a profiles re-fetch (e.g. after OAuth completes). */
+    refreshKey?: number;
 }
 
 const TYPE_BADGE: Record<CredentialType, string> = {
@@ -57,6 +59,7 @@ export function CredentialPicker({
     label,
     description,
     onSelectedProfile,
+    refreshKey,
 }: Props) {
     const [profiles, setProfiles] = useState<CredentialProfileSummary[]>([]);
     const [loading, setLoading] = useState(true);
@@ -83,7 +86,7 @@ export function CredentialPicker({
 
     useEffect(() => {
         fetchProfiles();
-    }, [fetchProfiles]);
+    }, [fetchProfiles, refreshKey]);
 
     const onCreated = (profile: CredentialProfileSummary) => {
         setProfiles((prev) => [profile, ...prev.filter((p) => p.id !== profile.id)]);

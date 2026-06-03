@@ -1,5 +1,5 @@
 import { useFormContext } from "react-hook-form";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import {
     Tabs,
@@ -68,7 +68,8 @@ function PrimaryCredentialPickerSlot({
     primaryCredentialId,
     onPrimaryChange,
     onSelectedProfile,
-}: { adapter: AdapterDefinition; onSelectedProfile?: (p: CredentialProfileSummary | null) => void } & CredentialPickerHostProps) {
+    refreshKey,
+}: { adapter: AdapterDefinition; onSelectedProfile?: (p: CredentialProfileSummary | null) => void; refreshKey?: number } & CredentialPickerHostProps) {
     const required = adapter.credentials?.primary;
     if (!required || !onPrimaryChange) return null;
     return (
@@ -79,6 +80,7 @@ function PrimaryCredentialPickerSlot({
             onChange={onPrimaryChange}
             label="Credential Profile"
             onSelectedProfile={onSelectedProfile}
+            refreshKey={refreshKey}
         />
     );
 }
@@ -690,6 +692,10 @@ export function StorageFormContent({
     const [selectedProfile, setSelectedProfile] = useState<CredentialProfileSummary | null>(null);
     const authorized = selectedProfile?.secretStatus?.refreshToken === true;
 
+    // Incremented after a successful popup OAuth to trigger a credential re-fetch.
+    const [credentialRefreshKey, setCredentialRefreshKey] = useState(0);
+    const handleOAuthAuthorized = useCallback(() => setCredentialRefreshKey((k) => k + 1), []);
+
     return (
         <Tabs defaultValue="connection" className="w-full">
             <TabsList className={cn("grid w-full", hasConfigKeys ? "grid-cols-2" : "grid-cols-1")}>
@@ -705,6 +711,7 @@ export function StorageFormContent({
                     primaryCredentialId={primaryCredentialId}
                     onPrimaryChange={onPrimaryChange}
                     onSelectedProfile={setSelectedProfile}
+                    refreshKey={credentialRefreshKey}
                 />
                 {(adapter.id === 'sftp' || adapter.id === 'rsync') ? (
                     <div className="space-y-4">
@@ -731,16 +738,19 @@ export function StorageFormContent({
                     <GoogleDriveOAuthButton
                         credentialId={primaryCredentialId ?? undefined}
                         authorized={authorized}
+                        onAuthorized={handleOAuthAuthorized}
                     />
                 ) : isDropbox ? (
                     <DropboxOAuthButton
                         credentialId={primaryCredentialId ?? undefined}
                         authorized={authorized}
+                        onAuthorized={handleOAuthAuthorized}
                     />
                 ) : isOneDrive ? (
                     <OneDriveOAuthButton
                         credentialId={primaryCredentialId ?? undefined}
                         authorized={authorized}
+                        onAuthorized={handleOAuthAuthorized}
                     />
                 ) : (
                     <FieldList keys={connectionKeys} adapter={adapter} />
