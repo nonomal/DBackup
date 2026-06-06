@@ -49,12 +49,11 @@ export function EncryptionKeyResolutionDialog({
     // Fetch profiles when dialog opens; auto-switch to raw key tab if vault is empty
     useEffect(() => {
         if (!open) return;
-        setActiveTab("profile");
         getEncryptionProfiles().then((res) => {
             if (res.success && res.data) {
                 const mapped = res.data.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name }));
                 setProfiles(mapped);
-                if (mapped.length === 0) setActiveTab("rawKey");
+                setActiveTab(mapped.length === 0 ? "rawKey" : "profile");
             } else {
                 setActiveTab("rawKey");
             }

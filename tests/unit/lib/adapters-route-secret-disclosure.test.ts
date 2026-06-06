@@ -4,7 +4,7 @@
  * Verifies that GET /api/adapters never returns decrypted values for fields
  * in SENSITIVE_KEYS to callers who only have read/view permission.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 // ── Encryption key for AES-256-GCM (64 hex chars = 32 bytes) ─────────────────
@@ -103,8 +103,8 @@ describe("GET /api/adapters – secret disclosure regression", () => {
 
         expect(config.bucket).toBe("my-bucket");
         expect(config.endpoint).toBe("https://s3.example.com");
-        expect(config.accessKeyId).toBe("");
-        expect(config.secretAccessKey).toBe("");
+        expect(config.accessKeyId).toBeUndefined();
+        expect(config.secretAccessKey).toBeUndefined();
     });
 
     it("does not return decrypted clientSecret / refreshToken for OAuth storage adapters", async () => {
@@ -126,8 +126,8 @@ describe("GET /api/adapters – secret disclosure regression", () => {
 
         expect(config.clientId).toBe("my-client-id");
         expect(config.folderId).toBe("root");
-        expect(config.clientSecret).toBe("");
-        expect(config.refreshToken).toBe("");
+        expect(config.clientSecret).toBeUndefined();
+        expect(config.refreshToken).toBeUndefined();
     });
 
     it("does not return decrypted password / privateKey for database adapters", async () => {
@@ -149,8 +149,8 @@ describe("GET /api/adapters – secret disclosure regression", () => {
 
         expect(config.host).toBe("db.internal");
         expect(config.user).toBe("dbuser");
-        expect(config.password).toBe("");
-        expect(config.privateKey).toBe("");
+        expect(config.password).toBeUndefined();
+        expect(config.privateKey).toBeUndefined();
     });
 
     it("does not return decrypted webhookUrl / token for notification adapters", async () => {
@@ -170,8 +170,8 @@ describe("GET /api/adapters – secret disclosure regression", () => {
         const config = JSON.parse(body[0].config);
 
         expect(config.channel).toBe("#alerts");
-        expect(config.webhookUrl).toBe("");
-        expect(config.token).toBe("");
+        expect(config.webhookUrl).toBeUndefined();
+        expect(config.token).toBeUndefined();
     });
 
     it("returns 400 when type parameter is missing", async () => {
