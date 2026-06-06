@@ -2,6 +2,45 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+> 🔒 **Security Update:** This release fixes a security vulnerability in DBackup's own code ([GHSA-cj5h-46h6-72wc](https://github.com/skyfay/DBackup/security/advisories/GHSA-cj5h-46h6-72wc)). Update as soon as possible.
+
+> ⚠️ **Breaking:** OAuth storage destinations (Dropbox, Google Drive, OneDrive) and token-based notification channels (Discord, Slack, Teams, Generic Webhook, Twilio) no longer store secrets inline - they require a Vault credential profile to function. After updating, create a matching `OAUTH`, `WEBHOOK`, or `TOKEN` profile in the Security Vault and assign it to each affected adapter via the edit form. Adapters without an assigned profile will fail connection tests and backup/notification jobs until migrated.
+
+### ✨ Features
+
+- **credentials**: Credential profiles now support `WEBHOOK` (Discord, Slack, Teams, Generic Webhook), `OAUTH` (Dropbox, Google Drive, OneDrive), and `TOKEN` (Twilio) types, allowing notification and storage secrets to be stored in the vault and resolved server-side.
+- **OAuth**: OAuth authorization flows (Dropbox, Google Drive, OneDrive) now require an assigned credential profile. Tokens are stored in the vault and the credential picker refreshes automatically after authorization.
+- **OAuth**: Authorization dialogs now open in a popup window instead of redirecting the current page.
+
+### 🔒 Security
+
+- **adapters**: All adapter endpoints (list, create, update, clone) now return a safe DTO that strips all sensitive fields and replaces them with a `secretStatus` map - decrypted secrets are no longer serialized to API responses. Thanks @YHalo-wyh ([GHSA-cj5h-46h6-72wc](https://github.com/skyfay/DBackup/security/advisories/GHSA-cj5h-46h6-72wc))
+- **adapters**: Notification webhook URLs and tokens (`webhookUrl`, `botToken`, `authToken`, `authHeader`, `appToken`, `accessToken`) and SSH keys (`sshPassword`, `sshPrivateKey`, `sshPassphrase`) added to `SENSITIVE_KEYS` and redacted in all DTO and strip operations. Thanks @YHalo-wyh ([GHSA-cj5h-46h6-72wc](https://github.com/skyfay/DBackup/security/advisories/GHSA-cj5h-46h6-72wc))
+- **OAuth**: Refresh tokens for Dropbox, Google Drive, and OneDrive are now stored exclusively in credential profiles instead of adapter configs.
+- **adapters**: Adapter update (PUT) now preserves existing secrets via `mergeSecrets` - re-saving an adapter form without changing secret fields no longer overwrites stored credentials with empty values.
+
+### 🎨 Improvements
+
+- **adapters**: Secret fields in the adapter form show a "saved - leave blank to keep" placeholder when a value is already stored.
+- **credentials**: Credential profile dialog extended to support creating `WEBHOOK` and `OAUTH` profile types.
+
+### 🧪 Tests
+
+- **adapters**: Added audit tests verifying no sensitive fields are returned by any adapter API endpoint.
+- **adapters**: Added DTO unit tests verifying that notification secrets (Telegram `botToken`, Discord `webhookUrl`) are redacted and `secretStatus` flags are set correctly.
+- **crypto**: Added unit tests for `stripSecrets`, `mergeSecrets`, and `getSecretStatus`.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.5.1 - Security Update, Smart Recovery Improvements, and Multiple Bug Fixes
 *Released: June 2, 2026*
 
