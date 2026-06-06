@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        return NextResponse.json(newAdapter, { status: 201 });
+        return NextResponse.json(toAdapterListItem(newAdapter), { status: 201 });
     } catch (error: unknown) {
         log.error("Create adapter error", {}, wrapError(error));
         return NextResponse.json({ error: getErrorMessage(error) || "Failed to create adapter" }, { status: 500 });

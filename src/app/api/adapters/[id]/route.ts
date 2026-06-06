@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { encryptConfig, decryptConfig, mergeSecrets } from "@/lib/crypto";
+import { toAdapterListItem } from "@/lib/adapters/dto";
 import { headers } from "next/headers";
 import { auditService } from "@/services/audit-service";
 import { AUDIT_ACTIONS, AUDIT_RESOURCES } from "@/lib/core/audit-types";
@@ -194,7 +195,7 @@ export async function PUT(
             );
         }
 
-        return NextResponse.json(updatedAdapter);
+        return NextResponse.json(toAdapterListItem(updatedAdapter));
     } catch (_error) {
         return NextResponse.json({ error: "Failed to update adapter" }, { status: 500 });
     }

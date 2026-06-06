@@ -85,6 +85,36 @@ describe("toAdapterListItem (adapter list DTO)", () => {
         expect(cfg).toEqual({ host: "db.prod", port: 5432, username: "u" });
     });
 
+    it("never leaks a token-type notification secret (Telegram botToken)", async () => {
+        const { encryptConfig, toAdapterListItem } = await getModules();
+        const stored = JSON.stringify(
+            encryptConfig({ botToken: "SECRET_BOT_TOKEN_SHOULD_NOT_LEAK", chatId: "99999" })
+        );
+        const dto = toAdapterListItem({ ...baseRow(stored), type: "notification", adapterId: "telegram" });
+        const serialized = JSON.stringify(dto);
+
+        expect(serialized).not.toContain("SECRET_BOT_TOKEN_SHOULD_NOT_LEAK");
+        const cfg = JSON.parse(dto.config);
+        expect("botToken" in cfg).toBe(false); // secret key removed entirely
+        expect(cfg.chatId).toBe("99999"); // non-secret preserved
+        expect(dto.secretStatus.botToken).toBe(true);
+    });
+
+    it("never leaks a webhook-type notification secret (Discord webhookUrl)", async () => {
+        const { encryptConfig, toAdapterListItem } = await getModules();
+        const stored = JSON.stringify(
+            encryptConfig({ webhookUrl: "https://discord.com/api/webhooks/SECRET_HOOK", username: "Backup Bot" })
+        );
+        const dto = toAdapterListItem({ ...baseRow(stored), type: "notification", adapterId: "discord" });
+        const serialized = JSON.stringify(dto);
+
+        expect(serialized).not.toContain("https://discord.com/api/webhooks/SECRET_HOOK");
+        const cfg = JSON.parse(dto.config);
+        expect("webhookUrl" in cfg).toBe(false); // secret key removed entirely
+        expect(cfg.username).toBe("Backup Bot"); // non-secret preserved
+        expect(dto.secretStatus.webhookUrl).toBe(true);
+    });
+
     it("returns an empty config for unparseable stored config (no raw leak)", async () => {
         const { toAdapterListItem } = await getModules();
         const dto = toAdapterListItem(baseRow("not-json"));

@@ -101,6 +101,9 @@ export const SENSITIVE_KEYS = [
   'uri', // MongoDB Connection String
   'passphrase', // SSH Key Passphrase
   'privateKey', // SSH Private Key
+  'sshPassword', // SSH tunnel password (legacy inline SSH field)
+  'sshPrivateKey', // SSH tunnel private key (legacy inline SSH field)
+  'sshPassphrase', // SSH tunnel key passphrase (legacy inline SSH field)
   'clientSecret', // OAuth Client Secret (Google Drive, etc.)
   'refreshToken', // OAuth Refresh Token
   'authHeader', // Generic Webhook Authorization header
