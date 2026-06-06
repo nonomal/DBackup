@@ -26,6 +26,7 @@ All notable changes to DBackup are documented here.
 
 - **adapters**: Secret fields in the adapter form show a "saved - leave blank to keep" placeholder when a value is already stored.
 - **credentials**: Credential profile dialog extended to support creating `WEBHOOK` and `OAUTH` profile types.
+- **encryption**: The key resolution dialog now automatically switches to the raw key tab when no vault profiles are available.
 
 ### 🧪 Tests
 
