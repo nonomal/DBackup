@@ -2,8 +2,8 @@
 
 All notable changes to DBackup are documented here.
 
-## vNEXT
-*Release: In Progress*
+## v2.6.0 - Security Update, Vault Credential Profiles, OAuth Improvements, and Multiple Bug Fixes
+*Released: June 6, 2026*
 
 > 🔒 **Security Update:** This release fixes a security vulnerability in DBackup's own code ([GHSA-cj5h-46h6-72wc](https://github.com/skyfay/DBackup/security/advisories/GHSA-cj5h-46h6-72wc)). Update as soon as possible.
 
@@ -37,8 +37,8 @@ All notable changes to DBackup are documented here.
 
 ### 🐳 Docker
 
-- **Image**: `skyfay/dbackup:vNEXT`
-- **Also tagged as**: `latest`, `vNEXT`
+- **Image**: `skyfay/dbackup:v2.6.0`
+- **Also tagged as**: `latest`, `v2`
 - **CI Image**: `skyfay/dbackup:ci`
 - **Platforms**: linux/amd64, linux/arm64
 
