@@ -7,6 +7,8 @@ All notable changes to DBackup are documented here.
 
 > 🔒 **Security Update:** This release fixes a security vulnerability in DBackup's own code ([GHSA-cj5h-46h6-72wc](https://github.com/skyfay/DBackup/security/advisories/GHSA-cj5h-46h6-72wc)). Update as soon as possible.
 
+> ⚠️ **Breaking:** OAuth storage destinations (Dropbox, Google Drive, OneDrive) and token-based notification channels (Discord, Slack, Teams, Generic Webhook, Twilio) no longer store secrets inline - they require a Vault credential profile to function. After updating, create a matching `OAUTH`, `WEBHOOK`, or `TOKEN` profile in the Security Vault and assign it to each affected adapter via the edit form. Adapters without an assigned profile will fail connection tests and backup/notification jobs until migrated.
+
 ### ✨ Features
 
 - **credentials**: Credential profiles now support `WEBHOOK` (Discord, Slack, Teams, Generic Webhook), `OAUTH` (Dropbox, Google Drive, OneDrive), and `TOKEN` (Twilio) types, allowing notification and storage secrets to be stored in the vault and resolved server-side.
