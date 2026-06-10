@@ -11,11 +11,12 @@ All notable changes to DBackup are documented here.
 
 ### ✨ Features
 
-- **storage**: Added on-demand integrity verification for backup files via a new Verify button in the Storage Explorer. Results are persisted in the `.meta.json` sidecar and shown as a green/red badge in the Integrity column.
+- **storage**: Added on-demand integrity verification for backup files. The shield button in the Storage Explorer opens an Integrity modal showing stored SHA-256 and MD5 checksums, last verification result, and a Verify Now button. Results are persisted in the `.meta.json` sidecar and reflected in the button color (gray/green/red).
 - **storage**: Added adapter-native checksum verification for S3/R2/Hetzner (SHA-256 via object metadata), local filesystem (direct stream hash), Google Drive (MD5 via API), and OneDrive (SHA-256 via Graph API) - no download required for these adapters.
 - **storage**: MD5 checksums are now computed alongside SHA-256 during backup upload and stored in `.meta.json`, enabling native verification on Google Drive.
 - **integrity**: The scheduled integrity check now uses native verification where available and writes results back to `.meta.json` sidecars.
 - **backup**: Post-upload integrity verification is now opt-in for all storage destinations via the `backup.postUploadVerify` system setting (local filesystem always verifies).
+- **history**: MD5 checksum is now logged alongside SHA-256 in execution history during the upload stage.
 
 ### 🐳 Docker
 

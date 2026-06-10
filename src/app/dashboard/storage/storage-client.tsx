@@ -37,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { getColumns, FileInfo } from "./columns";
 import { lockBackup } from "@/app/actions/storage/lock";
 import { DownloadLinkModal } from "@/components/dashboard/storage/download-link-modal";
+import { IntegrityModal } from "@/components/dashboard/storage/integrity-modal";
 import { StorageHistoryTab } from "@/components/dashboard/storage/storage-history-tab";
 import { StorageSettingsTab } from "@/components/dashboard/storage/storage-settings-tab";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -81,6 +82,9 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
 
     // Download Link Modal State
     const [downloadLinkFile, setDownloadLinkFile] = useState<FileInfo | null>(null);
+
+    // Integrity Modal State
+    const [verifyModalFile, setVerifyModalFile] = useState<FileInfo | null>(null);
 
     // Encryption Key Resolution Dialog State (decrypted download fallback)
     const [decryptKeyDialogOpen, setDecryptKeyDialogOpen] = useState(false);
@@ -259,36 +263,9 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
         setDownloadLinkFile(file);
     }, [canDownload]);
 
-    const handleVerify = useCallback(async (file: FileInfo) => {
-        const toastId = toast.loading(`Verifying integrity of ${file.name}...`);
-        try {
-            const res = await fetch(`/api/storage/${selectedDestination}/verify`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ file: file.path }),
-            });
-            const data = await res.json();
-            if (!res.ok) {
-                toast.error(data.error || "Verification failed", { id: toastId });
-                return;
-            }
-            const result = data.data;
-            if (result.status === "passed") {
-                toast.success("Integrity check passed", { id: toastId });
-            } else if (result.status === "failed") {
-                toast.error("Integrity check FAILED - backup may be corrupted", { id: toastId });
-            } else if (result.status === "no_checksum") {
-                toast.info("No checksum available (legacy backup)", { id: toastId });
-            } else if (result.status === "no_metadata") {
-                toast.info("No metadata found for this file", { id: toastId });
-            } else {
-                toast.error("Verification error: " + result.status, { id: toastId });
-            }
-            fetchFiles(selectedDestination, showSystemConfigs);
-        } catch {
-            toast.error("Error verifying file", { id: toastId });
-        }
-    }, [selectedDestination, showSystemConfigs]); // eslint-disable-line react-hooks/exhaustive-deps
+    const handleVerify = useCallback((file: FileInfo) => {
+        setVerifyModalFile(file);
+    }, []);
 
     const confirmDelete = async () => {
         if (!fileToDelete) return;
@@ -570,6 +547,17 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
                         size: downloadLinkFile.size,
                         isEncrypted: downloadLinkFile.isEncrypted,
                     }}
+                />
+            )}
+
+            {/* Integrity Modal */}
+            {verifyModalFile && (
+                <IntegrityModal
+                    open={!!verifyModalFile}
+                    onOpenChange={(o) => { if (!o) setVerifyModalFile(null); }}
+                    file={verifyModalFile}
+                    storageConfigId={selectedDestination}
+                    onVerifyComplete={() => fetchFiles(selectedDestination, showSystemConfigs)}
                 />
             )}
 

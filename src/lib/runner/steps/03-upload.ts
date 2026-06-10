@@ -121,6 +121,7 @@ export async function stepUpload(ctx: RunnerContext) {
     ctx.log("Calculating checksums...");
     const { sha256: checksum, md5: checksumMd5 } = await calculateFileChecksums(ctx.tempFile);
     ctx.log(`SHA-256: ${checksum}`);
+    ctx.log(`MD5:     ${checksumMd5}`);
 
     // --- PRIVACY SETTING: include actor in metadata? ---
     const privacySetting = await prisma.systemSetting.findUnique({ where: { key: "privacy.includeActorInMetadata" } });

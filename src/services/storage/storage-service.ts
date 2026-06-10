@@ -31,6 +31,8 @@ export type RichFileInfo = FileInfo & {
     compression?: string;
     locked?: boolean;
     trigger?: { type: string; actor?: string };
+    checksum?: string;
+    checksumMd5?: string;
     verification?: {
         verifiedAt: string;
         passed: boolean;
@@ -254,6 +256,8 @@ export class StorageService {
                      compression,
                      locked: sidecar.locked,
                      trigger: sidecar.trigger as { type: string; actor?: string } | undefined,
+                     checksum: sidecar.checksum,
+                     checksumMd5: sidecar.checksumMd5,
                      verification: sidecar.verification ? {
                          verifiedAt: sidecar.verification.verifiedAt,
                          passed: sidecar.verification.passed,
