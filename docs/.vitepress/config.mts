@@ -171,6 +171,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Storage Explorer', link: '/user-guide/features/storage-explorer' },
+            { text: 'Backup Verification', link: '/user-guide/features/backup-verification' },
             { text: 'Restore', link: '/user-guide/features/restore' },
             { text: 'Notifications', link: '/user-guide/features/notifications' },
             { text: 'System Backup', link: '/user-guide/features/system-backup' },
