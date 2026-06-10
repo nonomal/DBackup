@@ -32,8 +32,8 @@ export async function withStorageSession<T>(
 
 function createStatelessSessionShim(adapter: StorageAdapter, config: AdapterConfig): StorageSession {
     return {
-        upload: (localPath, remotePath, onProgress, onLog) =>
-            adapter.upload(config, localPath, remotePath, onProgress, onLog),
+        upload: (localPath, remotePath, onProgress, onLog, options) =>
+            adapter.upload(config, localPath, remotePath, onProgress, onLog, options),
         close: async () => { },
     };
 }

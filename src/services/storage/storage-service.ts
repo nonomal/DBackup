@@ -31,6 +31,11 @@ export type RichFileInfo = FileInfo & {
     compression?: string;
     locked?: boolean;
     trigger?: { type: string; actor?: string };
+    verification?: {
+        verifiedAt: string;
+        passed: boolean;
+        trigger: 'manual' | 'post-upload' | 'scheduled';
+    };
 };
 
 export class StorageService {
@@ -249,6 +254,11 @@ export class StorageService {
                      compression,
                      locked: sidecar.locked,
                      trigger: sidecar.trigger as { type: string; actor?: string } | undefined,
+                     verification: sidecar.verification ? {
+                         verifiedAt: sidecar.verification.verifiedAt,
+                         passed: sidecar.verification.passed,
+                         trigger: sidecar.verification.trigger,
+                     } : undefined,
                  };
              }
 

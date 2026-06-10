@@ -259,6 +259,37 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
         setDownloadLinkFile(file);
     }, [canDownload]);
 
+    const handleVerify = useCallback(async (file: FileInfo) => {
+        const toastId = toast.loading(`Verifying integrity of ${file.name}...`);
+        try {
+            const res = await fetch(`/api/storage/${selectedDestination}/verify`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ file: file.path }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                toast.error(data.error || "Verification failed", { id: toastId });
+                return;
+            }
+            const result = data.data;
+            if (result.status === "passed") {
+                toast.success("Integrity check passed", { id: toastId });
+            } else if (result.status === "failed") {
+                toast.error("Integrity check FAILED - backup may be corrupted", { id: toastId });
+            } else if (result.status === "no_checksum") {
+                toast.info("No checksum available (legacy backup)", { id: toastId });
+            } else if (result.status === "no_metadata") {
+                toast.info("No metadata found for this file", { id: toastId });
+            } else {
+                toast.error("Verification error: " + result.status, { id: toastId });
+            }
+            fetchFiles(selectedDestination, showSystemConfigs);
+        } catch {
+            toast.error("Error verifying file", { id: toastId });
+        }
+    }, [selectedDestination, showSystemConfigs]); // eslint-disable-line react-hooks/exhaustive-deps
+
     const confirmDelete = async () => {
         if (!fileToDelete) return;
         setDeleting(true);
@@ -290,10 +321,11 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
         onDelete: handleDeleteClick,
         onToggleLock: handleToggleLock,
         onGenerateLink: handleGenerateLink,
+        onVerify: handleVerify,
         canDownload,
         canRestore,
         canDelete
-    }), [handleRestoreClick, handleDownload, handleDeleteClick, handleToggleLock, handleGenerateLink, canDownload, canRestore, canDelete]);
+    }), [handleRestoreClick, handleDownload, handleDeleteClick, handleToggleLock, handleGenerateLink, handleVerify, canDownload, canRestore, canDelete]);
 
     const filterableColumns = useMemo(() => {
         const jobs = Array.from(new Set(files.map(f => f.jobName).filter(Boolean).filter(n => n !== "Unknown"))) as string[];

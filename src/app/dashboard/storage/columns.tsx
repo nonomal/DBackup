@@ -1,7 +1,7 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, Clock, HardDrive, KeyRound, MousePointerClick } from "lucide-react";
+import { ArrowUpDown, Clock, HardDrive, KeyRound, MousePointerClick, ShieldCheck, ShieldX } from "lucide-react";
 import { AdapterIcon } from "@/components/adapter/adapter-icon";
 import { Button } from "@/components/ui/button";
 import { DateDisplay } from "@/components/utils/date-display";
@@ -28,6 +28,11 @@ export type FileInfo = {
     locked?: boolean;
     trigger?: { type: string; actor?: string };
     storageClass?: string;
+    verification?: {
+        verifiedAt: string;
+        passed: boolean;
+        trigger: 'manual' | 'post-upload' | 'scheduled';
+    };
 };
 
 interface ColumnsProps {
@@ -36,12 +41,13 @@ interface ColumnsProps {
     onDelete: (file: FileInfo) => void;
     onToggleLock: (file: FileInfo) => void;
     onGenerateLink: (file: FileInfo) => void;
+    onVerify: (file: FileInfo) => void;
     canDownload: boolean;
     canRestore: boolean;
     canDelete: boolean;
 }
 
-export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGenerateLink, canDownload, canRestore, canDelete }: ColumnsProps): ColumnDef<FileInfo>[] => [
+export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGenerateLink, onVerify, canDownload, canRestore, canDelete }: ColumnsProps): ColumnDef<FileInfo>[] => [
     {
         accessorKey: "name",
         header: ({ column }) => {
@@ -175,6 +181,18 @@ export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGe
         }
     },
     {
+        id: "verification",
+        header: "Integrity",
+        cell: ({ row }) => {
+            const v = row.original.verification;
+            if (!v) return <span className="text-muted-foreground text-xs">-</span>;
+            if (v.passed) {
+                return <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-green-200 text-green-700 dark:text-green-400"><ShieldCheck className="h-3 w-3 mr-1" />Verified</Badge>;
+            }
+            return <Badge variant="outline" className="text-[10px] h-5 px-1.5 border-red-200 text-red-700 dark:text-red-400"><ShieldX className="h-3 w-3 mr-1" />Failed</Badge>;
+        }
+    },
+    {
         accessorKey: "size",
         header: ({ column }) => {
             return (
@@ -224,6 +242,7 @@ export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGe
                 onDelete={onDelete}
                 onToggleLock={onToggleLock}
                 onGenerateLink={onGenerateLink}
+                onVerify={onVerify}
                 canDownload={canDownload}
                 canRestore={canRestore}
                 canDelete={canDelete}

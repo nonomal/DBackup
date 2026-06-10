@@ -2,6 +2,25 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### ✨ Features
+
+- **storage**: Added on-demand integrity verification for backup files via a new Verify button in the Storage Explorer. Results are persisted in the `.meta.json` sidecar and shown as a green/red badge in the Integrity column.
+- **storage**: Added adapter-native checksum verification for S3/R2/Hetzner (SHA-256 via object metadata), local filesystem (direct stream hash), Google Drive (MD5 via API), and OneDrive (SHA-256 via Graph API) - no download required for these adapters.
+- **storage**: MD5 checksums are now computed alongside SHA-256 during backup upload and stored in `.meta.json`, enabling native verification on Google Drive.
+- **integrity**: The scheduled integrity check now uses native verification where available and writes results back to `.meta.json` sidecars.
+- **backup**: Post-upload integrity verification is now opt-in for all storage destinations via the `backup.postUploadVerify` system setting (local filesystem always verifies).
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.6.0 - Security Update, Vault Credential Profiles, OAuth Improvements, and Multiple Bug Fixes
 *Released: June 6, 2026*
 

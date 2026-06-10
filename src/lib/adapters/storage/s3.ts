@@ -1,6 +1,6 @@
-import { StorageAdapter, FileInfo } from "@/lib/core/interfaces";
+import { StorageAdapter, FileInfo, UploadOptions } from "@/lib/core/interfaces";
 import { S3GenericSchema, S3AWSSchema, S3R2Schema, S3HetznerSchema } from "@/lib/adapters/definitions";
-import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, StorageClass } from "@aws-sdk/client-s3";
+import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, HeadObjectCommand, StorageClass } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
@@ -40,7 +40,7 @@ class S3ClientFactory {
 
 // --- Shared Implementation ---
 
-async function s3Upload(internalConfig: S3InternalConfig, localPath: string, remotePath: string, onProgress?: (percent: number) => void, onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void): Promise<boolean> {
+async function s3Upload(internalConfig: S3InternalConfig, localPath: string, remotePath: string, onProgress?: (percent: number) => void, onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void, options?: UploadOptions): Promise<boolean> {
     const client = S3ClientFactory.create(internalConfig);
     const targetKey = S3ClientFactory.getTargetKey(internalConfig, remotePath);
 
@@ -55,6 +55,7 @@ async function s3Upload(internalConfig: S3InternalConfig, localPath: string, rem
                 Key: targetKey,
                 Body: fileStream,
                 StorageClass: (internalConfig.storageClass as StorageClass) || undefined,
+                Metadata: options?.checksumSha256 ? { 'dbackup-sha256': options.checksumSha256 } : undefined,
             },
         });
 
@@ -201,6 +202,24 @@ async function s3Delete(
     }
 }
 
+async function s3VerifyChecksum(
+    internalConfig: S3InternalConfig,
+    remotePath: string,
+    checksums: { sha256?: string; md5?: string }
+): Promise<'passed' | 'failed' | 'unsupported'> {
+    if (!checksums.sha256) return 'unsupported';
+    const client = S3ClientFactory.create(internalConfig);
+    const targetKey = S3ClientFactory.getTargetKey(internalConfig, remotePath);
+    try {
+        const response = await client.send(new HeadObjectCommand({ Bucket: internalConfig.bucket, Key: targetKey }));
+        const stored = response.Metadata?.['dbackup-sha256'];
+        if (!stored) return 'unsupported';
+        return stored === checksums.sha256 ? 'passed' : 'failed';
+    } catch {
+        return 'unsupported';
+    }
+}
+
 async function s3Test(internalConfig: S3InternalConfig): Promise<{ success: boolean; message: string }> {
     const client = S3ClientFactory.create(internalConfig);
     const testFile = `.backup-manager-test-${Date.now()}`;
@@ -289,7 +308,15 @@ export const S3GenericAdapter: StorageAdapter = {
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
         forcePathStyle: config.forcePathStyle,
         pathPrefix: config.pathPrefix
-    }, ...args)
+    }, ...args),
+    verifyChecksum: (config, remotePath, checksums) => s3VerifyChecksum({
+        endpoint: config.endpoint,
+        region: config.region,
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+        forcePathStyle: config.forcePathStyle,
+        pathPrefix: config.pathPrefix
+    }, remotePath, checksums),
 };
 
 // 2. AWS S3
@@ -332,7 +359,13 @@ export const S3AWSAdapter: StorageAdapter = {
         bucket: config.bucket,
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
         pathPrefix: config.pathPrefix
-    }, ...args)
+    }, ...args),
+    verifyChecksum: (config, remotePath, checksums) => s3VerifyChecksum({
+        region: config.region,
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+        pathPrefix: config.pathPrefix
+    }, remotePath, checksums),
 };
 
 function r2Endpoint(accountId: string, jurisdiction?: string): string {
@@ -386,7 +419,14 @@ export const S3R2Adapter: StorageAdapter = {
         bucket: config.bucket,
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
         pathPrefix: config.pathPrefix
-    }, ...args)
+    }, ...args),
+    verifyChecksum: (config, remotePath, checksums) => s3VerifyChecksum({
+        endpoint: r2Endpoint(config.accountId, config.jurisdiction),
+        region: "auto",
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+        pathPrefix: config.pathPrefix
+    }, remotePath, checksums),
 };
 
 // 4. Hetzner Object Storage
@@ -434,5 +474,12 @@ export const S3HetznerAdapter: StorageAdapter = {
         bucket: config.bucket,
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
         pathPrefix: config.pathPrefix
-    }, ...args)
+    }, ...args),
+    verifyChecksum: (config, remotePath, checksums) => s3VerifyChecksum({
+        endpoint: `https://${config.region}.your-objectstorage.com`,
+        region: config.region,
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+        pathPrefix: config.pathPrefix
+    }, remotePath, checksums),
 };

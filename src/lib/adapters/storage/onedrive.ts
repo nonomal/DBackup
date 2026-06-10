@@ -423,6 +423,22 @@ export const OneDriveAdapter: StorageAdapter = {
         }
     },
 
+    async verifyChecksum(config: OneDriveConfig, remotePath: string, checksums: { sha256?: string; md5?: string }): Promise<'passed' | 'failed' | 'unsupported'> {
+        if (!checksums.sha256) return 'unsupported';
+        try {
+            const accessToken = await getAccessToken(config);
+            const client = createGraphClient(accessToken);
+            const drivePath = buildDrivePath(config.folderPath, remotePath);
+            const item = await client.api(driveItemPath(drivePath)).select('id,file').get();
+            const sha256Base64: string | undefined = item?.file?.hashes?.sha256Hash;
+            if (!sha256Base64) return 'unsupported';
+            const sha256Hex = Buffer.from(sha256Base64, 'base64').toString('hex').toLowerCase();
+            return sha256Hex === checksums.sha256.toLowerCase() ? 'passed' : 'failed';
+        } catch {
+            return 'unsupported';
+        }
+    },
+
     async test(config: OneDriveConfig): Promise<{ success: boolean; message: string }> {
         try {
             const accessToken = await getAccessToken(config);

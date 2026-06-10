@@ -344,6 +344,26 @@ export const GoogleDriveAdapter: StorageAdapter = {
         }
     },
 
+    async verifyChecksum(config: GoogleDriveConfig, remotePath: string, checksums: { sha256?: string; md5?: string }): Promise<'passed' | 'failed' | 'unsupported'> {
+        if (!checksums.md5) return 'unsupported';
+        try {
+            const drive = createDriveClient(config);
+            const fileName = path.basename(remotePath);
+            const dirPath = path.posix.dirname(remotePath);
+            const folderId = dirPath === '.'
+                ? (config.folderId || 'root')
+                : await resolveOrCreatePath(drive, config.folderId, dirPath + '/dummy');
+            const file = await findFile(drive, folderId, fileName);
+            if (!file?.id) return 'unsupported';
+            const details = await drive.files.get({ fileId: file.id, fields: 'md5Checksum' });
+            const md5 = details.data.md5Checksum;
+            if (!md5) return 'unsupported';
+            return md5.toLowerCase() === checksums.md5.toLowerCase() ? 'passed' : 'failed';
+        } catch {
+            return 'unsupported';
+        }
+    },
+
     async test(config: GoogleDriveConfig): Promise<{ success: boolean; message: string }> {
         try {
             const drive = createDriveClient(config);

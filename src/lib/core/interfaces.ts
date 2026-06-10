@@ -46,6 +46,15 @@ export interface BackupMetadata {
     };
     /** SHA-256 checksum of the final backup file (after compression/encryption) */
     checksum?: string;
+    /** MD5 checksum of the final backup file - enables native verification for Google Drive and OneDrive */
+    checksumMd5?: string;
+    /** Result of the most recent integrity verification */
+    verification?: {
+        verifiedAt: string;
+        passed: boolean;
+        trigger: 'manual' | 'post-upload' | 'scheduled';
+        actualChecksum?: string;
+    };
     /** Trigger information - what initiated the backup */
     trigger?: {
         type: "Manual" | "Scheduler" | "Api";
@@ -220,6 +229,12 @@ export type FileInfo = {
     storageClass?: string;
 };
 
+/** Optional options passed to upload() for adapters that support native checksum storage. */
+export interface UploadOptions {
+    checksumSha256?: string;
+    checksumMd5?: string;
+}
+
 /**
  * A persistent upload session that reuses a single connection for multiple uploads.
  * Returned by `StorageAdapter.openSession()` when an adapter supports connection reuse.
@@ -233,7 +248,8 @@ export interface StorageSession {
         localPath: string,
         remotePath: string,
         onProgress?: (percent: number) => void,
-        onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void
+        onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void,
+        options?: UploadOptions
     ): Promise<boolean>;
     close(): Promise<void>;
 }
@@ -241,9 +257,24 @@ export interface StorageSession {
 export interface StorageAdapter extends BaseAdapter {
     type: 'storage';
     /**
-     * Uploads a local file to the storage destination
+     * Uploads a local file to the storage destination.
+     * Pass `options.checksumSha256` / `options.checksumMd5` so adapters that support
+     * native checksum storage (S3, etc.) can attach the hash during the upload request.
      */
-    upload(config: AdapterConfig, localPath: string, remotePath: string, onProgress?: (percent: number) => void, onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void): Promise<boolean>;
+    upload(config: AdapterConfig, localPath: string, remotePath: string, onProgress?: (percent: number) => void, onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void, options?: UploadOptions): Promise<boolean>;
+
+    /**
+     * Optional: Verifies the integrity of a remote file without downloading it.
+     * Adapters implement this when the storage API provides native checksum access
+     * (S3 custom metadata, Google Drive md5Checksum, OneDrive file.hashes.sha256Hash).
+     * Returns 'unsupported' when the adapter cannot verify natively (e.g. SFTP, FTP).
+     * The VerificationService calls this first and falls back to download+hash if unsupported.
+     */
+    verifyChecksum?(
+        config: AdapterConfig,
+        remotePath: string,
+        checksums: { sha256?: string; md5?: string }
+    ): Promise<'passed' | 'failed' | 'unsupported'>;
 
     /**
      * Optional: Opens a persistent session for multiple uploads on a single connection.
