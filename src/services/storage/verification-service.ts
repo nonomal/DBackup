@@ -15,7 +15,7 @@ const log = logger.child({ service: "VerificationService" });
 
 registerAdapters();
 
-export type VerifyStatus = 'passed' | 'failed' | 'no_checksum' | 'no_metadata' | 'download_error';
+export type VerifyStatus = 'passed' | 'failed' | 'no_checksum' | 'no_metadata' | 'download_error' | 'skipped';
 
 export interface FileVerificationResult {
     status: VerifyStatus;
@@ -28,7 +28,8 @@ export class VerificationService {
     async verifyFile(
         adapterConfigId: string,
         remotePath: string,
-        trigger: 'manual' | 'post-upload' | 'scheduled'
+        trigger: 'manual' | 'post-upload' | 'scheduled',
+        options?: { skipIfPassed?: boolean }
     ): Promise<FileVerificationResult> {
         const verifiedAt = new Date().toISOString();
 
@@ -72,6 +73,10 @@ export class VerificationService {
 
         if (!metadata.checksum && !metadata.checksumMd5) {
             return { status: 'no_checksum', verifiedAt };
+        }
+
+        if (options?.skipIfPassed && metadata.verification?.passed === true) {
+            return { status: 'skipped', verifiedAt };
         }
 
         // 2. Try native adapter verification (no download needed for S3, local, GDrive, OneDrive)

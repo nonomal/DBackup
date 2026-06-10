@@ -92,6 +92,15 @@ export default async function SettingsPage() {
         retention: configRetention ? parseInt(configRetention.value) : 10,
     };
 
+    const integritySkipPassed = await prisma.systemSetting.findUnique({ where: { key: 'integrity.skipPassed' } });
+    const integrityMaxAgeDays = await prisma.systemSetting.findUnique({ where: { key: 'integrity.maxAgeDays' } });
+    const integrityMaxFileSizeMb = await prisma.systemSetting.findUnique({ where: { key: 'integrity.maxFileSizeMb' } });
+    const integritySettings = {
+        skipPassed: integritySkipPassed?.value === 'true',
+        maxAgeDays: integrityMaxAgeDays ? parseInt(integrityMaxAgeDays.value) || 0 : 0,
+        maxFileSizeMb: integrityMaxFileSizeMb ? parseInt(integrityMaxFileSizeMb.value) || 0 : 0,
+    };
+
     // Load Rate Limit Settings
     const rateLimitConfig = await getRateLimitConfig();
 
@@ -138,7 +147,7 @@ export default async function SettingsPage() {
                     <NotificationSettings />
                 </TabsContent>
                 <TabsContent value="tasks" className="space-y-4">
-                    <SystemTasksSettings />
+                    <SystemTasksSettings initialIntegritySettings={integritySettings} />
                 </TabsContent>
                 <TabsContent value="config" className="space-y-4">
                     <ConfigBackupSettings

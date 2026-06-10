@@ -25,6 +25,12 @@ export interface IntegrityCheckResult {
   }>;
 }
 
+interface IntegrityFilters {
+  skipPassed: boolean;
+  maxAgeDays: number;
+  maxFileSizeBytes: number;
+}
+
 export class IntegrityService {
   async runFullIntegrityCheck(): Promise<IntegrityCheckResult> {
     log.info("Starting full backup integrity check");
@@ -38,13 +44,31 @@ export class IntegrityService {
       errors: [],
     };
 
+    const [skipPassedSetting, maxAgeSetting, maxSizeSetting] = await Promise.all([
+      prisma.systemSetting.findUnique({ where: { key: 'integrity.skipPassed' } }),
+      prisma.systemSetting.findUnique({ where: { key: 'integrity.maxAgeDays' } }),
+      prisma.systemSetting.findUnique({ where: { key: 'integrity.maxFileSizeMb' } }),
+    ]);
+
+    const filters: IntegrityFilters = {
+      skipPassed: skipPassedSetting?.value === 'true',
+      maxAgeDays: parseInt(maxAgeSetting?.value ?? '0') || 0,
+      maxFileSizeBytes: (parseInt(maxSizeSetting?.value ?? '0') || 0) * 1024 * 1024,
+    };
+
+    log.info("Integrity check filters", {
+      skipPassed: filters.skipPassed,
+      maxAgeDays: filters.maxAgeDays,
+      maxFileSizeMb: filters.maxFileSizeBytes / 1024 / 1024,
+    });
+
     const storageConfigs = await prisma.adapterConfig.findMany({
       where: { type: "storage" },
     });
 
     for (const storageConfig of storageConfigs) {
       try {
-        await this.checkDestination(storageConfig, result);
+        await this.checkDestination(storageConfig, result, filters);
       } catch (e: unknown) {
         log.error(
           "Failed to check storage destination",
@@ -67,7 +91,8 @@ export class IntegrityService {
 
   private async checkDestination(
     storageConfig: any,
-    result: IntegrityCheckResult
+    result: IntegrityCheckResult,
+    filters: IntegrityFilters
   ) {
     const adapter = registry.get(storageConfig.adapterId) as StorageAdapter;
     if (!adapter) {
@@ -105,11 +130,27 @@ export class IntegrityService {
           result.totalFiles++;
           const remotePath = `${folder}/${file.name}`;
 
+          // Age filter: skip files older than maxAgeDays
+          if (filters.maxAgeDays > 0 && file.lastModified) {
+            const ageDays = (Date.now() - new Date(file.lastModified).getTime()) / 86_400_000;
+            if (ageDays > filters.maxAgeDays) {
+              result.skipped++;
+              continue;
+            }
+          }
+
+          // Size filter: skip files larger than maxFileSizeBytes
+          if (filters.maxFileSizeBytes > 0 && file.size > filters.maxFileSizeBytes) {
+            result.skipped++;
+            continue;
+          }
+
           try {
             const verifyResult = await verificationService.verifyFile(
               storageConfig.id,
               remotePath,
-              "scheduled"
+              "scheduled",
+              { skipIfPassed: filters.skipPassed }
             );
 
             if (verifyResult.status === "passed") {
