@@ -5,6 +5,10 @@ All notable changes to DBackup are documented here.
 ## vNEXT
 *Release: In Progress*
 
+### 🎨 Improvements
+
+- **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow, matching the Database Explorer behavior.
+
 ### ✨ Features
 
 - **storage**: Added on-demand integrity verification for backup files via a new Verify button in the Storage Explorer. Results are persisted in the `.meta.json` sidecar and shown as a green/red badge in the Integrity column.
