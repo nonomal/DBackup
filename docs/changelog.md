@@ -7,6 +7,7 @@ All notable changes to DBackup are documented here.
 
 ### 🎨 Improvements
 
+- **storage**: Long backup names in the Storage Explorer are now truncated with a tooltip showing the full name on hover.
 - **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow, matching the Database Explorer behavior.
 
 ### ✨ Features
