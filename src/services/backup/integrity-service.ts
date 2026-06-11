@@ -152,7 +152,14 @@ export class IntegrityService {
           );
         } else {
           result.skipped++;
-          callbacks?.onLog(`${item.fileName} skipped (${verifyResult.status})`, "info");
+          const skipReasons: Record<string, string> = {
+            skipped: "already verified",
+            no_metadata: "no metadata file",
+            no_checksum: "no checksum stored",
+            download_error: "download failed",
+          };
+          const reason = skipReasons[verifyResult.status] ?? verifyResult.status;
+          callbacks?.onLog(`${item.fileName} skipped (${reason})`, "info");
         }
       } catch (e: unknown) {
         log.error("Failed to verify file", { file: item.fileName, destination: item.destinationName }, wrapError(e));
@@ -188,12 +195,12 @@ export class IntegrityService {
 
     const config = await resolveAdapterConfig(storageConfig);
 
-    let folders: string[] = [];
+    // Collect all files from storage. Adapters return flat recursive listings where
+    // file.name is the basename and file.path is the full relative path — use file.path
+    // as remotePath so downstream download/read calls resolve the correct location.
+    let allFiles: Awaited<ReturnType<StorageAdapter["list"]>> = [];
     try {
-      const topLevel = await adapter.list(config, "");
-      folders = topLevel
-        .filter((f) => f.name && !f.name.endsWith(".meta.json"))
-        .map((f) => f.name);
+      allFiles = await adapter.list(config, "");
     } catch (e: unknown) {
       log.warn(
         "Could not list storage root, falling back to active jobs",
@@ -204,36 +211,32 @@ export class IntegrityService {
         where: { destinations: { some: { configId: storageConfig.id } } },
         select: { name: true },
       });
-      folders = jobs.map((j) => j.name);
+      for (const job of jobs) {
+        try {
+          const files = await adapter.list(config, job.name);
+          allFiles.push(...files);
+        } catch {
+          // skip unreachable job folders
+        }
+      }
     }
 
-    for (const folder of folders) {
-      try {
-        const files = await adapter.list(config, folder);
-        const backupFiles = files.filter((f) => !f.name.endsWith(".meta.json"));
+    const backupFiles = allFiles.filter((f) => !f.name.endsWith(".meta.json"));
 
-        for (const file of backupFiles) {
-          if (filters.maxAgeDays > 0 && file.lastModified) {
-            const ageDays = (Date.now() - new Date(file.lastModified).getTime()) / 86_400_000;
-            if (ageDays > filters.maxAgeDays) continue;
-          }
-
-          if (filters.maxFileSizeBytes > 0 && file.size > filters.maxFileSizeBytes) continue;
-
-          workItems.push({
-            storageConfigId: storageConfig.id,
-            destinationName: storageConfig.name,
-            remotePath: `${folder}/${file.name}`,
-            fileName: file.name,
-          });
-        }
-      } catch (e: unknown) {
-        log.warn(
-          "Failed to list files for folder",
-          { folder, destination: storageConfig.name },
-          wrapError(e)
-        );
+    for (const file of backupFiles) {
+      if (filters.maxAgeDays > 0 && file.lastModified) {
+        const ageDays = (Date.now() - new Date(file.lastModified).getTime()) / 86_400_000;
+        if (ageDays > filters.maxAgeDays) continue;
       }
+
+      if (filters.maxFileSizeBytes > 0 && file.size > filters.maxFileSizeBytes) continue;
+
+      workItems.push({
+        storageConfigId: storageConfig.id,
+        destinationName: storageConfig.name,
+        remotePath: file.path,
+        fileName: file.name,
+      });
     }
 
     callbacks?.onLog(
