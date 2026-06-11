@@ -28,6 +28,10 @@ All notable changes to DBackup are documented here.
 - **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow, matching the Database Explorer behavior.
 - **preferences**: "Auto-redirect on job start" description updated to include system tasks.
 
+### 🧪 Tests
+
+- **tests**: Updated unit tests for integrity service, upload step, storage service, and system task service to match refactored service interfaces using `verificationService`, `calculateFileChecksums`, and `storageListCache`.
+
 ### 🐳 Docker
 
 - **Image**: `skyfay/dbackup:vNEXT`

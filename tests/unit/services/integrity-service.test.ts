@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { integrityService } from '@/services/backup/integrity-service';
 import prisma from '@/lib/prisma';
 import { registry } from '@/lib/core/registry';
+import { verificationService } from '@/services/storage/verification-service';
 
 vi.mock('@/lib/prisma', () => ({
     default: {
         adapterConfig: { findMany: vi.fn() },
         job: { findMany: vi.fn() },
+        systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },
     },
 }));
 
@@ -22,12 +24,10 @@ vi.mock('@/lib/adapters/config-resolver', () => ({
     resolveAdapterConfig: vi.fn().mockResolvedValue({ bucket: 'test' }),
 }));
 
-vi.mock('@/lib/temp-dir', () => ({
-    getTempDir: vi.fn().mockReturnValue('/tmp'),
-}));
-
-vi.mock('@/lib/crypto/checksum', () => ({
-    verifyFileChecksum: vi.fn(),
+vi.mock('@/services/storage/verification-service', () => ({
+    verificationService: {
+        verifyFile: vi.fn(),
+    },
 }));
 
 vi.mock('@/lib/logging/logger', () => ({
@@ -45,28 +45,14 @@ vi.mock('@/lib/logging/errors', () => ({
     wrapError: vi.fn((e) => e),
 }));
 
-// Shared mock functions hoisted so they're available when vi.mock factories run
-const { mockFsReadFile, mockFsUnlink } = vi.hoisted(() => ({
-    mockFsReadFile: vi.fn(),
-    mockFsUnlink: vi.fn().mockResolvedValue(undefined),
-}));
-
-vi.mock('fs', () => ({
-    default: {
-        promises: {
-            readFile: mockFsReadFile,
-            unlink: mockFsUnlink,
-        },
-    },
-    promises: {
-        readFile: mockFsReadFile,
-        unlink: mockFsUnlink,
-    },
-}));
-
 describe('IntegrityService', () => {
     beforeEach(() => {
         vi.clearAllMocks();
+        // Default: files have no metadata (results in skipped)
+        vi.mocked(verificationService.verifyFile).mockResolvedValue({
+            status: 'no_metadata',
+            verifiedAt: new Date().toISOString(),
+        });
     });
 
     function makeStorageAdapter(overrides: Record<string, unknown> = {}) {
@@ -93,17 +79,17 @@ describe('IntegrityService', () => {
 
     it('skips files without checksum metadata', async () => {
         const adapter = makeStorageAdapter({
-            list: vi.fn()
-                .mockResolvedValueOnce([{ name: 'My Job' }]) // top-level folder
-                .mockResolvedValueOnce([{ name: 'backup.sql' }]), // files in folder
-            read: vi.fn().mockResolvedValue(null),
-            download: vi.fn().mockResolvedValue(false), // no metadata download
+            list: vi.fn().mockResolvedValue([{ name: 'backup.sql', path: 'backup.sql' }]),
         });
 
         (prisma.adapterConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
             { id: 's1', adapterId: 'local', name: 'Local', config: '{}', primaryCredentialId: null, sshCredentialId: null },
         ]);
         (registry.get as ReturnType<typeof vi.fn>).mockReturnValue(adapter);
+        vi.mocked(verificationService.verifyFile).mockResolvedValue({
+            status: 'no_checksum',
+            verifiedAt: new Date().toISOString(),
+        });
 
         const result = await integrityService.runFullIntegrityCheck();
 
@@ -113,26 +99,17 @@ describe('IntegrityService', () => {
     });
 
     it('passes file that matches checksum', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
-
-        const metaJson = JSON.stringify({ checksum: 'sha256:abc123' });
-
         const adapter = makeStorageAdapter({
-            list: vi.fn()
-                .mockResolvedValueOnce([{ name: 'My Job' }])
-                .mockResolvedValueOnce([{ name: 'backup.sql' }]),
-            read: vi.fn().mockResolvedValue(metaJson),
-            download: vi.fn().mockResolvedValue(true),
+            list: vi.fn().mockResolvedValue([{ name: 'backup.sql', path: 'backup.sql' }]),
         });
 
         (prisma.adapterConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
             { id: 's1', adapterId: 'local', name: 'Local', config: '{}', primaryCredentialId: null, sshCredentialId: null },
         ]);
         (registry.get as ReturnType<typeof vi.fn>).mockReturnValue(adapter);
-        (verifyFileChecksum as ReturnType<typeof vi.fn>).mockResolvedValue({
-            valid: true,
-            expected: 'sha256:abc123',
-            actual: 'sha256:abc123',
+        vi.mocked(verificationService.verifyFile).mockResolvedValue({
+            status: 'passed',
+            verifiedAt: new Date().toISOString(),
         });
 
         const result = await integrityService.runFullIntegrityCheck();
@@ -145,26 +122,19 @@ describe('IntegrityService', () => {
     });
 
     it('records failed file when checksum mismatch', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
-
-        const metaJson = JSON.stringify({ checksum: 'sha256:correct' });
-
         const adapter = makeStorageAdapter({
-            list: vi.fn()
-                .mockResolvedValueOnce([{ name: 'Jobs' }])
-                .mockResolvedValueOnce([{ name: 'backup.sql' }]),
-            read: vi.fn().mockResolvedValue(metaJson),
-            download: vi.fn().mockResolvedValue(true),
+            list: vi.fn().mockResolvedValue([{ name: 'backup.sql', path: 'backup.sql' }]),
         });
 
         (prisma.adapterConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
             { id: 's1', adapterId: 'local', name: 'Storage1', config: '{}', primaryCredentialId: null, sshCredentialId: null },
         ]);
         (registry.get as ReturnType<typeof vi.fn>).mockReturnValue(adapter);
-        (verifyFileChecksum as ReturnType<typeof vi.fn>).mockResolvedValue({
-            valid: false,
-            expected: 'sha256:correct',
-            actual: 'sha256:tampered',
+        vi.mocked(verificationService.verifyFile).mockResolvedValue({
+            status: 'failed',
+            expectedChecksum: 'sha256:correct',
+            actualChecksum: 'sha256:tampered',
+            verifiedAt: new Date().toISOString(),
         });
 
         const result = await integrityService.runFullIntegrityCheck();
@@ -181,10 +151,8 @@ describe('IntegrityService', () => {
     it('falls back to job names when listing storage root fails', async () => {
         const adapter = makeStorageAdapter({
             list: vi.fn()
-                .mockRejectedValueOnce(new Error('Permission denied')) // root listing fails
-                .mockResolvedValueOnce([{ name: 'backup.sql' }]), // folder listing succeeds
-            read: vi.fn().mockResolvedValue(null),
-            download: vi.fn().mockResolvedValue(false),
+                .mockRejectedValueOnce(new Error('Permission denied'))
+                .mockResolvedValueOnce([{ name: 'backup.sql', path: 'backup.sql' }]),
         });
 
         (prisma.adapterConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -197,7 +165,6 @@ describe('IntegrityService', () => {
 
         const result = await integrityService.runFullIntegrityCheck();
 
-        // Fallback to job names was used - listing should have been attempted for 'Fallback Job'
         expect(prisma.job.findMany).toHaveBeenCalled();
         expect(result.totalFiles).toBe(1);
         expect(result.skipped).toBe(1);
@@ -219,9 +186,7 @@ describe('IntegrityService', () => {
             list: vi.fn().mockRejectedValue(new Error('Storage crash')),
         });
         const passingAdapter = makeStorageAdapter({
-            list: vi.fn()
-                .mockResolvedValueOnce([{ name: 'Jobs' }])
-                .mockResolvedValueOnce([]),
+            list: vi.fn().mockResolvedValue([{ name: 'backup.sql', path: 'backup.sql' }]),
         });
 
         (prisma.adapterConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
@@ -235,28 +200,19 @@ describe('IntegrityService', () => {
         await expect(integrityService.runFullIntegrityCheck()).resolves.not.toThrow();
     });
 
-    it('uses download fallback for metadata when adapter has no read() method', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
-
-        const metaJson = JSON.stringify({ checksum: 'sha256:xyz' });
-
+    it('delegates metadata download fallback to verificationService', async () => {
         const adapter = makeStorageAdapter({
-            read: undefined, // No read() method
-            list: vi.fn()
-                .mockResolvedValueOnce([{ name: 'Folder' }])
-                .mockResolvedValueOnce([{ name: 'backup.sql' }]),
-            download: vi.fn().mockResolvedValue(true),
+            read: undefined,
+            list: vi.fn().mockResolvedValue([{ name: 'backup.sql', path: 'backup.sql' }]),
         });
-        mockFsReadFile.mockResolvedValue(metaJson);
 
         (prisma.adapterConfig.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([
             { id: 's1', adapterId: 'local', name: 'Local', config: '{}', primaryCredentialId: null, sshCredentialId: null },
         ]);
         (registry.get as ReturnType<typeof vi.fn>).mockReturnValue(adapter);
-        (verifyFileChecksum as ReturnType<typeof vi.fn>).mockResolvedValue({
-            valid: true,
-            expected: 'sha256:xyz',
-            actual: 'sha256:xyz',
+        vi.mocked(verificationService.verifyFile).mockResolvedValue({
+            status: 'passed',
+            verifiedAt: new Date().toISOString(),
         });
 
         const result = await integrityService.runFullIntegrityCheck();
@@ -265,17 +221,9 @@ describe('IntegrityService', () => {
     });
 
     it('accumulates results across multiple destinations', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
-
-        const metaJson = JSON.stringify({ checksum: 'sha256:ok' });
-
         function makePassingAdapter() {
             return makeStorageAdapter({
-                list: vi.fn()
-                    .mockResolvedValueOnce([{ name: 'Folder' }])
-                    .mockResolvedValueOnce([{ name: 'backup.sql' }]),
-                read: vi.fn().mockResolvedValue(metaJson),
-                download: vi.fn().mockResolvedValue(true),
+                list: vi.fn().mockResolvedValue([{ name: 'backup.sql', path: 'backup.sql' }]),
             });
         }
 
@@ -286,10 +234,9 @@ describe('IntegrityService', () => {
         (registry.get as ReturnType<typeof vi.fn>)
             .mockReturnValueOnce(makePassingAdapter())
             .mockReturnValueOnce(makePassingAdapter());
-        (verifyFileChecksum as ReturnType<typeof vi.fn>).mockResolvedValue({
-            valid: true,
-            expected: 'sha256:ok',
-            actual: 'sha256:ok',
+        vi.mocked(verificationService.verifyFile).mockResolvedValue({
+            status: 'passed',
+            verifiedAt: new Date().toISOString(),
         });
 
         const result = await integrityService.runFullIntegrityCheck();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect, useState, useMemo, startTransition } from "react";
 import {
   CheckCircle2,
   AlertCircle,
@@ -148,9 +148,12 @@ export function LogViewer({ logs, className, autoScroll = true, status, executio
   useEffect(() => {
       if (userInteracted) return;
       if (!runningStage) return;
-      setActiveStages(prev => {
-          if (prev.includes(runningStage)) return prev;
-          return [runningStage];
+      const stage = runningStage;
+      startTransition(() => {
+          setActiveStages(prev => {
+              if (prev.includes(stage)) return prev;
+              return [stage];
+          });
       });
   }, [runningStage, userInteracted]);
 

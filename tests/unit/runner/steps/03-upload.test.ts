@@ -70,6 +70,7 @@ vi.mock('@/lib/utils', () => ({
 
 vi.mock('@/lib/crypto/checksum', () => ({
     calculateFileChecksum: vi.fn().mockResolvedValue('abc123checksum'),
+    calculateFileChecksums: vi.fn().mockResolvedValue({ sha256: 'abc123checksum', md5: 'def456checksum' }),
     verifyFileChecksum: vi.fn().mockResolvedValue({ valid: true, expected: 'abc123', actual: 'abc123' }),
 }));
 
@@ -88,6 +89,12 @@ vi.mock('@/lib/core/logs', () => ({
 vi.mock('@/lib/prisma', () => ({
     default: {
         systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },
+    },
+}));
+
+vi.mock('@/services/storage/verification-service', () => ({
+    verificationService: {
+        verifyFile: vi.fn().mockResolvedValue({ status: 'passed', verifiedAt: new Date().toISOString() }),
     },
 }));
 
@@ -239,13 +246,13 @@ describe('stepUpload', () => {
     });
 
     it('calculates checksum and writes metadata sidecar', async () => {
-        const { calculateFileChecksum } = await import('@/lib/crypto/checksum');
+        const { calculateFileChecksums } = await import('@/lib/crypto/checksum');
         const fsPromises = await import('fs/promises');
 
         const ctx = makeCtx();
         await stepUpload(ctx);
 
-        expect(calculateFileChecksum).toHaveBeenCalledWith('/tmp/test_backup.sql');
+        expect(calculateFileChecksums).toHaveBeenCalledWith('/tmp/test_backup.sql');
         expect(fsPromises.default.writeFile).toHaveBeenCalledWith(
             '/tmp/test_backup.sql.meta.json',
             expect.stringContaining('abc123checksum'),
@@ -378,23 +385,23 @@ describe('stepUpload', () => {
     });
 
     it('performs post-upload integrity verification for local-filesystem destinations', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
+        const { verificationService } = await import('@/services/storage/verification-service');
         const dest = makeDestination({ adapterId: 'local-filesystem' });
         const ctx = makeCtx({ destinations: [dest] });
 
         await stepUpload(ctx);
 
-        expect(dest.adapter.download).toHaveBeenCalled();
-        expect(verifyFileChecksum).toHaveBeenCalled();
+        expect(verificationService.verifyFile).toHaveBeenCalled();
         expect(ctx.log).toHaveBeenCalledWith(expect.stringContaining('Integrity check passed'), 'success');
     });
 
     it('logs a warning when post-upload integrity check fails', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
-        (verifyFileChecksum as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-            valid: false,
-            expected: 'abc123',
-            actual: 'badchecksum',
+        const { verificationService } = await import('@/services/storage/verification-service');
+        vi.mocked(verificationService.verifyFile).mockResolvedValueOnce({
+            status: 'failed',
+            expectedChecksum: 'abc123',
+            actualChecksum: 'badchecksum',
+            verifiedAt: new Date().toISOString(),
         });
 
         const dest = makeDestination({ adapterId: 'local-filesystem' });
@@ -406,14 +413,13 @@ describe('stepUpload', () => {
     });
 
     it('skips integrity verification for non-local-filesystem destinations', async () => {
-        const { verifyFileChecksum } = await import('@/lib/crypto/checksum');
+        const { verificationService } = await import('@/services/storage/verification-service');
         const dest = makeDestination({ adapterId: 's3' });
         const ctx = makeCtx({ destinations: [dest] });
 
         await stepUpload(ctx);
 
-        expect(verifyFileChecksum).not.toHaveBeenCalled();
-        expect(ctx.log).toHaveBeenCalledWith(expect.stringContaining('No local destinations'));
+        expect(verificationService.verifyFile).not.toHaveBeenCalled();
     });
 
     it('uses percentage-based detail string when dumpSize is zero', async () => {

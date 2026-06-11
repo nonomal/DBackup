@@ -39,6 +39,19 @@ vi.mock('@/services/backup/integrity-service', () => ({
         runFullIntegrityCheck: vi.fn().mockResolvedValue({ totalFiles: 5, passed: 5, failed: 0, skipped: 0 }),
     },
 }));
+vi.mock('@/lib/runner/system-task-runner', () => ({
+    SystemTaskRunner: {
+        create: vi.fn().mockResolvedValue({
+            id: 'runner-exec-1',
+            start: vi.fn().mockResolvedValue(undefined),
+            finish: vi.fn().mockResolvedValue(undefined),
+            logEntry: vi.fn(),
+            setStage: vi.fn(),
+            setProgress: vi.fn(),
+        }),
+    },
+    INTEGRITY_CHECK_STAGE_PROGRESS_MAP: {},
+}));
 vi.mock('@/services/dashboard-service', () => ({
     refreshStorageStatsCache: vi.fn().mockResolvedValue(undefined),
     cleanupOldSnapshots: vi.fn().mockResolvedValue(3),
