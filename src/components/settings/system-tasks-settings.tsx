@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { DateDisplay } from "@/components/utils/date-display";
 import { IntegrityCheckSettingsModal, type IntegritySettings } from "@/components/settings/integrity-check-settings-modal";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 interface SystemTask {
     id: string;
@@ -38,6 +40,8 @@ export function SystemTasksSettings({ initialIntegritySettings }: SystemTasksSet
     const [integritySettings, setIntegritySettings] = useState<IntegritySettings>(
         initialIntegritySettings ?? { skipPassed: false, maxAgeDays: 0, maxFileSizeMb: 0 }
     );
+    const router = useRouter();
+    const { autoRedirectOnJobStart } = useUserPreferences();
 
     useEffect(() => {
         fetchTasks();
@@ -143,7 +147,12 @@ export function SystemTasksSettings({ initialIntegritySettings }: SystemTasksSet
                 body: JSON.stringify({ taskId }),
             });
             if (res.ok) {
-                toast.success("Task started in background");
+                const data = await res.json();
+                if (data.executionId && autoRedirectOnJobStart) {
+                    router.push(`/dashboard/history?executionId=${data.executionId}`);
+                } else {
+                    toast.success("Task started in background");
+                }
             } else {
                 toast.error("Failed to start task");
             }

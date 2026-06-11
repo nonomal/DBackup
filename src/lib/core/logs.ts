@@ -83,6 +83,12 @@ export const INTEGRITY_CHECK_STAGE_ORDER: string[] = [
   "Completed",
 ];
 
+export const VERIFICATION_STAGE_ORDER: string[] = [
+  "Initializing",
+  "Verifying",
+  "Completed",
+];
+
 /** Progress ranges [min, max] for integrity check stages */
 export const INTEGRITY_CHECK_STAGE_PROGRESS_MAP: Record<string, [number, number]> = {
   "Initializing":        [0, 5],

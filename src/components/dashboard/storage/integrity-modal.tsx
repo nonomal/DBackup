@@ -1,10 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { ShieldCheck, ShieldX, Shield, Copy, Check, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { DateDisplay } from "@/components/utils/date-display";
+import { toast } from "sonner";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 import type { FileInfo } from "@/app/dashboard/storage/columns";
 
 interface IntegrityModalProps {
@@ -133,13 +136,15 @@ function VerificationStatus({ verification, liveResult }: {
 export function IntegrityModal({ open, onOpenChange, file, storageConfigId, onVerifyComplete }: IntegrityModalProps) {
     const [verifying, setVerifying] = useState(false);
     const [liveResult, setLiveResult] = useState<LiveResult | null>(null);
+    const router = useRouter();
+    const { autoRedirectOnJobStart } = useUserPreferences();
 
     const hasChecksums = !!(file.checksum || file.checksumMd5);
 
     const handleVerify = async () => {
         setVerifying(true);
         try {
-            const res = await fetch(`/api/storage/${storageConfigId}/verify`, {
+            const res = await fetch(`/api/storage/${storageConfigId}/verify-async`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ file: file.path }),
@@ -149,14 +154,13 @@ export function IntegrityModal({ open, onOpenChange, file, storageConfigId, onVe
                 setLiveResult({ status: 'download_error', verifiedAt: new Date().toISOString() });
                 return;
             }
-            const result = data.data;
-            setLiveResult({
-                status: result.status,
-                verifiedAt: result.verifiedAt,
-                actualChecksum: result.actualChecksum,
-            });
-            if (result.status === 'passed' || result.status === 'failed') {
+            if (autoRedirectOnJobStart && data.executionId) {
+                onOpenChange(false);
+                router.push(`/dashboard/history?executionId=${data.executionId}`);
+            } else {
+                toast.info("Verification started. Check History for results.");
                 onVerifyComplete();
+                onOpenChange(false);
             }
         } catch {
             setLiveResult({ status: 'download_error', verifiedAt: new Date().toISOString() });

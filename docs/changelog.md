@@ -12,6 +12,8 @@ All notable changes to DBackup are documented here.
 - **storage**: MD5 checksums are now computed alongside SHA-256 during backup upload and stored in `.meta.json`, enabling native verification on Google Drive.
 - **integrity**: The scheduled integrity check now uses native verification where available and writes results back to `.meta.json` sidecars.
 - **integrity**: Scheduled integrity checks can now be filtered by configurable rules (skip already-passed backups, max backup age, max file size) accessible via the gear icon on the Integrity Check task row in Settings.
+- **integrity**: Manual system task runs now auto-redirect to the live history view when "Auto-redirect on job start" is enabled.
+- **integrity**: Single-file "Verify Now" in the Storage Explorer now runs as a tracked async execution with live progress, history entry, and cancel support.
 - **backup**: Post-upload integrity verification is now opt-in for all storage destinations via the `backup.postUploadVerify` system setting (local filesystem always verifies).
 - **history**: MD5 checksum is now logged alongside SHA-256 in execution history during the upload stage.
 
@@ -19,6 +21,7 @@ All notable changes to DBackup are documented here.
 
 - **storage**: Long backup names in the Storage Explorer are now truncated with a tooltip showing the full name on hover.
 - **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow, matching the Database Explorer behavior.
+- **preferences**: "Auto-redirect on job start" description updated to include system tasks.
 
 ### 🐳 Docker
 

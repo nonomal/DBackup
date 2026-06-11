@@ -109,8 +109,7 @@ export async function PUT(req: NextRequest) {
 
     const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
 
-    // Run async
-    systemTaskService.runTask(taskId, "Manual", user?.name ?? "Manual");
+    const executionId = await systemTaskService.runTask(taskId, "Manual", user?.name ?? "Manual");
 
     await auditService.log(
         ctx.userId,
@@ -120,5 +119,5 @@ export async function PUT(req: NextRequest) {
         taskId
     );
 
-    return NextResponse.json({ success: true, message: "Task started" });
+    return NextResponse.json({ success: true, ...(executionId ? { executionId } : {}) });
 }

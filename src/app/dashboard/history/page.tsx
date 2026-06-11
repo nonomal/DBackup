@@ -78,7 +78,7 @@ function HistoryContent() {
             const res = await fetch("/api/history");
             if (res.ok) {
                 const data = await res.json();
-                const systemTypes = ["IntegrityCheck"];
+                const systemTypes = ["IntegrityCheck", "Verification"];
                 setSystemTasks(data.executions.filter((e: Execution) => systemTypes.includes(e.type ?? "")));
                 setExecutions(data.executions.filter((e: Execution) => !systemTypes.includes(e.type ?? "")));
                 setSystemTimezone(data.systemTimezone);
@@ -350,7 +350,7 @@ function HistoryContent() {
                                     {detail && <span className="opacity-70">- {detail}</span>}
                                     {selectedLog?.status === "Running" && progress > 0 && !detail && <span>{progress}%</span>}
                                 </div>
-                                {["Backup", "Restore"].includes(selectedLog?.type ?? "Backup") && (
+                                {(
                                     <Button
                                         variant="destructive"
                                         size="sm"

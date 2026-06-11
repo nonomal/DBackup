@@ -214,7 +214,7 @@ export class SystemTaskService {
         });
     }
 
-    async runTask(taskId: string, triggerType?: "Manual" | "Scheduler", triggerLabel?: string) {
+    async runTask(taskId: string, triggerType?: "Manual" | "Scheduler", triggerLabel?: string): Promise<string | undefined> {
         log.info("Running system task", { taskId });
         await this.setTaskLastRunAt(taskId);
 
@@ -252,34 +252,38 @@ export class SystemTaskService {
                     triggerLabel ?? "Scheduler"
                 );
 
-                try {
-                    await runner.start();
-                    const result = await integrityService.runFullIntegrityCheck({
-                        onLog: (msg, level, details) => runner.logEntry(msg, level ?? "info", "general", details),
-                        onStage: (stage) => runner.setStage(stage),
-                        onFileProgress: (done, total) => {
-                            if (total > 0) runner.updateStageProgress((done / total) * 100);
-                        },
-                    });
-                    runner.setStage(INTEGRITY_CHECK_STAGES.COMPLETED);
-                    runner.logEntry(
-                        `${result.passed} passed, ${result.failed} failed, ${result.skipped} skipped of ${result.totalFiles} total`,
-                        result.failed > 0 ? "warning" : "success"
-                    );
-                    await runner.finish("Success");
-                    log.info("Integrity check completed", {
-                        total: result.totalFiles,
-                        passed: result.passed,
-                        failed: result.failed,
-                        skipped: result.skipped,
-                    });
-                } catch (e: unknown) {
-                    runner.logEntry(getErrorMessage(e), "error");
-                    runner.setStage(INTEGRITY_CHECK_STAGES.FAILED);
-                    await runner.finish("Failed");
-                    log.error("Integrity check failed", {}, wrapError(e));
-                }
-                break;
+                // Run async without blocking so callers receive the executionId immediately.
+                (async () => {
+                    try {
+                        await runner.start();
+                        const result = await integrityService.runFullIntegrityCheck({
+                            onLog: (msg, level, details) => runner.logEntry(msg, level ?? "info", "general", details),
+                            onStage: (stage) => runner.setStage(stage),
+                            onFileProgress: (done, total) => {
+                                if (total > 0) runner.updateStageProgress((done / total) * 100);
+                            },
+                        });
+                        runner.setStage(INTEGRITY_CHECK_STAGES.COMPLETED);
+                        runner.logEntry(
+                            `${result.passed} passed, ${result.failed} failed, ${result.skipped} skipped of ${result.totalFiles} total`,
+                            result.failed > 0 ? "warning" : "success"
+                        );
+                        await runner.finish("Success");
+                        log.info("Integrity check completed", {
+                            total: result.totalFiles,
+                            passed: result.passed,
+                            failed: result.failed,
+                            skipped: result.skipped,
+                        });
+                    } catch (e: unknown) {
+                        runner.logEntry(getErrorMessage(e), "error");
+                        runner.setStage(INTEGRITY_CHECK_STAGES.FAILED);
+                        await runner.finish("Failed");
+                        log.error("Integrity check failed", {}, wrapError(e));
+                    }
+                })();
+
+                return runner.id;
             }
             case SYSTEM_TASKS.REFRESH_STORAGE_STATS: {
                 const { refreshStorageStatsCache } = await import("@/services/dashboard-service");
