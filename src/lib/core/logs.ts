@@ -66,6 +66,32 @@ export const RESTORE_STAGE_ORDER: string[] = [
   RESTORE_STAGES.COMPLETED,
 ];
 
+/** Integrity Check stages */
+export const INTEGRITY_CHECK_STAGES = {
+  INITIALIZING:        "Initializing",
+  SCANNING:            "Scanning Storage",
+  VERIFYING_CHECKSUMS: "Verifying Checksums",
+  COMPLETED:           "Completed",
+  FAILED:              "Failed",
+} as const;
+
+/** Ordered list of integrity check stages for frontend rendering */
+export const INTEGRITY_CHECK_STAGE_ORDER: string[] = [
+  "Initializing",
+  "Scanning Storage",
+  "Verifying Checksums",
+  "Completed",
+];
+
+/** Progress ranges [min, max] for integrity check stages */
+export const INTEGRITY_CHECK_STAGE_PROGRESS_MAP: Record<string, [number, number]> = {
+  "Initializing":        [0, 5],
+  "Scanning Storage":    [5, 20],
+  "Verifying Checksums": [20, 95],
+  "Completed":           [100, 100],
+  "Failed":              [100, 100],
+};
+
 /** @deprecated Use BACKUP_STAGE_ORDER instead */
 export const STAGE_ORDER: PipelineStage[] = BACKUP_STAGE_ORDER as PipelineStage[];
 

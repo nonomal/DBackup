@@ -13,7 +13,7 @@ import {
   Clock
 } from "lucide-react";
 import { cn, formatDuration } from "@/lib/utils";
-import { LogEntry, BACKUP_STAGE_ORDER, RESTORE_STAGE_ORDER } from "@/lib/core/logs";
+import { LogEntry, BACKUP_STAGE_ORDER, RESTORE_STAGE_ORDER, INTEGRITY_CHECK_STAGE_ORDER } from "@/lib/core/logs";
 import {
   Accordion,
   AccordionContent,
@@ -68,10 +68,11 @@ export function LogViewer({ logs, className, autoScroll = true, status, executio
 
   // Grouping Logic - group by stage, sort by stage order, fill pending stages
   const groupedLogs = useMemo(() => {
-      // Detect execution type: explicit prop, or infer from stage names
       const stageOrder = executionType === "Restore"
           ? RESTORE_STAGE_ORDER
-          : BACKUP_STAGE_ORDER;
+          : executionType === "IntegrityCheck"
+              ? INTEGRITY_CHECK_STAGE_ORDER
+              : BACKUP_STAGE_ORDER;
 
       // Build a map of stage → logs
       const stageMap = new Map<string, LogEntry[]>();

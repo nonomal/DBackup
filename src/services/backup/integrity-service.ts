@@ -6,6 +6,7 @@ import { resolveAdapterConfig } from "@/lib/adapters/config-resolver";
 import { verificationService } from "@/services/storage/verification-service";
 import { logger } from "@/lib/logging/logger";
 import { wrapError } from "@/lib/logging/errors";
+import { INTEGRITY_CHECK_STAGES } from "@/lib/core/logs";
 
 const log = logger.child({ service: "IntegrityService" });
 
@@ -25,14 +26,27 @@ export interface IntegrityCheckResult {
   }>;
 }
 
+export interface IntegrityProgressCallbacks {
+  onLog: (message: string, level?: "info" | "success" | "warning" | "error", details?: string) => void;
+  onStage: (stage: string) => void;
+  onFileProgress: (done: number, total: number, currentFile?: string) => void;
+}
+
 interface IntegrityFilters {
   skipPassed: boolean;
   maxAgeDays: number;
   maxFileSizeBytes: number;
 }
 
+interface WorkItem {
+  storageConfigId: string;
+  destinationName: string;
+  remotePath: string;
+  fileName: string;
+}
+
 export class IntegrityService {
-  async runFullIntegrityCheck(): Promise<IntegrityCheckResult> {
+  async runFullIntegrityCheck(callbacks?: IntegrityProgressCallbacks): Promise<IntegrityCheckResult> {
     log.info("Starting full backup integrity check");
 
     const result: IntegrityCheckResult = {
@@ -62,20 +76,91 @@ export class IntegrityService {
       maxFileSizeMb: filters.maxFileSizeBytes / 1024 / 1024,
     });
 
+    callbacks?.onStage(INTEGRITY_CHECK_STAGES.INITIALIZING);
+
+    const filterParts: string[] = [];
+    if (filters.maxAgeDays > 0) filterParts.push(`max age ${filters.maxAgeDays} days`);
+    if (filters.maxFileSizeBytes > 0) filterParts.push(`max size ${filters.maxFileSizeBytes / 1024 / 1024} MB`);
+    if (filters.skipPassed) filterParts.push("skip already-passed files");
+    callbacks?.onLog(
+      filterParts.length > 0 ? `Filters: ${filterParts.join(", ")}` : "No filters configured - checking all files"
+    );
+
     const storageConfigs = await prisma.adapterConfig.findMany({
       where: { type: "storage" },
     });
 
+    callbacks?.onLog(`Found ${storageConfigs.length} storage destination${storageConfigs.length !== 1 ? "s" : ""}`);
+
+    // Pass 1: Scan all destinations and collect work items
+    callbacks?.onStage(INTEGRITY_CHECK_STAGES.SCANNING);
+
+    const allWorkItems: WorkItem[] = [];
     for (const storageConfig of storageConfigs) {
       try {
-        await this.checkDestination(storageConfig, result, filters);
+        const items = await this.gatherFilesFromDestination(storageConfig, filters, callbacks);
+        allWorkItems.push(...items);
       } catch (e: unknown) {
-        log.error(
-          "Failed to check storage destination",
-          { destination: storageConfig.name },
-          wrapError(e)
-        );
+        log.error("Failed to scan storage destination", { destination: storageConfig.name }, wrapError(e));
+        callbacks?.onLog(`Failed to scan ${storageConfig.name}`, "error");
       }
+    }
+
+    result.totalFiles = allWorkItems.length;
+    callbacks?.onLog(
+      `Total: ${allWorkItems.length} file${allWorkItems.length !== 1 ? "s" : ""} to verify`,
+      "info"
+    );
+
+    if (allWorkItems.length === 0) {
+      callbacks?.onLog("No files to verify - check filters or storage contents", "info");
+      return result;
+    }
+
+    // Pass 2: Verify all collected files
+    callbacks?.onStage(INTEGRITY_CHECK_STAGES.VERIFYING_CHECKSUMS);
+
+    for (let i = 0; i < allWorkItems.length; i++) {
+      const item = allWorkItems[i];
+      callbacks?.onFileProgress(i, allWorkItems.length, item.fileName);
+
+      try {
+        const verifyResult = await verificationService.verifyFile(
+          item.storageConfigId,
+          item.remotePath,
+          "scheduled",
+          { skipIfPassed: filters.skipPassed }
+        );
+
+        if (verifyResult.status === "passed") {
+          result.verified++;
+          result.passed++;
+          callbacks?.onLog(`${item.fileName}`, "success");
+        } else if (verifyResult.status === "failed") {
+          result.verified++;
+          result.failed++;
+          result.errors.push({
+            file: item.fileName,
+            destination: item.destinationName,
+            expected: verifyResult.expectedChecksum ?? "",
+            actual: verifyResult.actualChecksum ?? "",
+          });
+          callbacks?.onLog(
+            `${item.fileName} - checksum mismatch`,
+            "error",
+            `Expected: ${verifyResult.expectedChecksum ?? "unknown"}\nActual:   ${verifyResult.actualChecksum ?? "unknown"}`
+          );
+        } else {
+          result.skipped++;
+          callbacks?.onLog(`${item.fileName} skipped (${verifyResult.status})`, "info");
+        }
+      } catch (e: unknown) {
+        log.error("Failed to verify file", { file: item.fileName, destination: item.destinationName }, wrapError(e));
+        callbacks?.onLog(`Failed to verify ${item.fileName}`, "error");
+        result.skipped++;
+      }
+
+      callbacks?.onFileProgress(i + 1, allWorkItems.length, item.fileName);
     }
 
     log.info("Integrity check completed", {
@@ -89,15 +174,16 @@ export class IntegrityService {
     return result;
   }
 
-  private async checkDestination(
+  private async gatherFilesFromDestination(
     storageConfig: any,
-    result: IntegrityCheckResult,
-    filters: IntegrityFilters
-  ) {
+    filters: IntegrityFilters,
+    callbacks?: IntegrityProgressCallbacks
+  ): Promise<WorkItem[]> {
+    const workItems: WorkItem[] = [];
     const adapter = registry.get(storageConfig.adapterId) as StorageAdapter;
     if (!adapter) {
       log.warn("Storage adapter not found", { adapterId: storageConfig.adapterId });
-      return;
+      return [];
     }
 
     const config = await resolveAdapterConfig(storageConfig);
@@ -127,55 +213,19 @@ export class IntegrityService {
         const backupFiles = files.filter((f) => !f.name.endsWith(".meta.json"));
 
         for (const file of backupFiles) {
-          result.totalFiles++;
-          const remotePath = `${folder}/${file.name}`;
-
-          // Age filter: skip files older than maxAgeDays
           if (filters.maxAgeDays > 0 && file.lastModified) {
             const ageDays = (Date.now() - new Date(file.lastModified).getTime()) / 86_400_000;
-            if (ageDays > filters.maxAgeDays) {
-              result.skipped++;
-              continue;
-            }
+            if (ageDays > filters.maxAgeDays) continue;
           }
 
-          // Size filter: skip files larger than maxFileSizeBytes
-          if (filters.maxFileSizeBytes > 0 && file.size > filters.maxFileSizeBytes) {
-            result.skipped++;
-            continue;
-          }
+          if (filters.maxFileSizeBytes > 0 && file.size > filters.maxFileSizeBytes) continue;
 
-          try {
-            const verifyResult = await verificationService.verifyFile(
-              storageConfig.id,
-              remotePath,
-              "scheduled",
-              { skipIfPassed: filters.skipPassed }
-            );
-
-            if (verifyResult.status === "passed") {
-              result.verified++;
-              result.passed++;
-            } else if (verifyResult.status === "failed") {
-              result.verified++;
-              result.failed++;
-              result.errors.push({
-                file: file.name,
-                destination: storageConfig.name,
-                expected: verifyResult.expectedChecksum ?? "",
-                actual: verifyResult.actualChecksum ?? "",
-              });
-            } else {
-              result.skipped++;
-            }
-          } catch (e: unknown) {
-            log.error(
-              "Failed to verify file",
-              { file: file.name, destination: storageConfig.name },
-              wrapError(e)
-            );
-            result.skipped++;
-          }
+          workItems.push({
+            storageConfigId: storageConfig.id,
+            destinationName: storageConfig.name,
+            remotePath: `${folder}/${file.name}`,
+            fileName: file.name,
+          });
         }
       } catch (e: unknown) {
         log.warn(
@@ -185,6 +235,12 @@ export class IntegrityService {
         );
       }
     }
+
+    callbacks?.onLog(
+      `${storageConfig.name}: found ${workItems.length} file${workItems.length !== 1 ? "s" : ""} to verify`
+    );
+
+    return workItems;
   }
 }
 

@@ -107,8 +107,10 @@ export async function PUT(req: NextRequest) {
 
     if (!taskId) return NextResponse.json({ error: "Missing taskId" }, { status: 400 });
 
+    const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
+
     // Run async
-    systemTaskService.runTask(taskId);
+    systemTaskService.runTask(taskId, "Manual", user?.name ?? "Manual");
 
     await auditService.log(
         ctx.userId,
