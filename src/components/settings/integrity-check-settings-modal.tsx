@@ -13,6 +13,7 @@ export interface IntegritySettings {
     skipPassed: boolean;
     maxAgeDays: number;
     maxFileSizeMb: number;
+    scanMode: "jobs" | "destinations";
 }
 
 interface IntegrityCheckSettingsModalProps {
@@ -26,6 +27,7 @@ export function IntegrityCheckSettingsModal({ open, onOpenChange, initialSetting
     const [skipPassed, setSkipPassed] = useState(initialSettings.skipPassed);
     const [maxAgeDays, setMaxAgeDays] = useState(String(initialSettings.maxAgeDays));
     const [maxFileSizeMb, setMaxFileSizeMb] = useState(String(initialSettings.maxFileSizeMb));
+    const [scanMode, setScanMode] = useState<"jobs" | "destinations">(initialSettings.scanMode);
     const [saving, setSaving] = useState(false);
 
     const handleSave = async () => {
@@ -35,6 +37,7 @@ export function IntegrityCheckSettingsModal({ open, onOpenChange, initialSetting
                 skipPassed,
                 maxAgeDays: parseInt(maxAgeDays) || 0,
                 maxFileSizeMb: parseInt(maxFileSizeMb) || 0,
+                scanMode,
             });
             if (result.success) {
                 toast.success("Integrity check settings saved");
@@ -42,6 +45,7 @@ export function IntegrityCheckSettingsModal({ open, onOpenChange, initialSetting
                     skipPassed,
                     maxAgeDays: parseInt(maxAgeDays) || 0,
                     maxFileSizeMb: parseInt(maxFileSizeMb) || 0,
+                    scanMode,
                 });
                 onOpenChange(false);
             } else {
@@ -65,6 +69,41 @@ export function IntegrityCheckSettingsModal({ open, onOpenChange, initialSetting
                 </DialogHeader>
 
                 <div className="space-y-6 py-2">
+                    {/* Scan Mode */}
+                    <div className="space-y-2">
+                        <Label className="font-medium">Scan Mode</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setScanMode("jobs")}
+                                className={`rounded-lg border p-3 text-left transition-colors ${
+                                    scanMode === "jobs"
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-border hover:border-muted-foreground/40"
+                                }`}
+                            >
+                                <div className="text-sm font-medium">Jobs</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                    Only verifies files linked to backup jobs. Respects job and destination skip flags.
+                                </div>
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setScanMode("destinations")}
+                                className={`rounded-lg border p-3 text-left transition-colors ${
+                                    scanMode === "destinations"
+                                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                        : "border-border hover:border-muted-foreground/40"
+                                }`}
+                            >
+                                <div className="text-sm font-medium">All Files</div>
+                                <div className="text-xs text-muted-foreground mt-0.5">
+                                    Scans all files on all storage destinations. Respects destination skip flag only.
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
                     <div className="flex items-start justify-between gap-4">
                         <div className="space-y-1">
                             <Label htmlFor="skip-passed" className="font-medium">Skip already verified backups</Label>

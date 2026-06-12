@@ -14,6 +14,7 @@ const schema = z.object({
     skipPassed: z.boolean(),
     maxAgeDays: z.coerce.number().min(0).max(3650),
     maxFileSizeMb: z.coerce.number().min(0).max(1_000_000),
+    scanMode: z.enum(["jobs", "destinations"]).default("jobs"),
 });
 
 export async function saveIntegritySettings(data: z.infer<typeof schema>) {
@@ -25,7 +26,7 @@ export async function saveIntegritySettings(data: z.infer<typeof schema>) {
     }
 
     try {
-        const { skipPassed, maxAgeDays, maxFileSizeMb } = result.data;
+        const { skipPassed, maxAgeDays, maxFileSizeMb, scanMode } = result.data;
 
         await prisma.systemSetting.upsert({
             where: { key: "integrity.skipPassed" },
@@ -43,6 +44,12 @@ export async function saveIntegritySettings(data: z.infer<typeof schema>) {
             where: { key: "integrity.maxFileSizeMb" },
             update: { value: String(maxFileSizeMb) },
             create: { key: "integrity.maxFileSizeMb", value: String(maxFileSizeMb) },
+        });
+
+        await prisma.systemSetting.upsert({
+            where: { key: "integrity.scanMode" },
+            update: { value: scanMode },
+            create: { key: "integrity.scanMode", value: scanMode },
         });
 
         revalidatePath("/dashboard/settings");

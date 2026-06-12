@@ -38,7 +38,7 @@ export async function PUT(
     const params = await props.params;
     try {
         const body = await req.json();
-        const { name, schedule, sourceId, databases, destinations, notificationIds, enabled, encryptionProfileId, compression, pgCompression, notificationEvents, namingTemplateId, schedulePresetId } = body;
+        const { name, schedule, sourceId, databases, destinations, notificationIds, enabled, encryptionProfileId, compression, pgCompression, notificationEvents, namingTemplateId, schedulePresetId, skipVerification } = body;
 
         const updatedJob = await jobService.updateJob(params.id, {
             name,
@@ -59,6 +59,7 @@ export async function PUT(
             notificationEvents,
             namingTemplateId: namingTemplateId !== undefined ? (namingTemplateId ?? null) : undefined,
             schedulePresetId: schedulePresetId !== undefined ? (schedulePresetId ?? null) : undefined,
+            skipVerification: skipVerification !== undefined ? skipVerification : undefined,
         });
 
         return NextResponse.json(updatedJob);

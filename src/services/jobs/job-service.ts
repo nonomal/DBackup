@@ -26,6 +26,7 @@ export interface CreateJobInput {
     notificationEvents?: string;
     namingTemplateId?: string | null;
     schedulePresetId?: string | null;
+    skipVerification?: boolean;
 }
 
 export interface UpdateJobInput {
@@ -42,6 +43,7 @@ export interface UpdateJobInput {
     notificationEvents?: string;
     namingTemplateId?: string | null;
     schedulePresetId?: string | null;
+    skipVerification?: boolean;
 }
 
 const jobInclude = {
@@ -84,7 +86,7 @@ export class JobService {
     }
 
     async createJob(input: CreateJobInput) {
-        const { name, schedule, sourceId, databases, destinations, notificationIds, enabled, encryptionProfileId, compression, pgCompression, notificationEvents } = input;
+        const { name, schedule, sourceId, databases, destinations, notificationIds, enabled, encryptionProfileId, compression, pgCompression, notificationEvents, skipVerification } = input;
 
         // Check name uniqueness
         const existingByName = await prisma.job.findFirst({ where: { name } });
@@ -105,6 +107,7 @@ export class JobService {
                 compression: compression || "NONE",
                 pgCompression: pgCompression ?? "",
                 notificationEvents: notificationEvents || "ALWAYS",
+                skipVerification: skipVerification ?? false,
                 notifications: {
                     connect: notificationIds?.map((id) => ({ id })) || []
                 },
@@ -126,7 +129,7 @@ export class JobService {
     }
 
     async updateJob(id: string, input: UpdateJobInput) {
-        const { name, schedule, sourceId, databases, destinations, notificationIds, enabled, encryptionProfileId, compression, pgCompression, notificationEvents, namingTemplateId } = input;
+        const { name, schedule, sourceId, databases, destinations, notificationIds, enabled, encryptionProfileId, compression, pgCompression, notificationEvents, namingTemplateId, skipVerification } = input;
 
         // Check name uniqueness (excluding current job)
         if (name) {
@@ -167,6 +170,7 @@ export class JobService {
                     namingTemplateId: namingTemplateId !== undefined ? (namingTemplateId ?? null) : undefined,
                     schedulePresetId: input.schedulePresetId !== undefined ? (input.schedulePresetId ?? null) : undefined,
                     encryptionProfileId: encryptionProfileId === "" ? null : encryptionProfileId,
+                    skipVerification: skipVerification !== undefined ? skipVerification : undefined,
                     notifications: {
                         set: [],
                         connect: notificationIds?.map((id) => ({ id })) || []

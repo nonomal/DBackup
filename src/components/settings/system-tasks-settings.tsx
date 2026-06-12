@@ -38,7 +38,7 @@ export function SystemTasksSettings({ initialIntegritySettings }: SystemTasksSet
     const [running, setRunning] = useState<Record<string, boolean>>({});
     const [integritySettingsOpen, setIntegritySettingsOpen] = useState(false);
     const [integritySettings, setIntegritySettings] = useState<IntegritySettings>(
-        initialIntegritySettings ?? { skipPassed: false, maxAgeDays: 0, maxFileSizeMb: 0 }
+        initialIntegritySettings ?? { skipPassed: false, maxAgeDays: 0, maxFileSizeMb: 0, scanMode: "jobs" as const }
     );
     const router = useRouter();
     const { autoRedirectOnJobStart } = useUserPreferences();

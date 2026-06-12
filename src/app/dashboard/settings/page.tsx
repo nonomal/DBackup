@@ -95,10 +95,12 @@ export default async function SettingsPage() {
     const integritySkipPassed = await prisma.systemSetting.findUnique({ where: { key: 'integrity.skipPassed' } });
     const integrityMaxAgeDays = await prisma.systemSetting.findUnique({ where: { key: 'integrity.maxAgeDays' } });
     const integrityMaxFileSizeMb = await prisma.systemSetting.findUnique({ where: { key: 'integrity.maxFileSizeMb' } });
+    const integrityScanMode = await prisma.systemSetting.findUnique({ where: { key: 'integrity.scanMode' } });
     const integritySettings = {
         skipPassed: integritySkipPassed?.value === 'true',
         maxAgeDays: integrityMaxAgeDays ? parseInt(integrityMaxAgeDays.value) || 0 : 0,
         maxFileSizeMb: integrityMaxFileSizeMb ? parseInt(integrityMaxFileSizeMb.value) || 0 : 0,
+        scanMode: (integrityScanMode?.value === 'destinations' ? 'destinations' : 'jobs') as 'jobs' | 'destinations',
     };
 
     // Load Rate Limit Settings

@@ -7,30 +7,25 @@ All notable changes to DBackup are documented here.
 
 ### ✨ Features
 
-- **storage**: Added on-demand integrity verification for backup files. The shield button in the Storage Explorer opens an Integrity modal showing stored SHA-256 and MD5 checksums, last verification result, and a Verify Now button. Results are persisted in the `.meta.json` sidecar and reflected in the button color (gray/green/red).
-- **storage**: Added adapter-native checksum verification for S3/R2/Hetzner (SHA-256 via object metadata), local filesystem (direct stream hash), Google Drive (MD5 via API), and OneDrive (SHA-256 via Graph API) - no download required for these adapters.
-- **storage**: MD5 checksums are now computed alongside SHA-256 during backup upload and stored in `.meta.json`, enabling native verification on Google Drive.
-- **integrity**: The scheduled integrity check now uses native verification where available and writes results back to `.meta.json` sidecars.
-- **integrity**: Scheduled integrity checks can now be filtered by configurable rules (skip already-passed backups, max backup age, max file size) accessible via the gear icon on the Integrity Check task row in Settings.
-- **integrity**: Manual system task runs now auto-redirect to the live history view when "Auto-redirect on job start" is enabled.
-- **integrity**: Single-file "Verify Now" in the Storage Explorer now runs as a tracked async execution with live progress, history entry, and cancel support.
-- **backup**: Post-upload integrity verification is now opt-in for all storage destinations via the `backup.postUploadVerify` system setting (local filesystem always verifies).
-- **history**: MD5 checksum is now logged alongside SHA-256 in execution history during the upload stage.
-- **storage**: Storage Explorer file listings are now cached in SQLite. Repeat visits load instantly instead of re-fetching from the remote adapter. Cache is automatically invalidated when backups are created, deleted, verified, or locked.
+- **integrity**: Added backup file integrity verification. The Storage Explorer shows SHA-256/MD5 checksums and last verification result per file, with a Verify Now button that runs as a tracked async execution with live progress and cancel support.
+- **integrity**: Native checksum verification for S3/R2/Hetzner (SHA-256 via object metadata), Google Drive (MD5 via API), OneDrive (SHA-256 via Graph API), and local filesystem - no download required. Both checksums are stored in `.meta.json` at upload time.
+- **integrity**: Post-upload verification is now opt-in for all storage destinations via system settings (local filesystem always verifies).
+- **integrity**: Scheduled integrity checks support two scan modes - **Jobs** (default, only verifies files linked to backup jobs) and **All Files** (full storage scan) - plus configurable filters (skip already-passed, max age, max file size). Jobs and storage destinations can individually opt out via a "Skip Verification" toggle.
+- **storage**: Storage Explorer file listings are now cached in SQLite for instant repeat visits. Cache is invalidated on backup create, delete, verify, and lock changes.
 
 ### 🎨 Improvements
 
-- **dev**: `pnpm dev` now automatically applies pending Prisma migrations on startup via `prisma migrate deploy`, keeping the local database schema in sync without any manual steps.
-- **storage**: Storage Explorer cache now uses surgical updates instead of full invalidation. Backup creation appends one entry, deletion removes one entry, lock toggle and verification patch only the affected fields - the cache stays warm after every change.
-- **storage**: A new "Pre-warm Storage Cache" system task (enabled by default, runs hourly) reconciles existing caches against remote storage to detect files deleted outside DBackup, and pre-populates the cache for adapters not yet loaded. First visit to Storage Explorer is instant even after a restart.
-- **storage**: Stale cache entries (older than 2 hours) now trigger a background reconciliation using only `adapter.list()` - files deleted outside DBackup are detected without re-reading all `.meta.json` sidecars.
-- **storage**: Long backup names in the Storage Explorer are now truncated with a tooltip showing the full name on hover.
-- **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow, matching the Database Explorer behavior.
-- **preferences**: "Auto-redirect on job start" description updated to include system tasks.
+- **dev**: `pnpm dev` now automatically applies pending Prisma migrations on startup via `prisma migrate deploy`.
+- **storage**: Storage Explorer cache uses surgical updates - create, delete, lock, and verify each patch only the affected cache entry instead of invalidating the full cache.
+- **storage**: A new "Pre-warm Storage Cache" system task (enabled by default, hourly) reconciles caches against remote storage and pre-populates the cache for adapters not yet visited.
+- **storage**: Stale cache entries trigger a background reconciliation via `adapter.list()` to detect files deleted outside DBackup without re-reading sidecars.
+- **storage**: Long backup names in the Storage Explorer are truncated with a tooltip showing the full name on hover.
+- **integrity**: Manual system task runs auto-redirect to the live execution history when "Auto-redirect on job start" is enabled.
+- **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow.
 
 ### 🧪 Tests
 
-- **tests**: Updated unit tests for integrity service, upload step, storage service, and system task service to match refactored service interfaces using `verificationService`, `calculateFileChecksums`, and `storageListCache`.
+- **tests**: Updated unit tests for integrity service, upload step, storage service, and system task service to match the refactored verification interfaces.
 
 ### 🐳 Docker
 

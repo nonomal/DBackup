@@ -1,4 +1,5 @@
 import prisma from "@/lib/prisma";
+import path from "path";
 import { registry } from "@/lib/core/registry";
 import { registerAdapters } from "@/lib/adapters";
 import { StorageAdapter } from "@/lib/core/interfaces";
@@ -58,10 +59,11 @@ export class IntegrityService {
       errors: [],
     };
 
-    const [skipPassedSetting, maxAgeSetting, maxSizeSetting] = await Promise.all([
+    const [skipPassedSetting, maxAgeSetting, maxSizeSetting, scanModeSetting] = await Promise.all([
       prisma.systemSetting.findUnique({ where: { key: 'integrity.skipPassed' } }),
       prisma.systemSetting.findUnique({ where: { key: 'integrity.maxAgeDays' } }),
       prisma.systemSetting.findUnique({ where: { key: 'integrity.maxFileSizeMb' } }),
+      prisma.systemSetting.findUnique({ where: { key: 'integrity.scanMode' } }),
     ]);
 
     const filters: IntegrityFilters = {
@@ -70,7 +72,10 @@ export class IntegrityService {
       maxFileSizeBytes: (parseInt(maxSizeSetting?.value ?? '0') || 0) * 1024 * 1024,
     };
 
-    log.info("Integrity check filters", {
+    const isJobsMode = !scanModeSetting || scanModeSetting.value !== 'destinations';
+
+    log.info("Integrity check config", {
+      mode: isJobsMode ? 'jobs' : 'destinations',
       skipPassed: filters.skipPassed,
       maxAgeDays: filters.maxAgeDays,
       maxFileSizeMb: filters.maxFileSizeBytes / 1024 / 1024,
@@ -86,23 +91,36 @@ export class IntegrityService {
       filterParts.length > 0 ? `Filters: ${filterParts.join(", ")}` : "No filters configured - checking all files"
     );
 
-    const storageConfigs = await prisma.adapterConfig.findMany({
-      where: { type: "storage" },
-    });
+    callbacks?.onLog(`Scan mode: ${isJobsMode ? 'Jobs (job-linked files only)' : 'All destinations (full storage scan)'}`);
 
-    callbacks?.onLog(`Found ${storageConfigs.length} storage destination${storageConfigs.length !== 1 ? "s" : ""}`);
-
-    // Pass 1: Scan all destinations and collect work items
+    // Pass 1: Collect work items according to scan mode
     callbacks?.onStage(INTEGRITY_CHECK_STAGES.SCANNING);
 
     const allWorkItems: WorkItem[] = [];
-    for (const storageConfig of storageConfigs) {
+
+    if (isJobsMode) {
       try {
-        const items = await this.gatherFilesFromDestination(storageConfig, filters, callbacks);
+        const items = await this.gatherFilesFromJobs(filters, callbacks);
         allWorkItems.push(...items);
       } catch (e: unknown) {
-        log.error("Failed to scan storage destination", { destination: storageConfig.name }, wrapError(e));
-        callbacks?.onLog(`Failed to scan ${storageConfig.name}`, "error");
+        log.error("Failed to gather files from jobs", {}, wrapError(e));
+        callbacks?.onLog("Failed to scan job-linked files", "error");
+      }
+    } else {
+      const storageConfigs = await prisma.adapterConfig.findMany({
+        where: { type: "storage" },
+      });
+
+      callbacks?.onLog(`Found ${storageConfigs.length} storage destination${storageConfigs.length !== 1 ? "s" : ""}`);
+
+      for (const storageConfig of storageConfigs) {
+        try {
+          const items = await this.gatherFilesFromDestination(storageConfig, filters, callbacks);
+          allWorkItems.push(...items);
+        } catch (e: unknown) {
+          log.error("Failed to scan storage destination", { destination: storageConfig.name }, wrapError(e));
+          callbacks?.onLog(`Failed to scan ${storageConfig.name}`, "error");
+        }
       }
     }
 
@@ -181,11 +199,82 @@ export class IntegrityService {
     return result;
   }
 
+  private async gatherFilesFromJobs(
+    filters: IntegrityFilters,
+    callbacks?: IntegrityProgressCallbacks
+  ): Promise<WorkItem[]> {
+    const jobs = await prisma.job.findMany({
+      where: { enabled: true, skipVerification: false },
+      include: {
+        destinations: {
+          include: { config: true },
+        },
+      },
+    });
+
+    callbacks?.onLog(`Found ${jobs.length} job${jobs.length !== 1 ? "s" : ""} to scan`);
+
+    const cutoffDate = filters.maxAgeDays > 0
+      ? new Date(Date.now() - filters.maxAgeDays * 86_400_000)
+      : null;
+
+    const seen = new Set<string>();
+    const workItems: WorkItem[] = [];
+
+    for (const job of jobs) {
+      const executions = await prisma.execution.findMany({
+        where: {
+          jobId: job.id,
+          type: "Backup",
+          status: "Completed",
+          path: { not: null },
+          ...(cutoffDate ? { endedAt: { gte: cutoffDate } } : {}),
+        },
+        select: { path: true, size: true },
+      });
+
+      for (const dest of job.destinations) {
+        const meta = dest.config.metadata ? JSON.parse(dest.config.metadata) : {};
+        if (meta.skipVerification === true) continue;
+
+        for (const exec of executions) {
+          if (!exec.path) continue;
+
+          if (filters.maxFileSizeBytes > 0 && exec.size !== null && exec.size !== undefined) {
+            if (exec.size > filters.maxFileSizeBytes) continue;
+          }
+
+          const key = `${dest.configId}:${exec.path}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+
+          workItems.push({
+            storageConfigId: dest.configId,
+            destinationName: dest.config.name,
+            remotePath: exec.path,
+            fileName: path.basename(exec.path),
+          });
+        }
+      }
+    }
+
+    callbacks?.onLog(`Jobs scan: found ${workItems.length} file${workItems.length !== 1 ? "s" : ""} to verify`);
+
+    return workItems;
+  }
+
   private async gatherFilesFromDestination(
     storageConfig: any,
     filters: IntegrityFilters,
     callbacks?: IntegrityProgressCallbacks
   ): Promise<WorkItem[]> {
+    // Check if this destination has verification disabled
+    const meta = storageConfig.metadata ? JSON.parse(storageConfig.metadata) : {};
+    if (meta.skipVerification === true) {
+      callbacks?.onLog(`${storageConfig.name}: verification disabled - skipping`, "info");
+      return [];
+    }
+
     const workItems: WorkItem[] = [];
     const adapter = registry.get(storageConfig.adapterId) as StorageAdapter;
     if (!adapter) {
