@@ -3,7 +3,7 @@
   "version": "2.6.0",
   "private": true,
   "scripts": {
-    "dev": "prisma migrate deploy && next dev",
+    "dev": "prisma migrate deploy && prisma generate && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",

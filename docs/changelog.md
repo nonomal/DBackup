@@ -15,7 +15,7 @@ All notable changes to DBackup are documented here.
 
 ### 🎨 Improvements
 
-- **dev**: `pnpm dev` now automatically applies pending Prisma migrations on startup via `prisma migrate deploy`.
+- **dev**: `pnpm dev` now automatically applies pending Prisma migrations and regenerates the Prisma client on startup.
 - **storage**: Storage Explorer cache uses surgical updates - create, delete, lock, and verify each patch only the affected cache entry instead of invalidating the full cache.
 - **storage**: A new "Pre-warm Storage Cache" system task (enabled by default, hourly) reconciles caches against remote storage and pre-populates the cache for adapters not yet visited.
 - **storage**: Stale cache entries trigger a background reconciliation via `adapter.list()` to detect files deleted outside DBackup without re-reading sidecars.
