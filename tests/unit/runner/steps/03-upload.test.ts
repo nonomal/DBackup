@@ -98,6 +98,13 @@ vi.mock('@/services/storage/verification-service', () => ({
     },
 }));
 
+vi.mock('@/services/storage/storage-service', () => ({
+    storageService: {
+        appendStorageListCacheEntry: vi.fn().mockResolvedValue(undefined),
+        updateStorageListCacheEntry: vi.fn().mockResolvedValue(undefined),
+    },
+}));
+
 // --- Helpers ---
 
 function makeDestination(overrides: Partial<DestinationContext> = {}): DestinationContext {

@@ -153,7 +153,7 @@ describe('SystemTaskRunner', () => {
             await runner.flushLogs(true);
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const meta = JSON.parse(call.data.metadata);
+            const meta = JSON.parse(call.data.metadata as string);
             expect(meta.stage).toBe('Running');
             expect(meta.progress).toBe(10);
         });
@@ -166,7 +166,7 @@ describe('SystemTaskRunner', () => {
             await runner.finish('Success');
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const logs = JSON.parse(call.data.logs);
+            const logs = JSON.parse(call.data.logs as string);
             const completionEntry = logs.find(
                 (l: { message: string }) => l.message.includes('Running completed')
             );
@@ -181,7 +181,7 @@ describe('SystemTaskRunner', () => {
             await runner.flushLogs(true);
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const logs = JSON.parse(call.data.logs);
+            const logs = JSON.parse(call.data.logs as string);
             const completionEntries = logs.filter(
                 (l: { message: string }) => l.message.includes('Running completed')
             );
@@ -199,7 +199,7 @@ describe('SystemTaskRunner', () => {
             await runner.finish('Success');
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const meta = JSON.parse(call.data.metadata);
+            const meta = JSON.parse(call.data.metadata as string);
             expect(meta.progress).toBe(50);
         });
 
@@ -211,7 +211,7 @@ describe('SystemTaskRunner', () => {
             await runner.finish('Success');
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const meta = JSON.parse(call.data.metadata);
+            const meta = JSON.parse(call.data.metadata as string);
             expect(meta.progress).toBe(90);
         });
     });
@@ -226,7 +226,7 @@ describe('SystemTaskRunner', () => {
             await runner.finish('Success');
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const logs = JSON.parse(call.data.logs);
+            const logs = JSON.parse(call.data.logs as string);
             const entry = logs.find((l: { message: string }) => l.message === 'Processing file');
             expect(entry).toBeDefined();
             expect(entry.stage).toBe('Running');
@@ -240,7 +240,7 @@ describe('SystemTaskRunner', () => {
             await runner.flushLogs(true);
 
             const call = prismaMock.execution.update.mock.calls.at(-1)![0];
-            const logs = JSON.parse(call.data.logs);
+            const logs = JSON.parse(call.data.logs as string);
             const entry = logs.find((l: { message: string }) => l.message === 'Command output');
             expect(entry.details).toBe('line1\nline2');
         });

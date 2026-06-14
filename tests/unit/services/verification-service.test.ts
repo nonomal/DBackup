@@ -86,6 +86,7 @@ function makeAdapter(overrides: Record<string, unknown> = {}) {
         read: vi.fn().mockResolvedValue(null),
         list: vi.fn().mockResolvedValue([]),
         delete: vi.fn().mockResolvedValue(undefined),
+        verifyChecksum: undefined as ReturnType<typeof vi.fn> | undefined,
         ...overrides,
     };
 }

@@ -22,6 +22,14 @@ vi.mock('@/services/dashboard-service', () => ({
     refreshStorageStatsCache: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock('@/services/storage/storage-service', () => ({
+    storageService: {
+        appendStorageListCacheEntry: vi.fn().mockResolvedValue(undefined),
+        updateStorageListCacheEntry: vi.fn().mockResolvedValue(undefined),
+        removeStorageListCacheEntry: vi.fn().mockResolvedValue(undefined),
+    },
+}));
+
 vi.mock('@/lib/prisma', () => ({
     default: {
         systemSetting: { findUnique: vi.fn().mockResolvedValue(null) },

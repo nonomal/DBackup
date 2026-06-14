@@ -424,8 +424,8 @@ describe('IntegrityService', () => {
             ]);
             (registry.get as ReturnType<typeof vi.fn>).mockReturnValue(adapter);
             // maxAgeDays = 5
-            vi.mocked(prisma.systemSetting.findUnique).mockImplementation(({ where }: { where: { key: string } }) => {
-                if (where.key === 'integrity.maxAgeDays') return Promise.resolve({ value: '5' } as any);
+            (prisma.systemSetting.findUnique as ReturnType<typeof vi.fn>).mockImplementation(({ where }: { where: { key?: string } }) => {
+                if (where.key === 'integrity.maxAgeDays') return Promise.resolve({ value: '5' });
                 return Promise.resolve(null);
             });
             vi.mocked(verificationService.verifyFile).mockResolvedValue({
