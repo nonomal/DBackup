@@ -214,47 +214,74 @@ export class IntegrityService {
 
     callbacks?.onLog(`Found ${jobs.length} job${jobs.length !== 1 ? "s" : ""} to scan`);
 
-    const cutoffDate = filters.maxAgeDays > 0
-      ? new Date(Date.now() - filters.maxAgeDays * 86_400_000)
-      : null;
-
     const seen = new Set<string>();
     const workItems: WorkItem[] = [];
 
+    // Collect all unique destinations across eligible jobs, then list each once
+    const destJobMap = new Map<string, { dest: typeof jobs[0]["destinations"][0]; jobNames: string[] }>();
     for (const job of jobs) {
-      const executions = await prisma.execution.findMany({
-        where: {
-          jobId: job.id,
-          type: "Backup",
-          status: "Completed",
-          path: { not: null },
-          ...(cutoffDate ? { endedAt: { gte: cutoffDate } } : {}),
-        },
-        select: { path: true, size: true },
-      });
-
       for (const dest of job.destinations) {
-        const meta = dest.config.metadata ? JSON.parse(dest.config.metadata) : {};
-        if (meta.skipVerification === true) continue;
-
-        for (const exec of executions) {
-          if (!exec.path) continue;
-
-          if (filters.maxFileSizeBytes > 0 && exec.size !== null && exec.size !== undefined) {
-            if (exec.size > filters.maxFileSizeBytes) continue;
-          }
-
-          const key = `${dest.configId}:${exec.path}`;
-          if (seen.has(key)) continue;
-          seen.add(key);
-
-          workItems.push({
-            storageConfigId: dest.configId,
-            destinationName: dest.config.name,
-            remotePath: exec.path,
-            fileName: path.basename(exec.path),
-          });
+        const destMeta = dest.config.metadata ? JSON.parse(dest.config.metadata) : {};
+        if (destMeta.skipVerification === true) continue;
+        const existing = destJobMap.get(dest.configId);
+        if (existing) {
+          existing.jobNames.push(job.name);
+        } else {
+          destJobMap.set(dest.configId, { dest, jobNames: [job.name] });
         }
+      }
+    }
+
+    for (const { dest, jobNames } of destJobMap.values()) {
+      const adapter = registry.get(dest.config.adapterId) as StorageAdapter;
+      if (!adapter) {
+        callbacks?.onLog(`${dest.config.name}: adapter '${dest.config.adapterId}' not found`, "error");
+        continue;
+      }
+
+      let config: Awaited<ReturnType<typeof resolveAdapterConfig>>;
+      try {
+        config = await resolveAdapterConfig(dest.config);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        callbacks?.onLog(`${dest.config.name}: config resolution failed - ${msg}`, "error");
+        continue;
+      }
+
+      let allFiles: Awaited<ReturnType<StorageAdapter["list"]>> = [];
+      try {
+        allFiles = await adapter.list(config, "");
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        log.warn("Could not list destination", { destination: dest.config.name }, wrapError(e));
+        callbacks?.onLog(`${dest.config.name}: listing failed - ${msg}`, "error");
+        continue;
+      }
+
+      // Keep only files that belong to one of the eligible jobs (path starts with jobName/)
+      const backupFiles = allFiles.filter(
+        (f) => !f.name.endsWith(".meta.json") && jobNames.some((n) => f.path.startsWith(n + "/"))
+      );
+
+
+      for (const file of backupFiles) {
+        if (filters.maxAgeDays > 0 && file.lastModified) {
+          const ageDays = (Date.now() - new Date(file.lastModified).getTime()) / 86_400_000;
+          if (ageDays > filters.maxAgeDays) continue;
+        }
+
+        if (filters.maxFileSizeBytes > 0 && file.size > filters.maxFileSizeBytes) continue;
+
+        const key = `${dest.configId}:${file.path}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        workItems.push({
+          storageConfigId: dest.configId,
+          destinationName: dest.config.name,
+          remotePath: file.path,
+          fileName: file.name,
+        });
       }
     }
 

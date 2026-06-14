@@ -13,6 +13,10 @@ All notable changes to DBackup are documented here.
 - **integrity**: Scheduled integrity checks support two scan modes - **Jobs** (default, only verifies files linked to backup jobs) and **All Files** (full storage scan) - plus configurable filters (skip already-passed, max age, max file size). Jobs and storage destinations can individually opt out via a "Skip Verification" toggle.
 - **storage**: Storage Explorer file listings are now cached in SQLite for instant repeat visits. Cache is invalidated on backup create, delete, verify, and lock changes.
 
+### 🐛 Bug Fixes
+
+- **storage**: Google Drive, OneDrive, and Dropbox now live-validate their stored OAuth token when the Connection tab is opened, showing an expiry warning with a Re-authorize button instead of a misleading green "authorized" status.
+
 ### 🎨 Improvements
 
 - **dev**: `pnpm dev` now automatically applies pending Prisma migrations and regenerates the Prisma client on startup.

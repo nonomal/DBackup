@@ -313,7 +313,7 @@ export const GoogleDriveAdapter: StorageAdapter = {
 
             // Navigate to subdir if specified
             if (dir && dir !== ".") {
-                rootFolderId = await resolveOrCreatePath(drive, config.folderId, dir + "/dummy");
+                rootFolderId = await resolveOrCreatePath(drive, rootFolderId, dir + "/dummy");
             }
 
             return await listFilesRecursive(drive, rootFolderId, dir || "");

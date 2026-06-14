@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { ExternalLink, CheckCircle2, AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -21,6 +21,23 @@ interface DropboxOAuthButtonProps {
  */
 export function DropboxOAuthButton({ credentialId, authorized, onAuthorized }: DropboxOAuthButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [tokenState, setTokenState] = useState<"checking" | "valid" | "expired" | null>(null);
+
+    useEffect(() => {
+        if (!authorized || !credentialId) {
+            setTokenState(null);
+            return;
+        }
+        setTokenState("checking");
+        fetch("/api/adapters/dropbox/validate-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ credentialId }),
+        })
+            .then((r) => r.json())
+            .then((data) => setTokenState(data.valid ? "valid" : "expired"))
+            .catch(() => setTokenState("valid")); // Fail open - don't block UX on network error
+    }, [authorized, credentialId]);
 
     if (!credentialId) {
         return (
@@ -33,7 +50,37 @@ export function DropboxOAuthButton({ credentialId, authorized, onAuthorized }: D
         );
     }
 
-    if (authorized) {
+    if (authorized && tokenState === "checking") {
+        return (
+            <Alert className="border-muted items-center [&>svg]:translate-y-0">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <AlertDescription className="text-muted-foreground">Verifying Dropbox authorization...</AlertDescription>
+            </Alert>
+        );
+    }
+
+    if (authorized && tokenState === "expired") {
+        return (
+            <Alert className="border-amber-500/30 bg-amber-500/5 items-center [&>svg]:translate-y-0">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="flex items-center justify-between">
+                    <span className="text-amber-600">Authorization expired. Please re-authorize with Dropbox.</span>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAuthorize()}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                        Re-authorize
+                    </Button>
+                </AlertDescription>
+            </Alert>
+        );
+    }
+
+    if (authorized && (tokenState === "valid" || tokenState === null)) {
         return (
             <Alert className="border-green-500/30 bg-green-500/5 items-center [&>svg]:translate-y-0">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
@@ -73,7 +120,6 @@ export function DropboxOAuthButton({ credentialId, authorized, onAuthorized }: D
                 );
 
                 if (!popup) {
-                    // Popup blocked - fall back to full navigation.
                     window.location.href = data.data.authUrl;
                     return;
                 }
@@ -94,7 +140,6 @@ export function DropboxOAuthButton({ credentialId, authorized, onAuthorized }: D
 
                 window.addEventListener("message", handleMessage);
 
-                // Fallback: detect when the popup is closed without a message.
                 const pollClosed = setInterval(() => {
                     if (popup.closed) {
                         clearInterval(pollClosed);
