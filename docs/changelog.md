@@ -12,6 +12,7 @@ All notable changes to DBackup are documented here.
 - **integrity**: Post-upload verification is now opt-in for all storage destinations via system settings (local filesystem always verifies).
 - **integrity**: Scheduled integrity checks support two scan modes - **Jobs** (default, only verifies files linked to backup jobs) and **All Files** (full storage scan) - plus configurable filters (skip already-passed, max age, max file size). Jobs and storage destinations can individually opt out via a "Skip Verification" toggle.
 - **storage**: Storage Explorer file listings are now cached in SQLite for instant repeat visits. Cache is invalidated on backup create, delete, verify, and lock changes.
+- **history**: Execution logs can now be copied to the clipboard or downloaded as a `.log` file directly from the log dialog. Sensitive data (IPs, credentials, connection strings) is automatically redacted before export.
 
 ### 🐛 Bug Fixes
 
