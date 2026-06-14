@@ -204,7 +204,7 @@ export class IntegrityService {
     callbacks?: IntegrityProgressCallbacks
   ): Promise<WorkItem[]> {
     const jobs = await prisma.job.findMany({
-      where: { enabled: true, skipVerification: false },
+      where: { enabled: true },
       include: {
         destinations: {
           include: { config: true },
@@ -214,12 +214,23 @@ export class IntegrityService {
 
     callbacks?.onLog(`Found ${jobs.length} job${jobs.length !== 1 ? "s" : ""} to scan`);
 
+    const eligibleJobs = jobs.filter((j) => !j.skipVerification);
+    const skippedJobs = jobs.filter((j) => j.skipVerification);
+
+    for (const job of skippedJobs) {
+      callbacks?.onLog(`${job.name}: verification disabled - skipping`, "info");
+    }
+
     const seen = new Set<string>();
     const workItems: WorkItem[] = [];
 
+    // Track per-job file counts for logging
+    const jobCounts = new Map<string, number>();
+    for (const job of eligibleJobs) jobCounts.set(job.name, 0);
+
     // Collect all unique destinations across eligible jobs, then list each once
     const destJobMap = new Map<string, { dest: typeof jobs[0]["destinations"][0]; jobNames: string[] }>();
-    for (const job of jobs) {
+    for (const job of eligibleJobs) {
       for (const dest of job.destinations) {
         const destMeta = dest.config.metadata ? JSON.parse(dest.config.metadata) : {};
         if (destMeta.skipVerification === true) continue;
@@ -263,7 +274,6 @@ export class IntegrityService {
         (f) => !f.name.endsWith(".meta.json") && jobNames.some((n) => f.path.startsWith(n + "/"))
       );
 
-
       for (const file of backupFiles) {
         if (filters.maxAgeDays > 0 && file.lastModified) {
           const ageDays = (Date.now() - new Date(file.lastModified).getTime()) / 86_400_000;
@@ -282,10 +292,15 @@ export class IntegrityService {
           remotePath: file.path,
           fileName: file.name,
         });
+
+        const matchingJob = jobNames.find((n) => file.path.startsWith(n + "/"));
+        if (matchingJob) jobCounts.set(matchingJob, (jobCounts.get(matchingJob) ?? 0) + 1);
       }
     }
 
-    callbacks?.onLog(`Jobs scan: found ${workItems.length} file${workItems.length !== 1 ? "s" : ""} to verify`);
+    for (const [jobName, count] of jobCounts.entries()) {
+      callbacks?.onLog(`${jobName}: found ${count} file${count !== 1 ? "s" : ""} to verify`);
+    }
 
     return workItems;
   }
