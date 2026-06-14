@@ -76,6 +76,7 @@ export interface JobData {
     namingTemplateId?: string | null;
     schedulePresetId?: string | null;
     schedulePreset?: { id: string; name: string; schedule: string } | null;
+    skipVerification?: boolean;
     notifications: { id: string, name: string }[];
     destinations: {
         configId: string;
@@ -142,6 +143,7 @@ const jobSchema = z.object({
     notificationIds: z.array(z.string()).optional(),
     notificationEvents: z.enum(["ALWAYS", "FAILURE_ONLY", "SUCCESS_ONLY"]).default("ALWAYS"),
     enabled: z.boolean().default(true),
+    skipVerification: z.boolean().default(false),
 });
 
 const defaultRetentionValue = { mode: "NONE" as const, simple: { keepCount: 10 }, smart: { daily: 7, weekly: 4, monthly: 12, yearly: 2 } };
@@ -165,6 +167,7 @@ interface JobFormProps {
         namingTemplateId?: string | null;
         schedulePresetId?: string | null;
         schedulePreset?: { id: string; name: string; schedule: string } | null;
+        skipVerification?: boolean;
         notifications: { id: string; name: string }[];
         destinations: { configId: string; priority: number; retention: string; retentionPolicyId?: string | null }[];
     } | null;
@@ -244,6 +247,7 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
             notificationIds: initialData?.notifications?.map((n) => n.id) || [],
             notificationEvents: (initialData?.notificationEvents as "ALWAYS" | "FAILURE_ONLY" | "SUCCESS_ONLY") || "ALWAYS",
             enabled: initialData?.enabled ?? true,
+            skipVerification: initialData?.skipVerification ?? false,
         }
     });
 
@@ -364,6 +368,7 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
             const { pgCompressionAlgo: _algo, pgCompressionLevel: _level, ...rest } = data;
             const payload = {
                 ...rest,
+                skipVerification: data.skipVerification,
                 pgCompression,
                 encryptionProfileId: data.encryptionProfileId === "no-encryption" ? "" : data.encryptionProfileId,
                 namingTemplateId: data.namingTemplateId || null,
@@ -878,6 +883,22 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
                                 </div>
                             </div>
                         )}
+                        <FormField control={form.control} name="skipVerification" render={({ field }) => (
+                            <FormItem>
+                                <div className="flex items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel>Skip Verification</FormLabel>
+                                        <FormDescription>
+                                            Exclude this job from scheduled integrity checks.
+                                        </FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch checked={field.value} onCheckedChange={field.onChange} />
+                                    </FormControl>
+                                </div>
+                                <FormMessage />
+                            </FormItem>
+                        )} />
                     </TabsContent>
 
                     {/* TAB 4: NOTIFICATIONS */}

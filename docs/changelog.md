@@ -2,6 +2,48 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.7.0 - Backup Integrity Verification, Storage Explorer Caching, and Multiple Improvements
+*Released: June 14, 2026*
+
+### ✨ Features
+
+- **integrity**: Added backup file integrity verification. The Storage Explorer shows SHA-256/MD5 checksums and last verification result per file, with a Verify Now button that runs as a tracked async execution with live progress and cancel support.
+- **integrity**: Native checksum verification for S3/R2/Hetzner (SHA-256 via object metadata), Google Drive (MD5 via API), OneDrive (SHA-256 via Graph API), and local filesystem - no download required. Both checksums are stored in `.meta.json` at upload time.
+- **integrity**: Post-upload verification is now opt-in for all storage destinations via system settings (local filesystem always verifies).
+- **integrity**: Scheduled integrity checks support two scan modes - **Jobs** (default, only verifies files linked to backup jobs) and **All Files** (full storage scan) - plus configurable filters (skip already-passed, max age, max file size). Jobs and storage destinations can individually opt out via a "Skip Verification" toggle.
+- **storage**: Storage Explorer file listings are now cached in SQLite for instant repeat visits. Cache is invalidated on backup create, delete, verify, and lock changes.
+- **history**: Execution logs can now be copied to the clipboard or downloaded as a `.log` file directly from the log dialog. Sensitive data (IPs, credentials, connection strings) is automatically redacted before export.
+
+### 🐛 Bug Fixes
+
+- **storage**: Google Drive, OneDrive, and Dropbox now live-validate their stored OAuth token when the Connection tab is opened, showing an expiry warning with a Re-authorize button instead of a misleading green "authorized" status.
+
+### 🎨 Improvements
+
+- **dev**: `pnpm dev` now automatically applies pending Prisma migrations and regenerates the Prisma client on startup.
+- **storage**: Storage Explorer cache uses surgical updates - create, delete, lock, and verify each patch only the affected cache entry instead of invalidating the full cache.
+- **storage**: A new "Pre-warm Storage Cache" system task (enabled by default, hourly) reconciles caches against remote storage and pre-populates the cache for adapters not yet visited.
+- **storage**: Stale cache entries trigger a background reconciliation via `adapter.list()` to detect files deleted outside DBackup without re-reading sidecars.
+- **storage**: Long backup names in the Storage Explorer are truncated with a tooltip showing the full name on hover.
+- **integrity**: Manual system task runs auto-redirect to the live execution history when "Auto-redirect on job start" is enabled.
+- **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow.
+- **explorer**: Database version history now detects and visually distinguishes downgrades - the change log shows an orange downward arrow for downgrades vs. green upward arrow for upgrades, and downgrade notifications are sent with a distinct "Downgrade" label and warning color.
+- **explorer**: Database Explorer table list now supports searching by name and sorting by Name, Type, Rows, or Size via clickable column headers.
+
+### 🧪 Tests
+
+- **tests**: Updated unit tests for integrity service, upload step, storage service, and system task service to match the refactored verification interfaces.
+- **tests**: Fixed integrity service tests to use destinations scan mode explicitly and added `skipVerification` field to job service create test.
+- **tests**: Added unit tests for `VerificationService` (all verification code paths), `SystemTaskRunner` (execution lifecycle), `logs/sanitize` (credential and IP redaction), and `logs/format` (log text export). Extended `IntegrityService` tests to cover the jobs-mode scan path.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.7.0`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.6.0 - Security Update, Vault Credential Profiles, OAuth Improvements, and Multiple Bug Fixes
 *Released: June 6, 2026*
 

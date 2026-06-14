@@ -10,10 +10,10 @@ import { createEncryptionStream } from "@/lib/crypto/stream";
 import { getCompressionStream, getCompressionExtension, CompressionType } from "@/lib/crypto/compression";
 import { ProgressMonitorStream } from "@/lib/streams/progress-monitor";
 import { formatBytes } from "@/lib/utils";
-import { calculateFileChecksum, verifyFileChecksum } from "@/lib/crypto/checksum";
-import { getTempDir } from "@/lib/temp-dir";
+import { calculateFileChecksums } from "@/lib/crypto/checksum";
 import { PIPELINE_STAGES } from "@/lib/core/logs";
 import { withStorageSession } from "./upload-helpers";
+import { verificationService } from "@/services/storage/verification-service";
 
 export async function stepUpload(ctx: RunnerContext) {
     if (!ctx.job || ctx.destinations.length === 0 || !ctx.tempFile) throw new Error("Context not ready for upload");
@@ -117,10 +117,11 @@ export async function stepUpload(ctx: RunnerContext) {
         }
     }
 
-    // --- CHECKSUM CALCULATION ---
-    ctx.log("Calculating SHA-256 checksum...");
-    const checksum = await calculateFileChecksum(ctx.tempFile);
-    ctx.log(`Checksum: ${checksum}`);
+    // --- CHECKSUM CALCULATION (SHA-256 + MD5 in single stream pass) ---
+    ctx.log("Calculating checksums...");
+    const { sha256: checksum, md5: checksumMd5 } = await calculateFileChecksums(ctx.tempFile);
+    ctx.log(`SHA-256: ${checksum}`);
+    ctx.log(`MD5:     ${checksumMd5}`);
 
     // --- PRIVACY SETTING: include actor in metadata? ---
     const privacySetting = await prisma.systemSetting.findUnique({ where: { key: "privacy.includeActorInMetadata" } });
@@ -153,6 +154,7 @@ export async function stepUpload(ctx: RunnerContext) {
         compression: compressionMeta,
         encryption: encryptionMeta,
         checksum,
+        checksumMd5,
         multiDb: ctx.metadata?.multiDb,
         trigger,
         locked: ctx.lock === true,
@@ -166,9 +168,6 @@ export async function stepUpload(ctx: RunnerContext) {
     const totalDests = ctx.destinations.length;
 
     ctx.setStage(PIPELINE_STAGES.UPLOADING);
-
-    // Collect destinations that need post-upload integrity verification
-    const verifyQueue: { dest: typeof ctx.destinations[number]; destLabel: string }[] = [];
 
     for (let i = 0; i < totalDests; i++) {
         const dest = ctx.destinations[i];
@@ -206,12 +205,13 @@ export async function stepUpload(ctx: RunnerContext) {
                     sessionLog
                 );
 
-                // Upload main backup file
+                // Upload main backup file (pass checksums so adapters can store them natively)
                 const uploadSuccess = await session.upload(
                     ctx.tempFile!,
                     remotePath,
                     destProgress,
-                    sessionLog
+                    sessionLog,
+                    { checksumSha256: checksum, checksumMd5 }
                 );
 
                 if (!uploadSuccess) {
@@ -221,11 +221,31 @@ export async function stepUpload(ctx: RunnerContext) {
 
             dest.uploadResult = { success: true, path: remotePath };
             ctx.log(`${destLabel} Upload complete: ${remotePath}`);
-
-            // Queue integrity verification for local storage
-            if (dest.adapterId === "local-filesystem") {
-                verifyQueue.push({ dest, destLabel });
-            }
+            const dbCount = typeof metadata.databases === 'object' && 'count' in metadata.databases
+                ? (metadata.databases as { count: number }).count
+                : (Array.isArray(metadata.databases) ? metadata.databases.length : 0);
+            const richEntry = {
+                name: path.basename(remotePath),
+                path: remotePath,
+                size: ctx.dumpSize ?? 0,
+                lastModified: new Date(),
+                jobName: metadata.jobName,
+                sourceName: metadata.sourceName,
+                sourceType: metadata.sourceType,
+                engineVersion: metadata.engineVersion,
+                engineEdition: metadata.engineEdition,
+                dbInfo: { count: dbCount, label: dbCount <= 1 ? "Single DB" : `${dbCount} DBs` },
+                isEncrypted: metadata.encryption?.enabled,
+                encryptionProfileId: metadata.encryption?.profileId,
+                compression: metadata.compression,
+                locked: metadata.locked ?? false,
+                trigger: metadata.trigger as { type: string; actor?: string } | undefined,
+                checksum: metadata.checksum,
+                checksumMd5: metadata.checksumMd5,
+            };
+            import("@/services/storage/storage-service").then(({ storageService }) => {
+                storageService.appendStorageListCacheEntry(dest.configId, richEntry).catch(() => {});
+            });
 
         } catch (e: unknown) {
             const message = e instanceof Error ? e.message : String(e);
@@ -238,30 +258,34 @@ export async function stepUpload(ctx: RunnerContext) {
     await fs.unlink(metaPath).catch(() => {});
 
     // --- POST-UPLOAD VERIFICATION ---
-    ctx.setStage(PIPELINE_STAGES.VERIFYING);
+    const postVerifySetting = await prisma.systemSetting.findUnique({ where: { key: "backup.postUploadVerify" } });
+    const postVerifyEnabled = postVerifySetting?.value === 'true';
 
-    if (verifyQueue.length > 0) {
-        for (const { dest, destLabel } of verifyQueue) {
+    // Always verify local destinations (native, no bandwidth cost); verify remote only if setting enabled
+    const destinationsToVerify = ctx.destinations.filter(d =>
+        d.uploadResult?.success && (d.adapterId === "local-filesystem" || postVerifyEnabled)
+    );
+
+    if (destinationsToVerify.length > 0) {
+        ctx.setStage(PIPELINE_STAGES.VERIFYING);
+
+        for (const dest of destinationsToVerify) {
+            const destLabel = `[${dest.configName}]`;
             try {
                 ctx.log(`${destLabel} Verifying upload integrity...`);
-                const verifyPath = path.join(getTempDir(), `verify_${Date.now()}_${path.basename(ctx.tempFile)}`);
-                const downloadOk = await dest.adapter.download(dest.config, remotePath, verifyPath);
-                if (downloadOk) {
-                    const result = await verifyFileChecksum(verifyPath, checksum);
-                    if (result.valid) {
-                        ctx.log(`${destLabel} Integrity check passed ✓`, 'success');
-                    } else {
-                        ctx.log(`${destLabel} WARNING: Integrity check FAILED! Expected: ${result.expected}, Got: ${result.actual}`, 'warning');
-                    }
-                    await fs.unlink(verifyPath).catch(() => {});
+                const verifyResult = await verificationService.verifyFile(dest.configId, remotePath, 'post-upload');
+                if (verifyResult.status === 'passed') {
+                    ctx.log(`${destLabel} Integrity check passed`, 'success');
+                } else if (verifyResult.status === 'failed') {
+                    ctx.log(`${destLabel} WARNING: Integrity check FAILED. Expected: ${verifyResult.expectedChecksum}, Got: ${verifyResult.actualChecksum}`, 'warning');
+                } else {
+                    ctx.log(`${destLabel} Integrity verification skipped: ${verifyResult.status}`, 'info');
                 }
             } catch (e: unknown) {
                 const message = e instanceof Error ? e.message : String(e);
-                ctx.log(`${destLabel} Integrity verification skipped: ${message}`, 'warning');
+                ctx.log(`${destLabel} Integrity verification error: ${message}`, 'warning');
             }
         }
-    } else {
-        ctx.log("No local destinations - skipping integrity verification");
     }
 
     // --- EVALUATE RESULTS ---

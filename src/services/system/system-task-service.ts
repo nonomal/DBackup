@@ -41,7 +41,8 @@ export const SYSTEM_TASKS = {
     SYNC_PERMISSIONS: "system.sync_permissions",
     CONFIG_BACKUP: "system.config_backup",
     INTEGRITY_CHECK: "system.integrity_check",
-    REFRESH_STORAGE_STATS: "system.refresh_storage_stats"
+    REFRESH_STORAGE_STATS: "system.refresh_storage_stats",
+    WARMUP_STORAGE_CACHE: "system.warmup_storage_cache"
 };
 
 export const DEFAULT_TASK_CONFIG = {
@@ -100,6 +101,13 @@ export const DEFAULT_TASK_CONFIG = {
         enabled: true,
         label: "Refresh Storage Statistics",
         description: "Queries all storage destinations to update file counts and total sizes displayed on the dashboard. Runs automatically after each backup."
+    },
+    [SYSTEM_TASKS.WARMUP_STORAGE_CACHE]: {
+        interval: "0 * * * *", // Every hour
+        runOnStartup: true,
+        enabled: true,
+        label: "Pre-warm Storage Cache",
+        description: "Keeps the Storage Explorer cache fresh. Reconciles existing caches against remote storage to detect external changes, and pre-populates the cache for adapters not yet loaded."
     }
 };
 
@@ -214,7 +222,7 @@ export class SystemTaskService {
         });
     }
 
-    async runTask(taskId: string) {
+    async runTask(taskId: string, triggerType?: "Manual" | "Scheduler", triggerLabel?: string): Promise<string | undefined> {
         log.info("Running system task", { taskId });
         await this.setTaskLastRunAt(taskId);
 
@@ -242,20 +250,57 @@ export class SystemTaskService {
             }
             case SYSTEM_TASKS.INTEGRITY_CHECK: {
                 const { integrityService } = await import("@/services/backup/integrity-service");
-                const result = await integrityService.runFullIntegrityCheck();
-                log.info("Integrity check results", {
-                    total: result.totalFiles,
-                    passed: result.passed,
-                    failed: result.failed,
-                    skipped: result.skipped
-                });
-                break;
+                const { SystemTaskRunner } = await import("@/lib/runner/system-task-runner");
+                const { INTEGRITY_CHECK_STAGES } = await import("@/lib/core/logs");
+                const { getErrorMessage } = await import("@/lib/logging/errors");
+
+                const runner = await SystemTaskRunner.create(
+                    "IntegrityCheck",
+                    triggerType ?? "Scheduler",
+                    triggerLabel ?? "Scheduler"
+                );
+
+                // Run async without blocking so callers receive the executionId immediately.
+                (async () => {
+                    try {
+                        await runner.start();
+                        const result = await integrityService.runFullIntegrityCheck({
+                            onLog: (msg, level, details) => runner.logEntry(msg, level ?? "info", "general", details),
+                            onStage: (stage) => runner.setStage(stage),
+                            onFileProgress: (done, total) => {
+                                if (total > 0) runner.updateStageProgress((done / total) * 100);
+                            },
+                        });
+                        runner.setStage(INTEGRITY_CHECK_STAGES.COMPLETED);
+                        runner.logEntry(
+                            `${result.passed} passed, ${result.failed} failed, ${result.skipped} skipped of ${result.totalFiles} total`,
+                            result.failed > 0 ? "warning" : "success"
+                        );
+                        await runner.finish("Success");
+                        log.info("Integrity check completed", {
+                            total: result.totalFiles,
+                            passed: result.passed,
+                            failed: result.failed,
+                            skipped: result.skipped,
+                        });
+                    } catch (e: unknown) {
+                        runner.logEntry(getErrorMessage(e), "error");
+                        runner.setStage(INTEGRITY_CHECK_STAGES.FAILED);
+                        await runner.finish("Failed");
+                        log.error("Integrity check failed", {}, wrapError(e));
+                    }
+                })();
+
+                return runner.id;
             }
             case SYSTEM_TASKS.REFRESH_STORAGE_STATS: {
                 const { refreshStorageStatsCache } = await import("@/services/dashboard-service");
                 await refreshStorageStatsCache();
                 break;
             }
+            case SYSTEM_TASKS.WARMUP_STORAGE_CACHE:
+                await this.runWarmupStorageCache();
+                break;
             default:
                 log.warn("Unknown system task", { taskId });
         }
@@ -490,6 +535,7 @@ export class SystemTaskService {
                                     newVersion: change.newVersion,
                                     edition,
                                     timestamp: new Date().toISOString(),
+                                    isDowngrade: change.isDowngrade,
                                 },
                             });
                         }
@@ -512,6 +558,31 @@ export class SystemTaskService {
 
             } catch (e: unknown) {
                 log.error("Failed health check for source", { sourceName: source.name }, wrapError(e));
+            }
+        }
+    }
+
+    private async runWarmupStorageCache() {
+        const adapters = await prisma.adapterConfig.findMany({
+            where: { type: "storage" },
+            select: { id: true, name: true },
+        });
+        log.info("Pre-warming storage cache", { count: adapters.length });
+        const { storageService } = await import("@/services/storage/storage-service");
+        for (const adapter of adapters) {
+            try {
+                // If a cache row already exists: reconcile against remote to detect external changes.
+                // If no cache row: do a full fetch to populate it.
+                const cached = await prisma.storageListCache.findUnique({ where: { adapterConfigId: adapter.id } });
+                if (cached) {
+                    await storageService.reconcileStorageListCache(adapter.id);
+                    log.debug("Reconciled storage cache", { adapterId: adapter.id, name: adapter.name });
+                } else {
+                    await storageService.listFilesWithMetadata(adapter.id);
+                    log.debug("Warmed storage cache", { adapterId: adapter.id, name: adapter.name });
+                }
+            } catch (e: unknown) {
+                log.warn("Failed to warm/reconcile cache for adapter", { adapterId: adapter.id, name: adapter.name }, wrapError(e));
             }
         }
     }

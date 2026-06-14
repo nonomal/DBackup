@@ -20,7 +20,18 @@ vi.mock('@/services/backup/encryption-service', () => ({
 }));
 vi.mock('@/lib/crypto/checksum', () => ({
     calculateFileChecksum: vi.fn().mockResolvedValue('abc123'),
+    calculateFileChecksums: vi.fn().mockResolvedValue({ sha256: 'abc123', md5: 'def456' }),
     verifyFileChecksum: vi.fn().mockResolvedValue({ valid: true }),
+}));
+vi.mock('@/services/storage/verification-service', () => ({
+    verificationService: {
+        verifyFile: vi.fn().mockResolvedValue({ status: 'passed', verifiedAt: new Date().toISOString() }),
+    },
+}));
+vi.mock('@/services/storage/storage-service', () => ({
+    storageService: {
+        appendStorageListCacheEntry: vi.fn().mockResolvedValue(undefined),
+    },
 }));
 vi.mock('@/lib/temp-dir', () => ({
     getTempDir: vi.fn().mockReturnValue('/tmp'),

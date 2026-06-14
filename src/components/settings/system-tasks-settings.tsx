@@ -1,14 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { Play, Loader2, Clock, CalendarClock } from "lucide-react";
+import { Play, Loader2, Clock, CalendarClock, Settings2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { DateDisplay } from "@/components/utils/date-display";
+import { IntegrityCheckSettingsModal, type IntegritySettings } from "@/components/settings/integrity-check-settings-modal";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useUserPreferences } from "@/hooks/use-user-preferences";
 
 interface SystemTask {
     id: string;
@@ -22,12 +26,22 @@ interface SystemTask {
     timezone: string;
 }
 
-export function SystemTasksSettings() {
+interface SystemTasksSettingsProps {
+    initialIntegritySettings?: IntegritySettings;
+}
+
+export function SystemTasksSettings({ initialIntegritySettings }: SystemTasksSettingsProps) {
     const [tasks, setTasks] = useState<SystemTask[]>([]);
     const [loading, setLoading] = useState(false);
     const [editing, setEditing] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState<Record<string, boolean>>({});
     const [running, setRunning] = useState<Record<string, boolean>>({});
+    const [integritySettingsOpen, setIntegritySettingsOpen] = useState(false);
+    const [integritySettings, setIntegritySettings] = useState<IntegritySettings>(
+        initialIntegritySettings ?? { skipPassed: false, maxAgeDays: 0, maxFileSizeMb: 0, scanMode: "jobs" as const }
+    );
+    const router = useRouter();
+    const { autoRedirectOnJobStart } = useUserPreferences();
 
     useEffect(() => {
         fetchTasks();
@@ -133,7 +147,12 @@ export function SystemTasksSettings() {
                 body: JSON.stringify({ taskId }),
             });
             if (res.ok) {
-                toast.success("Task started in background");
+                const data = await res.json();
+                if (data.executionId && autoRedirectOnJobStart) {
+                    router.push(`/dashboard/history?executionId=${data.executionId}`);
+                } else {
+                    toast.success("Task started in background");
+                }
             } else {
                 toast.error("Failed to start task");
             }
@@ -145,6 +164,7 @@ export function SystemTasksSettings() {
     };
 
     return (
+        <>
         <Card>
             <CardHeader>
                 <CardTitle>System Tasks</CardTitle>
@@ -205,7 +225,22 @@ export function SystemTasksSettings() {
                                     </Button>
                                 )}
 
-                                <div className="flex items-center border-l pl-4 mx-2">
+                                {task.id === 'system.integrity_check' && (
+                                    <div className="flex items-center border-l pl-4 mx-2">
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <Button size="sm" variant="outline" onClick={() => setIntegritySettingsOpen(true)}>
+                                                        <Settings2 className="h-4 w-4" />
+                                                    </Button>
+                                                </TooltipTrigger>
+                                                <TooltipContent>Configure check filters</TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </div>
+                                )}
+
+                                <div className="flex items-center border-l pl-4 mx-2 gap-2">
                                     <Button size="sm" variant="outline" onClick={() => handleRun(task.id)} disabled={running[task.id]}>
                                         {running[task.id] ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1" />}
                                         Run Now
@@ -226,5 +261,13 @@ export function SystemTasksSettings() {
                 </div>
             </CardContent>
         </Card>
+
+        <IntegrityCheckSettingsModal
+            open={integritySettingsOpen}
+            onOpenChange={setIntegritySettingsOpen}
+            initialSettings={integritySettings}
+            onSaved={setIntegritySettings}
+        />
+        </>
     );
 }

@@ -171,6 +171,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Storage Explorer', link: '/user-guide/features/storage-explorer' },
+            { text: 'Backup Verification', link: '/user-guide/features/backup-verification' },
             { text: 'Restore', link: '/user-guide/features/restore' },
             { text: 'Notifications', link: '/user-guide/features/notifications' },
             { text: 'System Backup', link: '/user-guide/features/system-backup' },
@@ -212,7 +213,8 @@ export default defineConfig({
             { text: 'Icon System', link: '/developer-guide/core/icons' },
             { text: 'Download Tokens', link: '/developer-guide/core/download-tokens' },
             { text: 'Rate Limiting', link: '/developer-guide/core/rate-limiting' },
-            { text: 'Update Service', link: '/developer-guide/core/updates' }
+            { text: 'Update Service', link: '/developer-guide/core/updates' },
+            { text: 'Storage List Cache', link: '/developer-guide/core/storage-cache' }
           ]
         },
         {

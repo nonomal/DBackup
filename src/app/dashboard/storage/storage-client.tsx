@@ -37,6 +37,7 @@ import { Label } from "@/components/ui/label";
 import { getColumns, FileInfo } from "./columns";
 import { lockBackup } from "@/app/actions/storage/lock";
 import { DownloadLinkModal } from "@/components/dashboard/storage/download-link-modal";
+import { IntegrityModal } from "@/components/dashboard/storage/integrity-modal";
 import { StorageHistoryTab } from "@/components/dashboard/storage/storage-history-tab";
 import { StorageSettingsTab } from "@/components/dashboard/storage/storage-settings-tab";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -82,6 +83,9 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
     // Download Link Modal State
     const [downloadLinkFile, setDownloadLinkFile] = useState<FileInfo | null>(null);
 
+    // Integrity Modal State
+    const [verifyModalFile, setVerifyModalFile] = useState<FileInfo | null>(null);
+
     // Encryption Key Resolution Dialog State (decrypted download fallback)
     const [decryptKeyDialogOpen, setDecryptKeyDialogOpen] = useState(false);
     const [pendingDecryptFile, setPendingDecryptFile] = useState<FileInfo | null>(null);
@@ -118,11 +122,12 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
         }
     }, [selectedDestination, showSystemConfigs]);
 
-    const fetchFiles = async (destId: string, showSystem: boolean) => {
+    const fetchFiles = async (destId: string, showSystem: boolean, bypassCache = false) => {
         setLoading(true);
         try {
             const typeFilter = showSystem ? "SYSTEM" : "BACKUP";
-            const res = await fetch(`/api/storage/${destId}/files?typeFilter=${typeFilter}`);
+            const qs = bypassCache ? `typeFilter=${typeFilter}&refresh=true` : `typeFilter=${typeFilter}`;
+            const res = await fetch(`/api/storage/${destId}/files?${qs}`);
             if (res.ok) {
                 const fetchedFiles: FileInfo[] = await res.json();
                 setFiles(fetchedFiles);
@@ -259,6 +264,10 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
         setDownloadLinkFile(file);
     }, [canDownload]);
 
+    const handleVerify = useCallback((file: FileInfo) => {
+        setVerifyModalFile(file);
+    }, []);
+
     const confirmDelete = async () => {
         if (!fileToDelete) return;
         setDeleting(true);
@@ -290,10 +299,11 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
         onDelete: handleDeleteClick,
         onToggleLock: handleToggleLock,
         onGenerateLink: handleGenerateLink,
+        onVerify: handleVerify,
         canDownload,
         canRestore,
         canDelete
-    }), [handleRestoreClick, handleDownload, handleDeleteClick, handleToggleLock, handleGenerateLink, canDownload, canRestore, canDelete]);
+    }), [handleRestoreClick, handleDownload, handleDeleteClick, handleToggleLock, handleGenerateLink, handleVerify, canDownload, canRestore, canDelete]);
 
     const filterableColumns = useMemo(() => {
         const jobs = Array.from(new Set(files.map(f => f.jobName).filter(Boolean).filter(n => n !== "Unknown"))) as string[];
@@ -321,7 +331,7 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
     const handleRefresh = useCallback(() => {
         switch (activeTab) {
             case "explorer":
-                fetchFiles(selectedDestination, showSystemConfigs);
+                fetchFiles(selectedDestination, showSystemConfigs, true);
                 break;
             case "history":
                 historyRef.current?.refresh();
@@ -538,6 +548,17 @@ export function StorageClient({ canDownload, canRestore, canDelete }: StorageCli
                         size: downloadLinkFile.size,
                         isEncrypted: downloadLinkFile.isEncrypted,
                     }}
+                />
+            )}
+
+            {/* Integrity Modal */}
+            {verifyModalFile && (
+                <IntegrityModal
+                    open={!!verifyModalFile}
+                    onOpenChange={(o) => { if (!o) setVerifyModalFile(null); }}
+                    file={verifyModalFile}
+                    storageConfigId={selectedDestination}
+                    onVerifyComplete={() => fetchFiles(selectedDestination, showSystemConfigs)}
                 />
             )}
 

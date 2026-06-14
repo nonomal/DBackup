@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
+import { ExternalLink, CheckCircle2, AlertCircle, Loader2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
@@ -21,6 +21,28 @@ interface GoogleDriveOAuthButtonProps {
  */
 export function GoogleDriveOAuthButton({ credentialId, authorized, onAuthorized }: GoogleDriveOAuthButtonProps) {
     const [isLoading, setIsLoading] = useState(false);
+    const [tokenCheck, setTokenCheck] = useState<{ id: string; auth: boolean; result: "valid" | "expired" } | null>(null);
+
+    const tokenState: "checking" | "valid" | "expired" | null =
+        !authorized || !credentialId ? null
+        : tokenCheck?.id === credentialId && tokenCheck?.auth === authorized ? tokenCheck.result
+        : "checking";
+
+    useEffect(() => {
+        if (!authorized || !credentialId) {
+            return;
+        }
+        let active = true;
+        fetch("/api/adapters/google-drive/validate-token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ credentialId }),
+        })
+            .then((r) => r.json())
+            .then((data) => { if (active) setTokenCheck({ id: credentialId, auth: !!authorized, result: data.valid ? "valid" : "expired" }); })
+            .catch(() => { if (active) setTokenCheck({ id: credentialId, auth: !!authorized, result: "valid" }); });
+        return () => { active = false; };
+    }, [authorized, credentialId]);
 
     if (!credentialId) {
         return (
@@ -33,7 +55,37 @@ export function GoogleDriveOAuthButton({ credentialId, authorized, onAuthorized 
         );
     }
 
-    if (authorized) {
+    if (authorized && tokenState === "checking") {
+        return (
+            <Alert className="border-muted items-center [&>svg]:translate-y-0">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <AlertDescription className="text-muted-foreground">Verifying Google Drive authorization...</AlertDescription>
+            </Alert>
+        );
+    }
+
+    if (authorized && tokenState === "expired") {
+        return (
+            <Alert className="border-amber-500/30 bg-amber-500/5 items-center [&>svg]:translate-y-0">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="flex items-center justify-between">
+                    <span className="text-amber-600">Authorization expired. Please re-authorize with Google.</span>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleAuthorize()}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <ExternalLink className="h-4 w-4 mr-2" />}
+                        Re-authorize
+                    </Button>
+                </AlertDescription>
+            </Alert>
+        );
+    }
+
+    if (authorized && (tokenState === "valid" || tokenState === null)) {
         return (
             <Alert className="border-green-500/30 bg-green-500/5 items-center [&>svg]:translate-y-0">
                 <CheckCircle2 className="h-4 w-4 text-green-600" />

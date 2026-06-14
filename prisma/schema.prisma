@@ -38,6 +38,7 @@ model AdapterConfig {
 
   healthLogs           HealthCheckLog[]
   versionHistory       DbVersionHistory[]
+  storageListCache     StorageListCache?
 }
 
 model CredentialProfile {
@@ -120,6 +121,7 @@ model Job {
   source              AdapterConfig      @relation("Source", fields: [sourceId], references: [id])
   notifications       AdapterConfig[]    @relation("Notifications")
   notificationEvents  String             @default("ALWAYS") // "ALWAYS", "FAILURE_ONLY", "SUCCESS_ONLY"
+  skipVerification    Boolean            @default(false)
 }
 
 model JobDestination {
@@ -396,4 +398,11 @@ model NotificationLog {
   @@index([adapterId])
   @@index([sentAt])
   @@index([executionId])
+}
+
+model StorageListCache {
+  adapterConfigId String        @id
+  filesJson       String
+  cachedAt        DateTime      @default(now())
+  adapterConfig   AdapterConfig @relation(fields: [adapterConfigId], references: [id], onDelete: Cascade)
 }

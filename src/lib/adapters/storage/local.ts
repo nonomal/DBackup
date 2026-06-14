@@ -1,4 +1,5 @@
 import { StorageAdapter, FileInfo } from "@/lib/core/interfaces";
+import { calculateFileChecksum } from "@/lib/crypto/checksum";
 import { LogLevel, LogType } from "@/lib/core/logs";
 import { LocalStorageSchema } from "@/lib/adapters/definitions";
 import fs from "fs/promises";
@@ -185,6 +186,18 @@ export const LocalFileSystemAdapter: StorageAdapter = {
              if (error instanceof Error && error.message.includes("Access denied")) throw error;
              log.error("Local delete failed", { remotePath }, wrapError(error));
              return false;
+        }
+    },
+
+    async verifyChecksum(config: { basePath: string }, remotePath: string, checksums: { sha256?: string; md5?: string }): Promise<'passed' | 'failed' | 'unsupported'> {
+        if (!checksums.sha256) return 'unsupported';
+        try {
+            const filePath = resolveSafePath(config.basePath, remotePath);
+            await fs.access(filePath);
+            const actual = await calculateFileChecksum(filePath);
+            return actual === checksums.sha256 ? 'passed' : 'failed';
+        } catch {
+            return 'unsupported';
         }
     },
 

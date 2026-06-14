@@ -60,6 +60,9 @@ export function AdapterForm({ type, adapters, onSuccess, initialData, onBack }: 
     const initialMeta = initialData?.metadata ? JSON.parse(initialData.metadata) : {};
     const [healthNotificationsDisabled, setHealthNotificationsDisabled] = useState<boolean>(initialMeta.healthNotificationsDisabled === true);
 
+    // Disable verification (storage only)
+    const [skipVerification, setSkipVerification] = useState<boolean>(initialMeta.skipVerification === true);
+
     // Exclude from restore (database only)
     const [isRestoreExcluded, setIsRestoreExcluded] = useState<boolean>(initialMeta.isRestoreExcluded === true);
 
@@ -208,7 +211,7 @@ export function AdapterForm({ type, adapters, onSuccess, initialData, onBack }: 
             // Build metadata with health notification preference for database/storage adapters
             const existingMeta = initialData?.metadata ? JSON.parse(initialData.metadata) : {};
             const metadata = (type === 'database' || type === 'storage')
-                ? { ...existingMeta, healthNotificationsDisabled, ...(type === 'database' ? { isRestoreExcluded } : {}) }
+                ? { ...existingMeta, healthNotificationsDisabled, ...(type === 'database' ? { isRestoreExcluded } : {}), ...(type === 'storage' ? { skipVerification } : {}) }
                 : existingMeta;
 
             const payload = {
@@ -420,6 +423,8 @@ export function AdapterForm({ type, adapters, onSuccess, initialData, onBack }: 
                         initialData={initialData}
                         healthNotificationsDisabled={healthNotificationsDisabled}
                         onHealthNotificationsDisabledChange={setHealthNotificationsDisabled}
+                        skipVerification={skipVerification}
+                        onSkipVerificationChange={setSkipVerification}
                         primaryCredentialId={primaryCredentialId}
                         sshCredentialId={sshCredentialId}
                         onPrimaryChange={setPrimaryCredentialId}

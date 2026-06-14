@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Download, RotateCcw, Trash2, Lock, FileLock2, FileCheck, Terminal } from "lucide-react";
+import { Download, RotateCcw, Trash2, Lock, FileLock2, FileCheck, Terminal, ShieldCheck, ShieldX, Shield } from "lucide-react";
 import { FileInfo } from "@/app/dashboard/storage/columns";
 
 const ARCHIVED_STORAGE_CLASSES = ["GLACIER", "DEEP_ARCHIVE"];
@@ -13,6 +13,7 @@ interface ActionsCellProps {
     onDelete: (file: FileInfo) => void;
     onToggleLock?: (file: FileInfo) => void;
     onGenerateLink?: (file: FileInfo) => void;
+    onVerify?: (file: FileInfo) => void;
     canDownload: boolean;
     canRestore: boolean;
     canDelete: boolean;
@@ -25,6 +26,7 @@ export function ActionsCell({
     onDelete,
     onToggleLock,
     onGenerateLink,
+    onVerify,
     canDownload,
     canRestore,
     canDelete
@@ -32,8 +34,45 @@ export function ActionsCell({
     const isArchived = ARCHIVED_STORAGE_CLASSES.includes(file.storageClass ?? "");
     const archivedTooltip = "This backup is archived in S3 Glacier or Deep Archive. Restore it via the AWS Console first (S3 - select object - Actions - Initiate restore).";
 
+    const verifyIcon = file.verification
+        ? file.verification.passed
+            ? <ShieldCheck className="h-4 w-4" />
+            : <ShieldX className="h-4 w-4" />
+        : <Shield className="h-4 w-4" />;
+
+    const verifyClass = file.verification
+        ? file.verification.passed
+            ? "text-green-600 hover:text-green-700"
+            : "text-red-600 hover:text-red-700"
+        : "text-muted-foreground hover:text-foreground";
+
+    const verifyTooltip = file.verification
+        ? file.verification.passed
+            ? "Integrity verified - click to re-verify"
+            : "Integrity check failed - click to re-verify"
+        : "Verify integrity";
+
     return (
         <div className="flex items-center justify-end gap-2">
+            {onVerify && (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className={`h-8 w-8 ${verifyClass}`}
+                                onClick={() => onVerify(file)}
+                            >
+                                {verifyIcon}
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>{verifyTooltip}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )}
             {onToggleLock && canDelete && (
                 <TooltipProvider>
                     <Tooltip>

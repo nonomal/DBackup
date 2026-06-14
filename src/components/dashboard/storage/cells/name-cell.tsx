@@ -10,18 +10,25 @@ interface NameCellProps {
 export function NameCell({ name, path, isEncrypted }: NameCellProps) {
     return (
         <div className="flex flex-col space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 min-w-0">
                 {isEncrypted && (
                      <TooltipProvider>
                         <Tooltip>
                             <TooltipTrigger>
-                                <Lock className="h-3.5 w-3.5 text-amber-500/80" />
+                                <Lock className="h-3.5 w-3.5 text-amber-500/80 shrink-0" />
                             </TooltipTrigger>
                             <TooltipContent>Encrypted Backup</TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
                 )}
-                <span className="font-medium text-sm">{name}</span>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="font-medium text-sm truncate max-w-64 block">{name}</span>
+                        </TooltipTrigger>
+                        <TooltipContent>{name}</TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
             </div>
             <span className="text-[10px] text-muted-foreground truncate max-w-[250px] font-mono" title={path}>
                 {path}

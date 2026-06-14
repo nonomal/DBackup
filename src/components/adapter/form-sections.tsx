@@ -134,6 +134,30 @@ function HealthCheckNotificationSwitch({
     );
 }
 
+function DisableVerificationSwitch({
+    disabled,
+    onChange,
+}: {
+    disabled: boolean;
+    onChange: (disabled: boolean) => void;
+}) {
+    return (
+        <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="space-y-0.5">
+                <Label htmlFor="skip-verification">Disable Verification</Label>
+                <p className="text-sm text-muted-foreground">
+                    Exclude this destination from scheduled integrity checks.
+                </p>
+            </div>
+            <Switch
+                id="skip-verification"
+                checked={disabled}
+                onCheckedChange={onChange}
+            />
+        </div>
+    );
+}
+
 function RestoreExcludedSwitch({
     excluded,
     onChange,
@@ -666,18 +690,20 @@ export function StorageFormContent({
     initialData: _initialData,
     healthNotificationsDisabled,
     onHealthNotificationsDisabledChange,
+    skipVerification,
+    onSkipVerificationChange,
     primaryCredentialId,
     sshCredentialId: _sshCredentialId,
     onPrimaryChange,
     onSshChange: _onSshChange,
-}: { adapter: AdapterDefinition; initialData?: AdapterConfig; healthNotificationsDisabled?: boolean; onHealthNotificationsDisabledChange?: (disabled: boolean) => void } & CredentialPickerHostProps) {
+}: { adapter: AdapterDefinition; initialData?: AdapterConfig; healthNotificationsDisabled?: boolean; onHealthNotificationsDisabledChange?: (disabled: boolean) => void; skipVerification?: boolean; onSkipVerificationChange?: (disabled: boolean) => void } & CredentialPickerHostProps) {
     const { watch } = useFormContext();
     const authType = watch("config.authType");
     const storageClass = watch("config.storageClass");
     const isArchivedStorageClass = storageClass === "GLACIER" || storageClass === "DEEP_ARCHIVE";
     const hasRealConfigKeys = hasFields(adapter, STORAGE_CONFIG_KEYS);
-    // Always show Configuration tab for storage adapters (health check switch lives there)
-    const hasConfigKeys = hasRealConfigKeys || !!onHealthNotificationsDisabledChange;
+    // Always show Configuration tab for storage adapters (health check and verification switches live there)
+    const hasConfigKeys = hasRealConfigKeys || !!onHealthNotificationsDisabledChange || !!onSkipVerificationChange;
     const isGoogleDrive = adapter.id === 'google-drive';
     const isDropbox = adapter.id === 'dropbox';
     const isOneDrive = adapter.id === 'onedrive';
@@ -797,6 +823,12 @@ export function StorageFormContent({
                             type="storage"
                             disabled={healthNotificationsDisabled ?? false}
                             onChange={onHealthNotificationsDisabledChange}
+                        />
+                    )}
+                    {onSkipVerificationChange && (
+                        <DisableVerificationSwitch
+                            disabled={skipVerification ?? false}
+                            onChange={onSkipVerificationChange}
                         />
                     )}
                 </TabsContent>

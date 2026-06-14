@@ -54,7 +54,7 @@ export function PreferencesForm({ userId, autoRedirectOnJobStart: initialValue }
                         </Label>
                         <p className="text-sm text-muted-foreground">
                             Automatically navigate to the History page and open the live execution view
-                            when a backup or restore job starts.
+                            when a backup, restore, or system task starts.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">

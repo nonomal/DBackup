@@ -39,6 +39,19 @@ vi.mock('@/services/backup/integrity-service', () => ({
         runFullIntegrityCheck: vi.fn().mockResolvedValue({ totalFiles: 5, passed: 5, failed: 0, skipped: 0 }),
     },
 }));
+vi.mock('@/lib/runner/system-task-runner', () => ({
+    SystemTaskRunner: {
+        create: vi.fn().mockResolvedValue({
+            id: 'runner-exec-1',
+            start: vi.fn().mockResolvedValue(undefined),
+            finish: vi.fn().mockResolvedValue(undefined),
+            logEntry: vi.fn(),
+            setStage: vi.fn(),
+            setProgress: vi.fn(),
+        }),
+    },
+    INTEGRITY_CHECK_STAGE_PROGRESS_MAP: {},
+}));
 vi.mock('@/services/dashboard-service', () => ({
     refreshStorageStatsCache: vi.fn().mockResolvedValue(undefined),
     cleanupOldSnapshots: vi.fn().mockResolvedValue(3),
@@ -638,6 +651,7 @@ describe('SystemTaskService', () => {
                 changed: true,
                 previousVersion: '15.0.4280.7',
                 newVersion: '15.0.4360.2',
+                isDowngrade: false,
             });
 
             await service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS);
@@ -675,6 +689,7 @@ describe('SystemTaskService', () => {
                 changed: true,
                 previousVersion: null,
                 newVersion: '8.0.31',
+                isDowngrade: false,
             });
 
             await service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS);
@@ -702,6 +717,7 @@ describe('SystemTaskService', () => {
                 changed: false,
                 previousVersion: '16.2',
                 newVersion: '16.2',
+                isDowngrade: false,
             });
 
             await service.runTask(SYSTEM_TASKS.UPDATE_DB_VERSIONS);

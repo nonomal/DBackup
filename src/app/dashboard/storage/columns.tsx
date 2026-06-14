@@ -28,6 +28,13 @@ export type FileInfo = {
     locked?: boolean;
     trigger?: { type: string; actor?: string };
     storageClass?: string;
+    checksum?: string;
+    checksumMd5?: string;
+    verification?: {
+        verifiedAt: string;
+        passed: boolean;
+        trigger: 'manual' | 'post-upload' | 'scheduled';
+    };
 };
 
 interface ColumnsProps {
@@ -36,12 +43,13 @@ interface ColumnsProps {
     onDelete: (file: FileInfo) => void;
     onToggleLock: (file: FileInfo) => void;
     onGenerateLink: (file: FileInfo) => void;
+    onVerify: (file: FileInfo) => void;
     canDownload: boolean;
     canRestore: boolean;
     canDelete: boolean;
 }
 
-export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGenerateLink, canDownload, canRestore, canDelete }: ColumnsProps): ColumnDef<FileInfo>[] => [
+export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGenerateLink, onVerify, canDownload, canRestore, canDelete }: ColumnsProps): ColumnDef<FileInfo>[] => [
     {
         accessorKey: "name",
         header: ({ column }) => {
@@ -224,6 +232,7 @@ export const getColumns = ({ onRestore, onDownload, onDelete, onToggleLock, onGe
                 onDelete={onDelete}
                 onToggleLock={onToggleLock}
                 onGenerateLink={onGenerateLink}
+                onVerify={onVerify}
                 canDownload={canDownload}
                 canRestore={canRestore}
                 canDelete={canDelete}

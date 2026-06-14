@@ -151,6 +151,8 @@ describe('StorageService', () => {
         mockResolveAdapterConfig.mockImplementation((adapterConfig: any) =>
             Promise.resolve(JSON.parse(adapterConfig.config))
         );
+        // storageListCache.upsert is a fire-and-forget cache write - must return a Promise
+        prismaMock.storageListCache.upsert.mockResolvedValue({} as any);
         // Reset fs mocks to success
         fsMocks.writeFile.mockResolvedValue(undefined);
         fsMocks.unlink.mockResolvedValue(undefined);
