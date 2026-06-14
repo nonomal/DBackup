@@ -1,11 +1,24 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TableIcon, Database, Rows3 } from "lucide-react";
+import {
+    AlertTriangle,
+    TableIcon,
+    Database,
+    Rows3,
+    Search,
+    ArrowUpDown,
+    ArrowUp,
+    ArrowDown,
+    X,
+    RefreshCw,
+} from "lucide-react";
 import { toast } from "sonner";
 import { formatBytes } from "@/lib/utils";
 
@@ -22,6 +35,8 @@ interface DatabaseTableListProps {
     onTableClick: (tableName: string) => void;
 }
 
+type SortCol = "name" | "type" | "rows" | "size";
+
 const TYPE_BADGE: Record<string, { label: string; variant: "default" | "secondary" | "outline" }> = {
     table: { label: "Table", variant: "secondary" },
     view: { label: "View", variant: "outline" },
@@ -33,6 +48,9 @@ export function DatabaseTableList({ sourceId, database, onTableClick }: Database
     const [tables, setTables] = useState<TableInfo[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [search, setSearch] = useState("");
+    const [sortCol, setSortCol] = useState<SortCol | null>(null);
+    const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
     const fetchTables = useCallback(async () => {
         setIsLoading(true);
@@ -68,6 +86,44 @@ export function DatabaseTableList({ sourceId, database, onTableClick }: Database
     const hasSize = tables.some(t => t.sizeInBytes != null);
     const totalRows = tables.reduce((s, t) => s + (t.rowCount ?? 0), 0);
 
+    const displayed = useMemo(() => {
+        let result = tables.filter(t =>
+            t.name.toLowerCase().includes(search.toLowerCase())
+        );
+        if (sortCol) {
+            result = [...result].sort((a, b) => {
+                let cmp = 0;
+                if (sortCol === "name") {
+                    cmp = a.name.localeCompare(b.name);
+                } else if (sortCol === "type") {
+                    cmp = (a.type ?? "").localeCompare(b.type ?? "");
+                } else if (sortCol === "rows") {
+                    cmp = (a.rowCount ?? -1) - (b.rowCount ?? -1);
+                } else if (sortCol === "size") {
+                    cmp = (a.sizeInBytes ?? -1) - (b.sizeInBytes ?? -1);
+                }
+                return sortDir === "asc" ? cmp : -cmp;
+            });
+        }
+        return result;
+    }, [tables, search, sortCol, sortDir]);
+
+    function toggleSort(col: SortCol) {
+        if (sortCol === col) {
+            setSortDir(d => (d === "asc" ? "desc" : "asc"));
+        } else {
+            setSortCol(col);
+            setSortDir("asc");
+        }
+    }
+
+    function SortIcon({ col }: { col: SortCol }) {
+        if (sortCol !== col) return <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/50" />;
+        return sortDir === "asc"
+            ? <ArrowUp className="h-3.5 w-3.5" />
+            : <ArrowDown className="h-3.5 w-3.5" />;
+    }
+
     return (
         <Card>
             <CardHeader className="pb-4">
@@ -83,6 +139,15 @@ export function DatabaseTableList({ sourceId, database, onTableClick }: Database
                                 : `${tables.length} object${tables.length !== 1 ? "s" : ""}${totalRows > 0 ? ` · ~${totalRows.toLocaleString()} rows` : ""}`}
                         </CardDescription>
                     </div>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={fetchTables}
+                        disabled={isLoading}
+                        className="h-8 w-8"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+                    </Button>
                 </div>
             </CardHeader>
             <CardContent>
@@ -110,53 +175,118 @@ export function DatabaseTableList({ sourceId, database, onTableClick }: Database
                         <p className="text-sm">No tables found in this database.</p>
                     </div>
                 ) : (
-                    <div className="border rounded-md overflow-hidden">
-                        <Table>
-                            <TableHeader className="bg-muted/50">
-                                <TableRow className="hover:bg-transparent">
-                                    <TableHead>Name</TableHead>
-                                    <TableHead className="w-28">Type</TableHead>
-                                    <TableHead className="text-right w-32">Rows</TableHead>
-                                    {hasSize && <TableHead className="text-right w-28">Size</TableHead>}
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {tables.map(table => {
-                                    const typeMeta = TYPE_BADGE[table.type ?? "table"] ?? TYPE_BADGE.table;
-                                    return (
-                                        <TableRow
-                                            key={table.name}
-                                            className="cursor-pointer hover:bg-accent/50"
-                                            onClick={() => onTableClick(table.name)}
+                    <>
+                        <div className="flex items-center gap-2 mb-3">
+                            <div className="relative flex-1">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                <Input
+                                    placeholder="Search tables..."
+                                    value={search}
+                                    onChange={e => setSearch(e.target.value)}
+                                    className="pl-8 h-8 text-sm"
+                                />
+                            </div>
+                            {search && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setSearch("")}
+                                    className="h-8 px-2 text-muted-foreground"
+                                >
+                                    <X className="h-4 w-4 mr-1" />
+                                    {displayed.length} result{displayed.length !== 1 ? "s" : ""}
+                                </Button>
+                            )}
+                        </div>
+                        <div className="border rounded-md overflow-hidden">
+                            <Table>
+                                <TableHeader className="bg-muted/50">
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead
+                                            className="cursor-pointer select-none"
+                                            onClick={() => toggleSort("name")}
                                         >
-                                            <TableCell className="font-medium">
-                                                <span className="flex items-center gap-2">
-                                                    <TableIcon className="h-4 w-4 text-muted-foreground shrink-0" />
-                                                    {table.name}
+                                            <span className="flex items-center gap-1">
+                                                Name <SortIcon col="name" />
+                                            </span>
+                                        </TableHead>
+                                        <TableHead
+                                            className="w-28 cursor-pointer select-none"
+                                            onClick={() => toggleSort("type")}
+                                        >
+                                            <span className="flex items-center gap-1">
+                                                Type <SortIcon col="type" />
+                                            </span>
+                                        </TableHead>
+                                        <TableHead
+                                            className="text-right w-32 cursor-pointer select-none"
+                                            onClick={() => toggleSort("rows")}
+                                        >
+                                            <span className="flex items-center justify-end gap-1">
+                                                Rows <SortIcon col="rows" />
+                                            </span>
+                                        </TableHead>
+                                        {hasSize && (
+                                            <TableHead
+                                                className="text-right w-28 cursor-pointer select-none"
+                                                onClick={() => toggleSort("size")}
+                                            >
+                                                <span className="flex items-center justify-end gap-1">
+                                                    Size <SortIcon col="size" />
                                                 </span>
+                                            </TableHead>
+                                        )}
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {displayed.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell
+                                                colSpan={hasSize ? 4 : 3}
+                                                className="text-center text-muted-foreground py-8"
+                                            >
+                                                No tables match your search.
                                             </TableCell>
-                                            <TableCell>
-                                                <Badge variant={typeMeta.variant} className="text-xs">
-                                                    {typeMeta.label}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right text-muted-foreground">
-                                                <span className="flex items-center justify-end gap-1.5">
-                                                    <Rows3 className="h-3.5 w-3.5" />
-                                                    {table.rowCount != null ? table.rowCount.toLocaleString() : "-"}
-                                                </span>
-                                            </TableCell>
-                                            {hasSize && (
-                                                <TableCell className="text-right text-muted-foreground">
-                                                    {table.sizeInBytes != null ? formatBytes(table.sizeInBytes) : "-"}
-                                                </TableCell>
-                                            )}
                                         </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
-                    </div>
+                                    ) : (
+                                        displayed.map(table => {
+                                            const typeMeta = TYPE_BADGE[table.type ?? "table"] ?? TYPE_BADGE.table;
+                                            return (
+                                                <TableRow
+                                                    key={table.name}
+                                                    className="cursor-pointer hover:bg-accent/50"
+                                                    onClick={() => onTableClick(table.name)}
+                                                >
+                                                    <TableCell className="font-medium">
+                                                        <span className="flex items-center gap-2">
+                                                            <TableIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                                                            {table.name}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Badge variant={typeMeta.variant} className="text-xs">
+                                                            {typeMeta.label}
+                                                        </Badge>
+                                                    </TableCell>
+                                                    <TableCell className="text-right text-muted-foreground">
+                                                        <span className="flex items-center justify-end gap-1.5">
+                                                            <Rows3 className="h-3.5 w-3.5" />
+                                                            {table.rowCount != null ? table.rowCount.toLocaleString() : "-"}
+                                                        </span>
+                                                    </TableCell>
+                                                    {hasSize && (
+                                                        <TableCell className="text-right text-muted-foreground">
+                                                            {table.sizeInBytes != null ? formatBytes(table.sizeInBytes) : "-"}
+                                                        </TableCell>
+                                                    )}
+                                                </TableRow>
+                                            );
+                                        })
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    </>
                 )}
             </CardContent>
         </Card>

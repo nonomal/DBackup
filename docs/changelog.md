@@ -28,6 +28,7 @@ All notable changes to DBackup are documented here.
 - **integrity**: Manual system task runs auto-redirect to the live execution history when "Auto-redirect on job start" is enabled.
 - **ui**: All data tables (Storage, Jobs, Sources, Destinations, Notifications) now support horizontal scrolling when columns overflow.
 - **explorer**: Database version history now detects and visually distinguishes downgrades - the change log shows an orange downward arrow for downgrades vs. green upward arrow for upgrades, and downgrade notifications are sent with a distinct "Downgrade" label and warning color.
+- **explorer**: Database Explorer table list now supports searching by name and sorting by Name, Type, Rows, or Size via clickable column headers.
 
 ### 🧪 Tests
 
