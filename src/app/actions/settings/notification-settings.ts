@@ -243,6 +243,30 @@ function buildTestData(eventType: string): any {
         timestamp: now,
       },
     },
+    integrity_check_failure: {
+      eventType: "integrity_check_failure",
+      data: {
+        totalFiles: 12,
+        failed: 2,
+        passed: 9,
+        skipped: 1,
+        triggerType: "Scheduler",
+        errors: [
+          {
+            file: "daily-backup/app_db_2026-01-15.sql.gz.enc",
+            destination: "Local Storage (Test)",
+            expected: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+            actual: "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+          },
+          {
+            file: "daily-backup/app_db_2026-01-14.sql.gz.enc",
+            destination: "Local Storage (Test)",
+            expected: "f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5d4c3b2a1f6e5",
+            actual: "cafebabecafebabecafebabecafebabecafebabecafebabecafebabecafebabe",
+          },
+        ],
+      },
+    },
   };
 
   return testPayloads[eventType] ?? null;

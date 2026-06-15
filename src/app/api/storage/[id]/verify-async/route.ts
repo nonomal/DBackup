@@ -35,7 +35,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
             return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
         }
 
-        const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
+        const [user, adapterConfig] = await Promise.all([
+            prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
+            prisma.adapterConfig.findUnique({ where: { id: params.id }, select: { name: true } }),
+        ]);
+        const destinationName = adapterConfig?.name ?? params.id;
 
         const runner = await SystemTaskRunner.create(
             "Verification",
@@ -77,7 +81,7 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
                             triggerType: "Manual",
                             errors: [{
                                 file,
-                                destination: params.id,
+                                destination: destinationName,
                                 expected: result.expectedChecksum ?? "",
                                 actual: result.actualChecksum ?? "",
                             }],
