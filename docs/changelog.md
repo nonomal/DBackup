@@ -2,6 +2,22 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### 🐛 Bug Fixes
+
+- **audit**: Fixed Audit Log table resetting to page 1 after every page navigation.
+- **audit**: Reduced Audit Log load time by skipping filter-stats queries on page changes and parallelizing the underlying DB queries.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.7.0 - Backup Integrity Verification, Storage Explorer Caching, and Multiple Improvements
 *Released: June 14, 2026*
 

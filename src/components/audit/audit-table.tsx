@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { getAuditLogs, getAuditFilterStats } from "@/app/actions/audit/audit";
 import { DataTable } from "@/components/ui/data-table";
 import { AuditLogWithUser, columns } from "./columns";
 import { toast } from "sonner";
 import { AUDIT_ACTIONS, AUDIT_RESOURCES } from "@/lib/core/audit-types";
-import { ColumnFiltersState, PaginationState } from "@tanstack/react-table";
+import { ColumnFiltersState, OnChangeFn, PaginationState } from "@tanstack/react-table";
 
 interface FilterOption {
     value: string;
@@ -16,14 +16,12 @@ interface FilterOption {
 export function AuditTable() {
   const [logs, setLogs] = useState<AuditLogWithUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  // Table State
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 20,
   });
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-  // Stats for facets
   const [totalRows, setTotalRows] = useState(0);
   const [availableActions, setAvailableActions] = useState<FilterOption[]>(
     Object.values(AUDIT_ACTIONS).map(val => ({ value: val, count: 0 }))
@@ -32,10 +30,16 @@ export function AuditTable() {
     Object.values(AUDIT_RESOURCES).map(val => ({ value: val, count: 0 }))
   );
 
+  // Track previous filters reference to skip stats fetch on pagination-only changes.
+  // Reference equality works here because setColumnFilters always produces a new array.
+  const prevFiltersRef = useRef<ColumnFiltersState>(columnFilters);
+
   const fetchLogs = useCallback(async () => {
+    const filtersChanged = prevFiltersRef.current !== columnFilters;
+    prevFiltersRef.current = columnFilters;
+
     setIsLoading(true);
     try {
-      // Extract filters from columnFilters state
       const actionFilter = (columnFilters.find(f => f.id === "action")?.value as string[])?.[0];
       const resourceFilter = (columnFilters.find(f => f.id === "resource")?.value as string[])?.[0];
       const searchQuery = columnFilters.find(f => f.id === "details")?.value as string;
@@ -47,8 +51,8 @@ export function AuditTable() {
       };
 
       const [logsResult, statsResult] = await Promise.all([
-          getAuditLogs(pagination.pageIndex + 1, pagination.pageSize, filters),
-          getAuditFilterStats(filters)
+        getAuditLogs(pagination.pageIndex + 1, pagination.pageSize, filters),
+        filtersChanged ? getAuditFilterStats(filters) : Promise.resolve(null),
       ]);
 
       if (logsResult.success && logsResult.data) {
@@ -58,39 +62,37 @@ export function AuditTable() {
         toast.error("Failed to load audit logs: " + (logsResult as any).error);
       }
 
-      if (statsResult.success && statsResult.data) {
-          const actionCounts = new Map(statsResult.data.actions.map((a: any) => [a.value, a.count]));
-          const resourceCounts = new Map(statsResult.data.resources.map((r: any) => [r.value, r.count]));
+      if (statsResult?.success && statsResult.data) {
+        const actionCounts = new Map(statsResult.data.actions.map((a: any) => [a.value, a.count]));
+        const resourceCounts = new Map(statsResult.data.resources.map((r: any) => [r.value, r.count]));
 
-          setAvailableActions(Object.values(AUDIT_ACTIONS).map(val => ({
-              value: val,
-              count: actionCounts.get(val) || 0
-          })));
+        setAvailableActions(Object.values(AUDIT_ACTIONS).map(val => ({
+          value: val,
+          count: actionCounts.get(val) || 0
+        })));
 
-          setAvailableResources(Object.values(AUDIT_RESOURCES).map(val => ({
-              value: val,
-              count: resourceCounts.get(val) || 0
-          })));
-      } else {
-        console.error("Failed to load filter stats:", (statsResult as any).error);
-        // Do not toast for stats failure to avoid spamming, but log it
+        setAvailableResources(Object.values(AUDIT_RESOURCES).map(val => ({
+          value: val,
+          count: resourceCounts.get(val) || 0
+        })));
       }
     } catch (error) {
-      console.error(error);
       toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);
     }
   }, [pagination.pageIndex, pagination.pageSize, columnFilters]);
 
-  // Debounce the fetch when filters change (React Table updates state immediately)
   useEffect(() => {
-    const timer = setTimeout(() => {
-        fetchLogs();
-    }, 300); // 300ms debounce
+    const timer = setTimeout(fetchLogs, 300);
     return () => clearTimeout(timer);
   }, [fetchLogs]);
 
+  // Reset to page 0 whenever filters change so we don't show page N of a narrower result set.
+  const handleColumnFiltersChange: OnChangeFn<ColumnFiltersState> = useCallback((updater) => {
+    setPagination(prev => ({ ...prev, pageIndex: 0 }));
+    setColumnFilters(updater);
+  }, []);
 
   const filterableColumns = useMemo(() => [
     {
@@ -111,24 +113,20 @@ export function AuditTable() {
         <DataTable
             columns={columns}
             data={logs}
-            searchKey="details" // Using details column for the generic search input
+            searchKey="details"
 
-            // Manual Mode Configuration
             manualPagination={true}
             manualFiltering={true}
-            manualSorting={false} // Client-side sorting for now
+            manualSorting={false}
 
-            // State
             pagination={pagination}
             onPaginationChange={setPagination}
             columnFilters={columnFilters}
-            onColumnFiltersChange={setColumnFilters}
+            onColumnFiltersChange={handleColumnFiltersChange}
 
-            // Metadata
             pageCount={Math.ceil(totalRows / pagination.pageSize)}
             rowCount={totalRows}
 
-            // Features
             filterableColumns={filterableColumns}
             onRefresh={fetchLogs}
             isLoading={isLoading}

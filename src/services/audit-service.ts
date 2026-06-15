@@ -137,25 +137,22 @@ export class AuditService {
      if (filter.resource) actionWhere.resource = filter.resource;
      // Add search filter if present (assuming we add search later)
 
-     const actions = await prisma.auditLog.groupBy({
-         by: ['action'],
-         where: actionWhere,
-         _count: {
-             action: true
-         }
-     });
-
      // 2. Get Resources (filtered by Action if set)
      const resourceWhere = { ...baseWhere };
      if (filter.action) resourceWhere.action = filter.action;
 
-     const resources = await prisma.auditLog.groupBy({
-        by: ['resource'],
-        where: resourceWhere,
-        _count: {
-            resource: true
-        }
-    });
+     const [actions, resources] = await Promise.all([
+       prisma.auditLog.groupBy({
+         by: ['action'],
+         where: actionWhere,
+         _count: { action: true },
+       }),
+       prisma.auditLog.groupBy({
+         by: ['resource'],
+         where: resourceWhere,
+         _count: { resource: true },
+       }),
+     ]);
 
     return {
         actions: actions.map(a => ({ value: a.action, count: a._count.action })),

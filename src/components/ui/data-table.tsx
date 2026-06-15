@@ -145,7 +145,6 @@ export function DataTable<TData, TValue>({
             rowSelection,
             pagination,
         },
-        autoResetPageIndex,
         manualPagination,
         manualSorting,
         manualFiltering,
@@ -155,6 +154,8 @@ export function DataTable<TData, TValue>({
         onColumnVisibilityChange: setColumnVisibility,
         onRowSelectionChange: setRowSelection,
 
+        // When pagination is controlled externally, auto-reset would overwrite the parent's pageIndex on every data update.
+        autoResetPageIndex: manualPagination ? false : autoResetPageIndex,
         getCoreRowModel: getCoreRowModel(),
         // Only use client-side models if NOT manual
         getPaginationRowModel: !manualPagination ? getPaginationRowModel() : undefined,
