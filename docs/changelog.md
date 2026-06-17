@@ -15,6 +15,11 @@ All notable changes to DBackup are documented here.
 - **audit**: Fixed Audit Log table resetting to page 1 after every page navigation.
 - **audit**: Reduced Audit Log load time by skipping filter-stats queries on page changes and parallelizing the underlying DB queries.
 
+### 🎨 Improvements
+
+- **dashboard**: Latest Jobs widget now fills the same height as the right column and shows as many entries as fit. Added an "Integrity Check" filter option covering both IntegrityCheck and Verification types.
+- **dashboard**: Jobs Activity chart and Job Status donut now include "Partial" executions with an orange indicator.
+
 ### 🐳 Docker
 
 - **Image**: `skyfay/dbackup:vNEXT`

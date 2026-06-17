@@ -196,6 +196,7 @@ export async function getJobStatusDistribution(): Promise<JobStatusDistribution[
   const counts: Record<string, number> = {
     Success: 0,
     Failed: 0,
+    Partial: 0,
     Running: 0,
     Pending: 0,
     Cancelled: 0,
@@ -210,6 +211,7 @@ export async function getJobStatusDistribution(): Promise<JobStatusDistribution[
   const colorMap: Record<string, string> = {
     Success: "var(--color-completed)",
     Failed: "var(--color-failed)",
+    Partial: "var(--color-partial)",
     Running: "var(--color-running)",
     Pending: "var(--color-pending)",
     Cancelled: "var(--color-cancelled)",
