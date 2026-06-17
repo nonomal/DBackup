@@ -7,6 +7,7 @@ All notable changes to DBackup are documented here.
 
 ### ✨ Features
 
+- **integrity**: Integrity check executions now finish with a "Partial" status when some files fail verification, instead of "Success", making partial failures visible across the System Tasks list and Jobs Activity chart.
 - **integrity**: System notifications are now sent when an integrity check (scheduled or manual) finds one or more checksum mismatches.
 
 ### 🐛 Bug Fixes

@@ -276,7 +276,7 @@ export class SystemTaskService {
                             `${result.passed} passed, ${result.failed} failed, ${result.skipped} skipped of ${result.totalFiles} total`,
                             result.failed > 0 ? "warning" : "success"
                         );
-                        await runner.finish("Success");
+                        await runner.finish(result.failed > 0 ? "Partial" : "Success");
                         log.info("Integrity check completed", {
                             total: result.totalFiles,
                             passed: result.passed,

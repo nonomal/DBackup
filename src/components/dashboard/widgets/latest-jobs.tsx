@@ -153,6 +153,7 @@ function StatusBadge({ status }: { status: string }) {
     Running: { bg: "bg-[hsl(225,79%,54%)]", label: "Running" },
     Pending: { bg: "bg-[hsl(45,93%,58%)]", label: "Pending" },
     Cancelled: { bg: "bg-[hsl(0,0%,55%)]", label: "Cancelled" },
+    Partial: { bg: "bg-[hsl(25,90%,55%)]", label: "Partial" },
   };
 
   const { bg, label } = config[status] ?? { bg: "bg-muted", label: status };

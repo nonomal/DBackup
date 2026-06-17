@@ -23,6 +23,7 @@ export interface ActivityDataPoint {
   date: string;
   completed: number;
   failed: number;
+  partial: number;
   running: number;
   pending: number;
   cancelled: number;
@@ -146,7 +147,7 @@ export async function getActivityData(days: number = 14): Promise<ActivityDataPo
   // Initialize all days with zeros
   for (let i = 0; i < days; i++) {
     const date = formatInTimeZone(subDays(now, days - 1 - i), timezone, "MMM d");
-    dateMap.set(date, { date, completed: 0, failed: 0, running: 0, pending: 0, cancelled: 0 });
+    dateMap.set(date, { date, completed: 0, failed: 0, partial: 0, running: 0, pending: 0, cancelled: 0 });
   }
 
   // Count executions per day
@@ -161,6 +162,9 @@ export async function getActivityData(days: number = 14): Promise<ActivityDataPo
         break;
       case "Failed":
         entry.failed++;
+        break;
+      case "Partial":
+        entry.partial++;
         break;
       case "Running":
         entry.running++;

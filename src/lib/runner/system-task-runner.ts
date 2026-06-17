@@ -70,7 +70,7 @@ export class SystemTaskRunner {
     }
   }
 
-  async finish(status: "Success" | "Failed"): Promise<void> {
+  async finish(status: "Success" | "Failed" | "Partial"): Promise<void> {
     await this.flushLogs(true);
     await prisma.execution.update({
       where: { id: this.executionId },

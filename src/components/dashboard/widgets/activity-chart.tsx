@@ -21,6 +21,10 @@ const chartConfig = {
     label: "Failed",
     color: "hsl(357, 78%, 54%)",
   },
+  partial: {
+    label: "Partial",
+    color: "hsl(25, 90%, 55%)",
+  },
   running: {
     label: "Running",
     color: "hsl(225, 79%, 54%)",
@@ -41,7 +45,7 @@ interface ActivityChartProps {
 
 export function ActivityChart({ data }: ActivityChartProps) {
   const hasData = data.some(
-    (d) => d.completed > 0 || d.failed > 0 || d.running > 0 || d.pending > 0 || d.cancelled > 0
+    (d) => d.completed > 0 || d.failed > 0 || d.partial > 0 || d.running > 0 || d.pending > 0 || d.cancelled > 0
   );
 
   return (
@@ -81,6 +85,12 @@ export function ActivityChart({ data }: ActivityChartProps) {
                 dataKey="failed"
                 stackId="a"
                 fill="var(--color-failed)"
+                radius={[0, 0, 0, 0]}
+              />
+              <Bar
+                dataKey="partial"
+                stackId="a"
+                fill="var(--color-partial)"
                 radius={[0, 0, 0, 0]}
               />
               <Bar
