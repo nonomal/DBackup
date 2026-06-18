@@ -156,7 +156,8 @@ export class HealthCheckService {
                 throw new Error(`Adapter ${configRow.adapterId} not found`);
             }
 
-            if (!adapter.test) {
+            const checkFn = adapter.ping ?? adapter.test;
+            if (!checkFn) {
                 // If ping/test not supported, we skip
                 return false;
             }
@@ -171,7 +172,7 @@ export class HealthCheckService {
 
             const start = Date.now();
             const result = await withTimeout(
-                adapter.test(config),
+                checkFn.call(adapter, config),
                 ADAPTER_CHECK_TIMEOUT_MS,
                 configRow.name || configRow.id
             );

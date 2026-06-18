@@ -1,6 +1,6 @@
 import { StorageAdapter, FileInfo, UploadOptions } from "@/lib/core/interfaces";
 import { S3GenericSchema, S3AWSSchema, S3R2Schema, S3HetznerSchema } from "@/lib/adapters/definitions";
-import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, HeadObjectCommand, StorageClass } from "@aws-sdk/client-s3";
+import { S3Client, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, PutObjectCommand, HeadObjectCommand, HeadBucketCommand, StorageClass } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
 import { createReadStream, createWriteStream } from "fs";
 import { pipeline } from "stream/promises";
@@ -220,9 +220,26 @@ async function s3VerifyChecksum(
     }
 }
 
-async function s3Test(internalConfig: S3InternalConfig): Promise<{ success: boolean; message: string }> {
+const S3_TEST_SUBFOLDER = '.dbackup/test';
+
+function testTimestamp(): string {
+    return new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+}
+
+async function s3Ping(internalConfig: S3InternalConfig): Promise<{ success: boolean; message: string }> {
     const client = S3ClientFactory.create(internalConfig);
-    const testFile = `.backup-manager-test-${Date.now()}`;
+    try {
+        await client.send(new HeadBucketCommand({ Bucket: internalConfig.bucket }));
+        return { success: true, message: "Connection successful" };
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        return { success: false, message: message || "Connection failed" };
+    }
+}
+
+async function s3Test(internalConfig: S3InternalConfig, adapterId: string): Promise<{ success: boolean; message: string }> {
+    const client = S3ClientFactory.create(internalConfig);
+    const testFile = `${S3_TEST_SUBFOLDER}/connection-test-${adapterId}-${testTimestamp()}`;
     // Use target key logic to respect pathPrefix
     const targetKey = S3ClientFactory.getTargetKey(internalConfig, testFile);
     let uploaded = false;
@@ -300,6 +317,13 @@ export const S3GenericAdapter: StorageAdapter = {
         bucket: config.bucket,
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
         forcePathStyle: config.forcePathStyle,
+    }, 's3-generic'),
+    ping: (config) => s3Ping({
+        endpoint: config.endpoint,
+        region: config.region,
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+        forcePathStyle: config.forcePathStyle,
     }),
     read: (config, ...args) => s3Read({
         endpoint: config.endpoint,
@@ -350,6 +374,11 @@ export const S3AWSAdapter: StorageAdapter = {
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
     }, ...args),
     test: (config) => s3Test({
+        region: config.region,
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    }, 's3-aws'),
+    ping: (config) => s3Ping({
         region: config.region,
         bucket: config.bucket,
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
@@ -412,6 +441,12 @@ export const S3R2Adapter: StorageAdapter = {
         region: "auto",
         bucket: config.bucket,
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    }, 's3-r2'),
+    ping: (config) => s3Ping({
+        endpoint: r2Endpoint(config.accountId, config.jurisdiction),
+        region: "auto",
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
     }),
     read: (config, ...args) => s3Read({
         endpoint: r2Endpoint(config.accountId, config.jurisdiction),
@@ -463,6 +498,12 @@ export const S3HetznerAdapter: StorageAdapter = {
         credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
     }, ...args),
     test: (config) => s3Test({
+        endpoint: `https://${config.region}.your-objectstorage.com`,
+        region: config.region,
+        bucket: config.bucket,
+        credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
+    }, 's3-hetzner'),
+    ping: (config) => s3Ping({
         endpoint: `https://${config.region}.your-objectstorage.com`,
         region: config.region,
         bucket: config.bucket,

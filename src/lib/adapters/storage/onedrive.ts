@@ -439,6 +439,21 @@ export const OneDriveAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: OneDriveConfig): Promise<{ success: boolean; message: string }> {
+        try {
+            const accessToken = await getAccessToken(config);
+            const client = createGraphClient(accessToken);
+            await client.api("/me/drive").select("id").get();
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes("invalid_grant") || message.includes("AADSTS")) {
+                return { success: false, message: "Authorization expired. Please re-authorize with Microsoft." };
+            }
+            return { success: false, message: `OneDrive connection failed: ${message}` };
+        }
+    },
+
     async test(config: OneDriveConfig): Promise<{ success: boolean; message: string }> {
         try {
             const accessToken = await getAccessToken(config);
@@ -469,9 +484,12 @@ export const OneDriveAdapter: StorageAdapter = {
                 }
             }
 
-            // Test 3: Write and delete a test file
-            const testFileName = `.dbackup-test-${Date.now()}.txt`;
-            const testPath = basePath ? `${basePath}/${testFileName}` : testFileName;
+            // Test 3: Write and delete a test file inside the dedicated subfolder
+            const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+            const testFileName = `connection-test-onedrive-${ts}.txt`;
+            const testSubdir = basePath ? `${basePath}/.dbackup/test` : `.dbackup/test`;
+            const testPath = `${testSubdir}/${testFileName}`;
+            await ensureFolderExists(client, testSubdir);
             let testFileUploaded = false;
 
             try {

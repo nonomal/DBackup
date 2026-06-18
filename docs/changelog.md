@@ -12,11 +12,13 @@ All notable changes to DBackup are documented here.
 
 ### 🐛 Bug Fixes
 
+- **storage**: Periodic health checks no longer write test files to storage destinations, preventing file accumulation on storage with governance or object-lock retention policies. ([#113](https://github.com/Skyfay/DBackup/issues/113))
 - **audit**: Fixed Audit Log table resetting to page 1 after every page navigation.
 - **audit**: Reduced Audit Log load time by skipping filter-stats queries on page changes and parallelizing the underlying DB queries.
 
 ### 🎨 Improvements
 
+- **storage**: Manual connection test files are now isolated to a `.dbackup/test/` subfolder with the adapter name and timestamp in the filename, and are excluded from the Storage Explorer and backup count statistics. ([#113](https://github.com/Skyfay/DBackup/issues/113))
 - **dashboard**: Latest Jobs widget now fills the same height as the right column and shows as many entries as fit. Added an "Integrity Check" filter option covering both IntegrityCheck and Verification types.
 - **dashboard**: Jobs Activity chart and Job Status donut now include "Partial" executions with an orange indicator.
 

@@ -184,18 +184,30 @@ export const WebDAVAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: WebDAVConfig): Promise<{ success: boolean; message: string }> {
+        const client = getClient(config);
+        try {
+            const checkPath = config.pathPrefix ? path.posix.join("/", config.pathPrefix) : "/";
+            await client.exists(checkPath);
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, message: `WebDAV Connection failed: ${message}` };
+        }
+    },
+
     async test(config: WebDAVConfig): Promise<{ success: boolean; message: string }> {
-        const testFileName = `.connection-test-${Date.now()}`;
+        const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const testFileName = `.dbackup/test/connection-test-webdav-${ts}`;
         const client = getClient(config);
         const destination = resolvePath(config, testFileName);
+        const subdir = config.pathPrefix
+            ? path.posix.join("/", config.pathPrefix, '.dbackup/test')
+            : '/.dbackup/test';
         let remoteFileCreated = false;
         try {
-            // Ensure pathPrefix directory exists if set
-            if (config.pathPrefix) {
-                const prefixDir = path.posix.join("/", config.pathPrefix);
-                if (await client.exists(prefixDir) === false) {
-                    await client.createDirectory(prefixDir, { recursive: true });
-                }
+            if (await client.exists(subdir) === false) {
+                await client.createDirectory(subdir, { recursive: true });
             }
 
             // 1. Write Test

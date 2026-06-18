@@ -272,22 +272,37 @@ export const SFTPAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: SFTPConfig): Promise<{ success: boolean; message: string }> {
+        let sftp: Client | null = null;
+        try {
+            sftp = await connectSFTP(config);
+            const checkPath = config.pathPrefix || '.';
+            await sftp.stat(checkPath);
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, message: `SFTP Connection failed: ${message}` };
+        } finally {
+            if (sftp) await sftp.end();
+        }
+    },
+
     async test(config: SFTPConfig): Promise<{ success: boolean; message: string }> {
         let sftp: Client | null = null;
-        const testFileName = `.connection-test-${Date.now()}`;
+        const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const testFileName = `.dbackup/test/connection-test-sftp-${ts}`;
         const destination = config.pathPrefix
             ? path.posix.join(config.pathPrefix, testFileName)
             : testFileName;
+        const subdir = config.pathPrefix
+            ? path.posix.join(config.pathPrefix, '.dbackup/test')
+            : '.dbackup/test';
         let remoteFileCreated = false;
         try {
             sftp = await connectSFTP(config);
 
-            // Ensure directory exists if needed - though createWriteStream/put usually needs dir exist
-            if (config.pathPrefix) {
-                const remoteDir = config.pathPrefix;
-                if (await sftp.exists(remoteDir) !== 'd') {
-                     await sftp.mkdir(remoteDir, true);
-                }
+            if (await sftp.exists(subdir) !== 'd') {
+                await sftp.mkdir(subdir, true);
             }
 
             // 1. Write Test

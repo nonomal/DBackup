@@ -299,7 +299,10 @@ export async function refreshStorageStatsCache(): Promise<StorageVolumeEntry[]> 
       if (!adapter) return null;
 
       const config = await resolveAdapterConfig(adapterConfig);
-      const files = await adapter.list(config, "");
+      const files = (await adapter.list(config, "")).filter(f => {
+        const p = f.path.replace(/\\/g, '/');
+        return !p.startsWith('.dbackup/') && !p.startsWith('/.dbackup/');
+      });
 
       // Filter out .meta.json sidecar files (they are not backup data)
       const backupFiles = files.filter((f) => !f.name.endsWith(".meta.json"));
