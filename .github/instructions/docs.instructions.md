@@ -118,7 +118,7 @@ Use `<details>/<summary>` for optional/collapsible content (provider examples, a
 
 ## Content Principles
 
-- **Verify claims against code** - Every config field, default value, and feature claim must match `src/lib/adapters/definitions.ts` and the adapter implementation.
+- **Verify claims against code** - Every config field, default value, and feature claim must match `src/lib/adapters/definitions/` (split into `database.ts`, `storage.ts`, `notification.ts`) and the adapter implementation.
 - **Don't document external products** - Link to official docs instead of explaining how Gmail, AWS IAM, or Nginx work.
 - **One source of truth** - Don't repeat information across pages. Link instead.
 - **Screenshots are optional** - Only include if the UI flow is genuinely confusing.

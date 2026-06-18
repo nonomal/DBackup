@@ -22,9 +22,8 @@ Small fixes (language translations, typos, documentation improvements) can be su
 git clone https://github.com/skyfay/dbackup.git
 cd dbackup
 pnpm install
-npx prisma db push
 cp .env.example .env  # Edit with your secrets
-pnpm dev
+pnpm dev              # Applies pending DB migrations automatically on startup
 ```
 
 This starts the Next.js development server at `http://localhost:3000`.
@@ -63,6 +62,7 @@ pnpm typecheck          # Run TypeScript type checks
 - Keep functions small and focused
 - No unnecessary abstractions - if it is used once, inline it
 - Follow the 4-layer architecture: App Router → Services → Adapters → Runner
+- Services live in domain subdirectories under `src/services/` (e.g., `backup/`, `restore/`, `auth/`, `system/`)
 
 ### Commits
 
