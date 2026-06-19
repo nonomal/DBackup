@@ -70,11 +70,6 @@ This page outlines planned features and improvements for DBackup. Features are s
 
 ## 🛠 Database Management & Playground
 
-### Table Browser & Schema Viewer
-- Click on a database to browse all tables with columns, data types, primary keys, and indexes
-- Row counts per table for quick anomaly detection
-- Visual schema overview for backup verification
-
 ### Backup Drift Detection
 - Compare current database state with last backup timestamp
 - Show changes since last backup (new tables, size growth, dropped objects)
@@ -94,10 +89,6 @@ This page outlines planned features and improvements for DBackup. Features are s
 ### Query Library
 - Pre-built templates for common tasks (user management, table maintenance)
 - Quick-action buttons in the UI
-
-### Data Preview
-- Preview first 50 rows of any table without writing custom queries
-- Inline data viewer in the Table Browser
 
 ### User & Privileges Viewer
 - Read-only view of database users and their permissions
@@ -133,6 +124,9 @@ This page outlines planned features and improvements for DBackup. Features are s
 ## ✅ Completed
 
 For a full list of completed features, see the [Changelog](/changelog).
+
+### v2.4.0
+- ✅ Database Explorer with table browser, schema inspection, row counts, and drill-down data viewer (server-side pagination, full-text search, deep-link URLs)
 
 ### v1.0.1
 - ✅ Full OpenAPI 3.1 spec with interactive Scalar API reference at `/docs/api` and [api.dbackup.app](https://api.dbackup.app)

@@ -171,6 +171,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Storage Explorer', link: '/user-guide/features/storage-explorer' },
+            { text: 'Database Explorer', link: '/user-guide/features/database-explorer' },
             { text: 'Backup Verification', link: '/user-guide/features/backup-verification' },
             { text: 'Restore', link: '/user-guide/features/restore' },
             { text: 'Notifications', link: '/user-guide/features/notifications' },
@@ -189,7 +190,8 @@ export default defineConfig({
           items: [
             { text: 'User Management', link: '/user-guide/admin/users' },
             { text: 'Groups & Permissions', link: '/user-guide/admin/permissions' },
-            { text: 'SSO / OIDC', link: '/user-guide/admin/sso' }
+            { text: 'SSO / OIDC', link: '/user-guide/admin/sso' },
+            { text: 'Templates', link: '/user-guide/features/templates' }
           ]
         }
       ],

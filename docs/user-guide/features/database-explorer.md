@@ -48,6 +48,14 @@ Lists all databases with:
 
 Click a database to open the table list. Click a table to view its rows.
 
+The table list supports **search by name** and **sorting** by Name, Type, Rows, or Size - click any column header to toggle the sort direction.
+
+### Version History
+
+The **General** tab shows a step-line timeline chart of all detected engine version changes, plus a change log table (previous version - new version, edition, detected at). Entries are recorded by the `UPDATE_DB_VERSIONS` system task whenever the engine version changes between two consecutive checks.
+
+Upgrades are shown with a green upward arrow. Downgrades are shown with an orange downward arrow and trigger a "Downgrade" notification with a distinct warning color.
+
 ## Limitations
 
 - **Read-only** — no queries, no writes, no schema changes

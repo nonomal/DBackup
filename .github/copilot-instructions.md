@@ -329,16 +329,16 @@ System task (`CONFIG_BACKUP`) that exports the full system configuration to a st
 ## Credential Profiles (`src/services/auth/credential-service.ts`)
 
 Reusable named credential sets encrypted with the system `ENCRYPTION_KEY`:
-- Types: `USERNAME_PASSWORD`, `SSH_KEY`, `ACCESS_KEY`, `TOKEN`, `SMTP`
+- Types: `USERNAME_PASSWORD`, `SSH_KEY`, `ACCESS_KEY`, `TOKEN`, `SMTP`, `WEBHOOK`, `OAUTH`
 - Assignable to multiple adapters as primary or SSH credentials
 
 ## Notification Events
 
-15+ configurable event types (enable/disable per event, set reminder interval, target recipient):
+16 configurable event types (enable/disable per event, set reminder interval, target recipient):
 
 | Category | Events |
 |----------|--------|
-| Auth | `USER_LOGIN` |
+| Auth | `USER_LOGIN`, `USER_CREATED` |
 | Backup | `BACKUP_SUCCESS`, `BACKUP_FAILURE` |
 | Restore | `RESTORE_COMPLETE`, `RESTORE_FAILURE` |
 | System | `CONFIG_BACKUP`, `SYSTEM_ERROR`, `UPDATE_AVAILABLE` |

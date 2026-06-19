@@ -24,10 +24,18 @@ The Storage Explorer provides a file browser interface for all your backup desti
 ### File List
 
 Each file shows:
-- **Name**: File name with extension
-- **Size**: File size (compressed if applicable)
-- **Date**: Last modified timestamp
-- **Status**: Lock icon if protected
+
+| Column | Description |
+| :--- | :--- |
+| **Name** | Backup filename with extension |
+| **Source** | Database adapter icon (MySQL, PostgreSQL, etc.) |
+| **Size** | Compressed file size on storage |
+| **Date** | Last modified timestamp |
+| **Triggered by** | Who or what initiated the backup: **Manual** (username), **Scheduler**, or **API** (API key name). Populated from `.meta.json` - only available for backups created after v2.3.2. |
+| **Verification** | Result of the last integrity check: passed, failed, or not yet verified. |
+| **Status** | Lock icon if the backup is protected from retention |
+
+The file list defaults to sorting by **Last Modified** descending, so the most recent backups appear first.
 
 ### Filters
 
@@ -131,12 +139,30 @@ curl -o "backup.sql.gz" "https://your-server/api/storage/public-download?token=.
 - The modal shows a live countdown timer
 - You can generate a new link anytime
 
+### Verify Integrity
+
+Check that a stored backup file matches its recorded checksums:
+
+1. Click **Verify** on a file row (or open the detail dialog)
+2. A tracked execution starts - progress is visible in History
+3. The result (passed / failed) is written back to the file row and `.meta.json`
+
+For S3, Cloudflare R2, Hetzner, Google Drive, and OneDrive, verification uses the native checksum API - no re-download required. For other destinations the file is downloaded and checksums are computed locally.
+
+::: tip
+Enable post-upload verification for all new backups in **Settings → System → Post-Upload Verification**.
+:::
+
 ### Restore
 
 1. Click **Restore** button
 2. Select target database source
 3. Configure options (see [Restore](/user-guide/features/restore))
 4. Confirm and monitor progress
+
+::: warning Glacier / Deep Archive
+Backups stored in S3 `GLACIER` or `DEEP_ARCHIVE` show an orange badge and have **Restore** and **Download** disabled. Restore the object via the AWS Console first, then retry from here.
+:::
 
 ### Lock/Unlock
 
@@ -223,14 +249,33 @@ View at top of explorer:
 - **Latest backup**: Most recent timestamp
 - **Oldest backup**: Earliest timestamp
 
+## File Listing Cache
+
+File listings are cached in SQLite for instant repeat visits. You will never see a loading spinner for a destination you have opened before.
+
+The cache is automatically updated when:
+- A new backup is created or uploaded
+- A backup is deleted or locked/unlocked
+- A verification result is written
+
+The **Pre-warm Storage Cache** system task (hourly, enabled by default) reconciles caches against remote storage and pre-populates the cache for destinations not yet visited. If a backup file is deleted directly on the storage backend (outside DBackup), the next cache reconciliation will detect and remove the stale entry.
+
+## Execution Log Export
+
+From any execution detail dialog (History or live progress), you can:
+- **Copy to clipboard** - copies the full log text
+- **Download as `.log`** - saves the log as a file
+
+Sensitive data (IP addresses, credentials, connection strings) is automatically redacted before export.
+
 ## Performance
 
 ### Large File Lists
 
 For destinations with many files:
-- Pagination loads files in batches
+- The file listing cache provides instant repeat loads
 - Filters help narrow results
-- Consider cleaning up old backups
+- Consider cleaning up old backups with retention policies
 
 ### Download Speed
 
