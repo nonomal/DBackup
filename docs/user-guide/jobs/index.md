@@ -26,6 +26,8 @@ A job defines:
 | **Source** | Database connection to backup |
 | **Destinations** | One or more storage locations for backups (see [Multi-Destination](#multi-destination) below) |
 | **Enabled** | Toggle job on/off |
+| **Filename Template** | Override the global filename pattern with a per-job naming template (configured in Settings → Templates) |
+| **Skip Verification** | Disable post-upload checksum verification for this job (see [Backup Verification](/user-guide/features/backup-verification)) |
 
 ### Compression
 
@@ -36,6 +38,10 @@ Reduce backup size significantly:
 | **None** | Fastest | 0% | Quick backups, already compressed |
 | **Gzip** | Fast | 60-70% | General use |
 | **Brotli** | Slower | 70-80% | Maximum compression |
+
+::: tip PostgreSQL Native Compression
+PostgreSQL jobs have an additional **PostgreSQL Compression** setting that controls native `pg_dump` compression (GZIP, LZ4, ZSTD). See [PostgreSQL → PostgreSQL Compression](/user-guide/sources/postgresql#postgresql-compression).
+:::
 
 ### Encryption
 

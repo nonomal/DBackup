@@ -25,6 +25,7 @@ All notable changes to DBackup are documented here.
 ### 📝 Documentation
 
 - **wiki**: Overhauled the developer guide - corrected 50+ inaccuracies across all pages and added three new pages covering the Integrity Check system, Storage Alert system, and Credential Profiles.
+- **wiki**: Audited and updated the user guide - corrected factual errors (PostgreSQL dump format, permissions reference, Redis credential requirement), added 8 missing system notification events, documented the pgCompression job option and Database Explorer feature, and filled minor config table gaps across Telegram, MongoDB, and job settings.
 
 ### 🐳 Docker
 

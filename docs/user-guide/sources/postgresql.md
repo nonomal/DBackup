@@ -118,9 +118,9 @@ GRANT pg_read_all_data TO dbackup;
 
 ### Direct Mode
 
-DBackup uses `pg_dump` with these default options:
+DBackup runs `pg_dump` locally using PostgreSQL custom format (`-Fc`), which produces a compressed binary dump. Default flags:
 
-- `--format=plain`: SQL text format
+- `-Fc`: PostgreSQL custom format (compressed binary)
 - `--no-owner`: Don't output ownership commands
 - `--no-acl`: Don't output access privilege commands
 
@@ -130,7 +130,7 @@ In SSH mode, DBackup:
 
 1. Connects to the remote server via SSH
 2. Checks that `pg_dump` and `psql` are available on the remote host
-3. Executes `pg_dump` remotely (custom format with compression: `-F c -Z 6`)
+3. Executes `pg_dump` remotely (custom format: `-Fc`)
 4. Streams the dump output back over the SSH connection
 5. Applies additional compression/encryption locally
 6. Uploads to the configured storage destination
@@ -143,12 +143,11 @@ The **Host** field refers to the database hostname **as seen from the SSH server
 
 ### Output Format
 
-The backup creates a `.sql` file containing:
-- `CREATE TABLE` statements
-- `COPY` statements with data
-- Index definitions
-- Constraints and triggers
-- Sequences
+Each backup produces a `.dump` file in PostgreSQL custom format — a compressed binary that can only be restored with `pg_restore` (not psql). For multi-database backups, individual `.dump` files are bundled into a TAR archive (see [Multi-Database Backups](#multi-database-backups)).
+
+### Native Dump Compression
+
+PostgreSQL's native dump compression is controlled by the **PostgreSQL Compression** setting on the job (separate from DBackup's pipeline compression). See the [PostgreSQL Compression](#postgresql-compression) section below.
 
 ## Additional Options Examples
 
@@ -171,6 +170,26 @@ The backup creates a `.sql` file containing:
 # Specific schemas
 --schema=public --schema=app
 ```
+
+## PostgreSQL Compression
+
+PostgreSQL native dump compression is a **job-level** setting configured when creating or editing a backup job (not the source). It controls the `-Z` flag passed to `pg_dump` and is separate from DBackup's own pipeline compression.
+
+| Option | Description | PG Version |
+| :--- | :--- | :--- |
+| **Default** (empty) | Gzip level 6 — legacy behavior | All |
+| **None** | No native compression. Use DBackup's pipeline compression instead. | All |
+| **GZIP:N** | Gzip at level N (1–9) | All |
+| **LZ4:N** | LZ4 at level N — fast compression | 14+ |
+| **ZSTD:N** | Zstandard at level N — best ratio | 16+ |
+
+::: tip Combining Compression
+If you select **None** here and enable DBackup's Gzip or Brotli compression on the job, the compression happens in the pipeline after the dump — useful when you want a single compression method for all database types.
+:::
+
+::: warning LZ4 / ZSTD Version Requirements
+LZ4 requires PostgreSQL 14+ and ZSTD requires PostgreSQL 16+ — **on the PostgreSQL server**, not the DBackup host. Using these on older versions will cause the backup to fail.
+:::
 
 ## Multi-Database Backups
 

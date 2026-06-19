@@ -26,8 +26,8 @@ DBackup uses `redis-cli --rdb` to download RDB snapshots.
 
 ## Configuration
 
-::: info Credential Profiles required
-Redis requires a [Credential Profile](/user-guide/security/credential-profiles). Create an `USERNAME_PASSWORD` profile in **Settings → Vault → Credentials** before saving the source (username is optional for password-only setups). SSH mode additionally requires an `SSH_KEY` profile.
+::: info Credential Profiles
+A [Credential Profile](/user-guide/security/credential-profiles) is **optional** for Redis — password-free instances can connect without one. If your Redis requires a password or ACL authentication, create a `USERNAME_PASSWORD` profile in **Settings → Vault → Credentials** first (username is optional for `requirepass`-only setups). SSH mode requires an `SSH_KEY` profile.
 :::
 
 | Field | Description | Default | Required |

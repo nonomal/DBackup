@@ -19,8 +19,8 @@ DBackup uses `mongodump` from MongoDB Database Tools.
 
 ## Configuration
 
-::: info Credential Profiles required
-MongoDB requires a [Credential Profile](/user-guide/security/credential-profiles). Create an `USERNAME_PASSWORD` profile in **Settings → Vault → Credentials** before saving the source. SSH mode additionally requires an `SSH_KEY` profile.
+::: info Credential Profiles
+A [Credential Profile](/user-guide/security/credential-profiles) is **optional** for MongoDB — instances without authentication can connect without one. If your MongoDB requires login credentials, create a `USERNAME_PASSWORD` profile in **Settings → Vault → Credentials** first. SSH mode requires an `SSH_KEY` profile.
 :::
 
 | Field | Description | Default | Required |

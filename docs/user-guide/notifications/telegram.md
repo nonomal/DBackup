@@ -8,7 +8,8 @@ Send notifications to Telegram chats, groups, or channels using a Telegram Bot.
 | :--- | :--- | :--- | :--- |
 | **Bot Token** | Telegram Bot API token from [@BotFather](https://t.me/BotFather) | - | ✅ |
 | **Chat ID** | Target chat, group, or channel ID | - | ✅ |
-| **Parse Mode** | Message format: `HTML`, `MarkdownV2`, `Markdown` | `HTML` | ❌ |
+| **Thread ID** | Topic/Thread ID for Telegram forum supergroups (leave empty for main chat) | - | ❌ |
+| **Parse Mode** | Message format: `HTML`, `Markdown` | `HTML` | ❌ |
 | **Disable Notification** | Send silently (no notification sound) | `false` | ❌ |
 
 ## Setup Guide

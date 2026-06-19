@@ -75,7 +75,8 @@ Users in deleted group lose all permissions until reassigned.
 
 | Permission | Description |
 | :--- | :--- |
-| `sources:read` | View configured sources |
+| `sources:view` | View configured sources |
+| `sources:read` | Browse Database Explorer (tables and data) |
 | `sources:write` | Add, edit, delete sources |
 
 ### Storage Destinations
@@ -120,6 +121,29 @@ Users in deleted group lose all permissions until reassigned.
 | `profile:manage_2fa` | Enable/disable 2FA |
 | `profile:manage_passkeys` | Add/remove passkeys |
 
+### Credentials
+
+| Permission | Description |
+| :--- | :--- |
+| `credentials:read` | View credential profiles |
+| `credentials:write` | Create and edit credential profiles |
+| `credentials:delete` | Delete credential profiles |
+| `credentials:reveal` | View decrypted credential secrets |
+
+### API Keys
+
+| Permission | Description |
+| :--- | :--- |
+| `api-keys:read` | View API keys |
+| `api-keys:write` | Create, delete, and rotate API keys |
+
+### Templates
+
+| Permission | Description |
+| :--- | :--- |
+| `templates:read` | View naming and retention templates |
+| `templates:write` | Create, edit, and delete templates |
+
 ### System
 
 | Permission | Description |
@@ -142,7 +166,7 @@ Full access to everything:
 
 Can run and monitor backups:
 ```
-sources:read
+sources:view
 destinations:read
 jobs:read
 jobs:execute
@@ -158,7 +182,7 @@ profile:*
 
 Read-only access:
 ```
-sources:read
+sources:view
 destinations:read
 jobs:read
 storage:read
@@ -169,7 +193,8 @@ history:read
 
 Access to test/staging resources:
 ```
-sources:read (with resource filtering)
+sources:view
+sources:read
 jobs:read
 jobs:execute
 storage:read
