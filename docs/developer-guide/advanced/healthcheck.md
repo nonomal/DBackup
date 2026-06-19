@@ -31,7 +31,8 @@ model HealthCheckLog {
 model AdapterConfig {
   // ...existing fields
   lastHealthCheck      DateTime?     // Timestamp of last check
-  lastStatus           HealthStatus  // Cached status for UI display
+  lastStatus           String        // Cached status: "ONLINE" | "DEGRADED" | "OFFLINE"
+  lastError            String?       // Human-readable reason when lastStatus != ONLINE
   consecutiveFailures  Int           // Counter for failure state machine
 }
 ```
@@ -39,11 +40,11 @@ model AdapterConfig {
 ### Components Overview
 
 ```
-┌─────────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  System Task    │────▶│ Healthcheck      │────▶│ Adapter.test()  │
-│  (Scheduler)    │     │ Service          │     │ (MySQL, S3...)  │
-└─────────────────┘     └──────────────────┘     └─────────────────┘
-                               │
+┌─────────────────┐     ┌──────────────────┐     ┌─────────────────────────────┐
+│  System Task    │────▶│ Healthcheck      │────▶│ Adapter.ping()              │
+│  (Scheduler)    │     │ Service          │     │ (falls back to .test()      │
+└─────────────────┘     └──────────────────┘     │  if ping() not implemented) │
+                               │                 └─────────────────────────────┘
                                ▼
                         ┌──────────────────┐
                         │ HealthCheckLog   │
@@ -53,16 +54,31 @@ model AdapterConfig {
 
 ## Backend Service
 
-**Location**: `src/services/healthcheck-service.ts`
+**Location**: `src/services/system/healthcheck-service.ts`
 
 The core service that performs the actual health checks.
 
+### Constants
+
+```typescript
+const ADAPTER_CHECK_TIMEOUT_MS = 15_000; // 15 second timeout per individual adapter check
+const MAX_CONCURRENT_CHECKS = 5;         // Max parallel checks to avoid overloading
+const DEFAULT_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000; // 24 h: re-notify interval for persistent offline
+```
+
 ### Process Flow
 
-1. Iterates over all configured adapters
-2. Executes `adapter.test()` for each
-3. Evaluates status based on result
-4. Updates database with results
+1. Loads all configured adapters (database sources and storage destinations)
+2. Runs checks concurrently — at most `MAX_CONCURRENT_CHECKS` at once
+3. For each adapter: calls `ping()` first; falls back to `test()` if `ping()` is not implemented
+4. Each check is wrapped with a `ADAPTER_CHECK_TIMEOUT_MS` timeout to prevent hangs
+5. Evaluates status based on result and consecutive failure count
+6. Writes a `HealthCheckLog` record and updates the cached fields on `AdapterConfig`
+7. Sends an offline notification if the adapter just went `OFFLINE` (with 24 h cooldown for persistent failures)
+
+### `ping()` vs `test()`
+
+`ping()` is a lightweight connectivity check that must not write any files to storage. `test()` is the full write/delete verification. The health check system always prefers `ping()` to avoid polluting storage with test files every minute.
 
 ### State Machine
 

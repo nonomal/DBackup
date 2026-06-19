@@ -40,7 +40,7 @@ DBackup uses a two-layer encryption architecture for maximum security of both st
 ### Implementation
 
 ```typescript
-// src/lib/crypto.ts
+// src/lib/crypto/index.ts
 import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
 
 const ALGORITHM = "aes-256-gcm";
@@ -131,17 +131,19 @@ Users create "Encryption Profiles" in the Vault. Each profile has a unique maste
 
 ```prisma
 model EncryptionProfile {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  key       String   // Master key (encrypted with ENCRYPTION_KEY)
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  secretKey   String   // Master key (encrypted with ENCRYPTION_KEY)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 ```
 
 ### Key Generation
 
 ```typescript
-// src/services/encryption-service.ts
+// src/services/backup/encryption-service.ts
 export const EncryptionService = {
   async createProfile(name: string) {
     // Generate 32-byte random key
@@ -151,7 +153,7 @@ export const EncryptionService = {
     const encryptedKey = encrypt(masterKey);
 
     return prisma.encryptionProfile.create({
-      data: { name, key: encryptedKey },
+      data: { name, secretKey: encryptedKey },
     });
   },
 
@@ -162,7 +164,7 @@ export const EncryptionService = {
 
     if (!profile) throw new Error("Profile not found");
 
-    const keyHex = decrypt(profile.key);
+    const keyHex = decrypt(profile.secretKey);
     return Buffer.from(keyHex, "hex");
   },
 };
@@ -175,57 +177,38 @@ export const EncryptionService = {
 For efficient memory usage with large backups:
 
 ```typescript
-// src/lib/crypto-stream.ts
-import { createCipheriv, createDecipheriv, randomBytes } from "crypto";
+// src/lib/crypto/stream.ts
+import crypto from "crypto";
 import { Transform } from "stream";
 
-export function createEncryptionStream(key: Buffer) {
-  const iv = randomBytes(12);
-  const cipher = createCipheriv("aes-256-gcm", key, iv);
+export interface EncryptionStreamResult {
+  stream: Transform;
+  getAuthTag: () => Buffer;
+  iv: Buffer;
+}
 
-  let authTag: Buffer;
+export function createEncryptionStream(key: Buffer): EncryptionStreamResult {
+  const iv = crypto.randomBytes(16); // 16-byte IV for AES-256-GCM
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
 
-  const stream = new Transform({
-    transform(chunk, encoding, callback) {
-      callback(null, cipher.update(chunk));
-    },
-    flush(callback) {
-      this.push(cipher.final());
-      authTag = cipher.getAuthTag();
-      callback();
-    },
-  });
-
-  return {
-    stream,
-    iv,
-    getAuthTag: () => authTag,
-  };
+  // getAuthTag() is only valid after the stream has ended (flush complete)
+  return { stream: cipher, getAuthTag: () => cipher.getAuthTag(), iv };
 }
 
 export function createDecryptionStream(
   key: Buffer,
   iv: Buffer,
   authTag: Buffer
-) {
-  const decipher = createDecipheriv("aes-256-gcm", key, iv);
+): Transform {
+  const decipher = crypto.createDecipheriv("aes-256-gcm", key, iv);
   decipher.setAuthTag(authTag);
-
-  return new Transform({
-    transform(chunk, encoding, callback) {
-      callback(null, decipher.update(chunk));
-    },
-    flush(callback) {
-      try {
-        this.push(decipher.final());
-        callback();
-      } catch (error) {
-        callback(error as Error);
-      }
-    },
-  });
+  return decipher;
 }
 ```
+
+::: warning Call `getAuthTag()` after stream end
+`getAuthTag()` is only available after the cipher stream has fully flushed. Await `pipeline()` or the `finish` event before reading the auth tag.
+:::
 
 ### Backup Flow
 

@@ -33,7 +33,9 @@ Next.js middleware runs in the **Edge Runtime**, which cannot use Prisma, `fs`, 
 ## Key Files
 
 ```
-src/lib/rate-limit.ts                        → Core module: limiters, config, helpers
+src/lib/rate-limit/
+├── index.ts    → Limiters, config constants, getters (applyExternalConfig, RATE_LIMIT_DEFAULTS, RATE_LIMIT_KEYS)
+└── server.ts   → Server-only functions: reloadRateLimits(), getRateLimitConfig() (uses Prisma)
 src/middleware.ts                             → Enforcement: fetch config, consume limits
 src/app/api/internal/rate-limit-config/route.ts → Internal endpoint: serves DB config
 src/app/actions/rate-limit-settings.ts       → Server action: save/reset settings
@@ -41,7 +43,7 @@ src/components/settings/rate-limit-settings.tsx → UI: auto-save settings form
 src/app/dashboard/settings/page.tsx          → Settings page: Rate Limits tab
 ```
 
-## Rate Limit Module (`src/lib/rate-limit.ts`)
+## Rate Limit Module (`src/lib/rate-limit/`)
 
 ### Exports
 

@@ -55,7 +55,7 @@ const ADAPTER_ICON_MAP: Record<string, IconifyIcon> = {
 
 ### Color Map
 
-Only **Simple Icons** (monochrome) entries need a brand color. SVG Logos have colors baked in, and Lucide icons inherit `currentColor`:
+Only **Simple Icons** (monochrome) entries need a brand color. SVG Logos have colors baked in, and MDI icons inherit `currentColor`:
 
 ```typescript
 const ADAPTER_COLOR_MAP: Record<string, string> = {

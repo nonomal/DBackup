@@ -22,6 +22,10 @@ All notable changes to DBackup are documented here.
 - **dashboard**: Latest Jobs widget now fills the same height as the right column and shows as many entries as fit. Added an "Integrity Check" filter option covering both IntegrityCheck and Verification types.
 - **dashboard**: Jobs Activity chart and Job Status donut now include "Partial" executions with an orange indicator.
 
+### 📝 Documentation
+
+- **wiki**: Overhauled the developer guide - corrected 50+ inaccuracies across all pages and added three new pages covering the Integrity Check system, Storage Alert system, and Credential Profiles.
+
 ### 🐳 Docker
 
 - **Image**: `skyfay/dbackup:vNEXT`

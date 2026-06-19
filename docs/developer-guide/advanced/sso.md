@@ -37,10 +37,18 @@ An adapter (e.g., `AuthentikAdapter`) provides:
 ```prisma
 model SsoProvider {
   id             String   @id @default(cuid())
-  providerId     String   @unique // e.g. "authentik-main"
-  type           String   @default("oidc")
+  providerId     String   @unique          // e.g. "authentik-main"
+  type           String   @default("oidc") // "oidc" | "saml"
 
-  // OIDC Endpoints
+  // Domain matching for email-based auto-redirect
+  domain         String?                   // e.g. "company.com"
+  domainVerified Boolean  @default(false)  // Required by better-auth for trusted provider status
+
+  // Managed by better-auth (complete OIDC config as JSON)
+  oidcConfig     String?
+  samlConfig     String?
+
+  // Legacy/UI-sync fields (kept in sync with oidcConfig)
   issuer                String?
   authorizationEndpoint String?
   tokenEndpoint         String?
@@ -51,13 +59,12 @@ model SsoProvider {
   clientId       String?
   clientSecret   String?
 
-  // App Configuration
-  adapterId      String   // e.g. "authentik", "keycloak"
-  name           String   // Display Name e.g. "Corporate Login"
+  // DBackup-specific
+  adapterId      String             // e.g. "authentik" | "pocket-id" | "keycloak" | "generic"
+  adapterConfig  String?            // JSON: raw adapter inputs (e.g. { url, realm })
+  name           String             // Display name e.g. "Corporate Login"
   enabled        Boolean  @default(true)
-
-  // Domain matching for auto-redirect
-  domain         String?  // e.g. "company.com"
+  allowProvisioning Boolean @default(true) // Auto-create new users on first SSO login
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt

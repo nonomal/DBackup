@@ -19,7 +19,7 @@ This document covers the API key authentication system and the webhook trigger m
 **Key Principles:**
 - API keys provide stateless, token-based authentication for programmatic access
 - API keys **never** inherit SuperAdmin privileges - only explicitly assigned permissions apply
-- The raw key is shown exactly once at creation; only a SHA-256 hash is stored
+- The raw key is shown exactly once at creation; only a scrypt hash is stored (SHA-256 is kept as a legacy fallback and is automatically upgraded on next use)
 - All API routes support both session (cookie) and API key (Bearer token) authentication via the unified `getAuthContext()` function
 
 ## Database Schema
@@ -29,7 +29,7 @@ model ApiKey {
   id          String    @id @default(uuid())
   name        String
   prefix      String    // First 16 chars (e.g., "dbackup_a3f2b1c8")
-  hashedKey   String    @unique   // SHA-256 hash of full key
+  hashedKey   String    @unique   // scrypt hash of full key (legacy: SHA-256, auto-upgraded on next use)
   permissions String    // JSON array: ["jobs:read", "jobs:execute"]
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -66,8 +66,11 @@ function generateRawKey(): string {
   return API_KEY_PREFIX + randomBytes(KEY_BYTE_LENGTH).toString("hex");
 }
 
-function hashKey(rawKey: string): string {
-  return createHash("sha256").update(rawKey).digest("hex");
+async function hashKey(rawKey: string): Promise<string> {
+  // scrypt is used for new keys; SHA-256 kept for legacy migration
+  const salt = randomBytes(16);
+  const hash = await scrypt(rawKey, salt, 64);
+  return `${salt.toString("hex")}:${(hash as Buffer).toString("hex")}`;
 }
 ```
 
@@ -75,8 +78,12 @@ function hashKey(rawKey: string): string {
 | What | Stored | Purpose |
 |------|--------|---------|
 | Full raw key | ❌ Never | Only returned once at creation |
-| SHA-256 hash | ✅ `hashedKey` column | Used for validation lookups |
+| scrypt hash | ✅ `hashedKey` column | Used for validation lookups |
 | Prefix (16 chars) | ✅ `prefix` column | UI display only |
+
+::: info Legacy SHA-256 migration
+Keys created before the scrypt upgrade have SHA-256 hashes stored in `hashedKey`. On successful validation, these are automatically re-hashed with scrypt and the DB record is updated. No user action is needed.
+:::
 
 ## API Key Service
 
@@ -92,6 +99,7 @@ Location: `src/services/api-key-service.ts`
 | `getById` | `(id: string) → ApiKeyListItem` | Get a single key by ID |
 | `toggle` | `(id: string, enabled: boolean) → ApiKeyListItem` | Enable or disable a key |
 | `rotate` | `(id: string) → { apiKey, rawKey }` | Generate a new key, replace the old hash |
+| `updatePermissions` | `(id: string, permissions: string[]) → ApiKeyListItem` | Replace the permission set of an existing key |
 | `delete` | `(id: string) → void` | Delete a key |
 
 ### Validation Flow
@@ -107,7 +115,7 @@ Request with "Authorization: Bearer dbackup_abc123..."
                    │ Yes
                    ▼
           ┌─────────────────┐
-          │ 2. Hash Key     │  SHA-256(rawKey) → hash
+          │ 2. Hash Key     │  scrypt(rawKey) → hash (or SHA-256 for legacy upgrade path)
           └────────┬────────┘
                    │
                    ▼

@@ -214,7 +214,9 @@ export default defineConfig({
             { text: 'Download Tokens', link: '/developer-guide/core/download-tokens' },
             { text: 'Rate Limiting', link: '/developer-guide/core/rate-limiting' },
             { text: 'Update Service', link: '/developer-guide/core/updates' },
-            { text: 'Storage List Cache', link: '/developer-guide/core/storage-cache' }
+            { text: 'Storage List Cache', link: '/developer-guide/core/storage-cache' },
+            { text: 'Integrity Checks', link: '/developer-guide/core/integrity' },
+            { text: 'Storage Alerts', link: '/developer-guide/core/storage-alerts' }
           ]
         },
         {
@@ -238,6 +240,7 @@ export default defineConfig({
             { text: 'Encryption Pipeline', link: '/developer-guide/advanced/encryption' },
             { text: 'Retention System', link: '/developer-guide/advanced/retention' },
             { text: 'Healthcheck System', link: '/developer-guide/advanced/healthcheck' },
+            { text: 'Credential Profiles', link: '/developer-guide/advanced/credential-profiles' },
             { text: 'Config Backup (Meta)', link: '/developer-guide/advanced/config-backup' }
           ]
         },

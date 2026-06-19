@@ -6,8 +6,13 @@ DBackup uses a **Plugin/Adapter Architecture**. The core logic doesn't know abou
 
 ```
 src/lib/adapters/
-├── definitions.ts      # Zod schemas for all adapters
-├── index.ts           # Registration
+├── definitions/
+│   ├── index.ts       # Re-exports all definitions
+│   ├── database.ts    # MySQL, PostgreSQL, MongoDB, MSSQL, SQLite, Redis, MariaDB schemas
+│   ├── storage.ts     # S3, SFTP, Local, FTP, SMB, WebDAV, rsync, cloud drive schemas
+│   ├── notification.ts# Discord, Email, Slack, Teams, Telegram, etc. schemas
+│   └── shared.ts      # Shared field helpers (port, host, etc.)
+├── index.ts           # Registration and ADAPTER_DEFINITIONS array
 ├── database/          # MySQL, PostgreSQL, MongoDB, etc.
 │   └── common/        # Shared utilities (tar-utils.ts)
 ├── storage/           # Local, S3, SFTP, etc.
@@ -37,7 +42,6 @@ interface DatabaseAdapter {
   id: string;                    // Unique identifier
   type: "database";
   name: string;                  // Display name
-  configSchema: ZodSchema;       // Configuration schema
 
   dump(
     config: unknown,
@@ -70,7 +74,6 @@ interface StorageAdapter {
   id: string;
   type: "storage";
   name: string;
-  configSchema: ZodSchema;
 
   upload(
     config: unknown,
@@ -104,7 +107,6 @@ interface NotificationAdapter {
   id: string;
   type: "notification";
   name: string;
-  configSchema: ZodSchema;
 
   send(
     config: unknown,
@@ -119,24 +121,26 @@ interface NotificationAdapter {
 
 ### Step 1: Define the Schema
 
-Add a Zod schema in `src/lib/adapters/definitions.ts`:
+Add a Zod schema in `src/lib/adapters/definitions/database.ts` (or `storage.ts` / `notification.ts` for the appropriate adapter type):
 
 ```typescript
+// src/lib/adapters/definitions/database.ts
 export const SQLiteSchema = z.object({
   path: z.string().min(1, "Database path is required"),
   password: z.string().optional().describe("Encryption password"),
 });
+```
 
-// Add to the adapter definitions
-export const adapterDefinitions = {
-  // ... existing
-  sqlite: {
-    name: "SQLite",
-    schema: SQLiteSchema,
-    type: "database" as const,
-    icon: "sqlite",
-  },
-};
+Then register it by adding an entry to the `ADAPTER_DEFINITIONS` array in `src/lib/adapters/index.ts`:
+
+```typescript
+{
+  id: "sqlite",
+  name: "SQLite",
+  type: "database",
+  schema: SQLiteSchema,
+  icon: "sqlite",
+}
 ```
 
 ### Step 2: Implement the Adapter
@@ -156,7 +160,6 @@ export const SQLiteAdapter: DatabaseAdapter = {
   id: "sqlite",
   type: "database",
   name: "SQLite",
-  configSchema: SQLiteSchema,
 
   async dump(config, destinationPath): Promise<BackupResult> {
     const validated = SQLiteSchema.parse(config);

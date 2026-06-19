@@ -1,11 +1,11 @@
 # Update Service
 
-The Update Service checks for new versions of Database Backup Manager by querying the GitHub Container Registry (GHCR) API.
+The Update Service checks for new versions of Database Backup Manager by querying the GitHub REST API for repository tags.
 
 ## How It Works
 
 1. **Configuration Check**: Reads `general.checkForUpdates` from SystemSettings
-2. **API Query**: Fetches tags from GHCR API
+2. **API Query**: Fetches tags from `https://api.github.com/repos/Skyfay/DBackup/tags`
 3. **Channel Detection**: Determines the stability channel of the current installation
 4. **Filtering**: Filters available updates based on current channel
 5. **SemVer Comparison**: Sorts tags and checks for newer versions
