@@ -1,5 +1,6 @@
 import { StatsCards } from "@/components/dashboard/widgets/stats-cards";
 import { ActivityChart } from "@/components/dashboard/widgets/activity-chart";
+import { BackupCalendar } from "@/components/dashboard/widgets/backup-calendar";
 import { JobStatusChart } from "@/components/dashboard/widgets/job-status-chart";
 import { StorageVolumeChart } from "@/components/dashboard/widgets/storage-volume-chart";
 import { LatestJobs } from "@/components/dashboard/widgets/latest-jobs";
@@ -7,6 +8,8 @@ import { DashboardRefresh } from "@/components/dashboard/widgets/dashboard-refre
 import { DashboardBottomGrid } from "@/components/dashboard/bottom-grid";
 import {
   getActivityData,
+  getCalendarData,
+  getAvailableCalendarYears,
   getJobStatusDistribution,
   getStorageVolume,
   getStorageVolumeCacheAge,
@@ -17,8 +20,10 @@ import {
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const [activityData, statusData, storageData, cacheUpdatedAt, latestJobs, isRunning] = await Promise.all([
+  const [activityData, calendarData, availableYears, statusData, storageData, cacheUpdatedAt, latestJobs, isRunning] = await Promise.all([
     getActivityData(14),
+    getCalendarData(12),
+    getAvailableCalendarYears(),
     getJobStatusDistribution(),
     getStorageVolume(),
     getStorageVolumeCacheAge(),
@@ -45,6 +50,12 @@ export default async function DashboardPage() {
               <JobStatusChart data={statusData} />
               <StorageVolumeChart data={storageData} cacheUpdatedAt={cacheUpdatedAt} />
             </>
+          }
+          bottomLeft={
+            <BackupCalendar
+              data={calendarData}
+              availableYears={availableYears}
+            />
           }
         />
       </div>

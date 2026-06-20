@@ -1,5 +1,5 @@
 import prisma from "@/lib/prisma";
-import { subDays, startOfDay } from "date-fns";
+import { subDays, subMonths, addDays, startOfDay } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { registry } from "@/lib/core/registry";
 import { StorageAdapter } from "@/lib/core/interfaces";
@@ -61,6 +61,14 @@ export interface LatestJobEntry {
   databaseName: string | null;
   startedAt: Date;
   duration: number;
+}
+
+export interface CalendarDayData {
+  date: string;
+  total: number;
+  completed: number;
+  failed: number;
+  partial: number;
 }
 
 /**
@@ -179,6 +187,109 @@ export async function getActivityData(days: number = 14): Promise<ActivityDataPo
   }
 
   return Array.from(dateMap.values());
+}
+
+/**
+ * Fetches execution activity grouped by day for the last N months.
+ * Used for the Backup Calendar Heatmap widget.
+ * Only counts Backup-type executions. Day boundaries respect the system timezone.
+ */
+export async function getCalendarData(months: number = 12): Promise<CalendarDayData[]> {
+  const tzSetting = await prisma.systemSetting.findUnique({ where: { key: "system.timezone" } });
+  const timezone = tzSetting?.value || "UTC";
+
+  const now = new Date();
+  const startDate = startOfDay(subMonths(now, months));
+
+  const executions = await prisma.execution.findMany({
+    where: {
+      type: "Backup",
+      startedAt: { gte: startDate },
+    },
+    select: { startedAt: true, status: true },
+  });
+
+  const dayMap = new Map<string, CalendarDayData>();
+
+  let cursor = startDate;
+  while (cursor <= now) {
+    const key = formatInTimeZone(cursor, timezone, "yyyy-MM-dd");
+    dayMap.set(key, { date: key, total: 0, completed: 0, failed: 0, partial: 0 });
+    cursor = addDays(cursor, 1);
+  }
+
+  for (const exec of executions) {
+    const key = formatInTimeZone(exec.startedAt, timezone, "yyyy-MM-dd");
+    const day = dayMap.get(key);
+    if (!day) continue;
+    day.total++;
+    if (exec.status === "Success") day.completed++;
+    else if (exec.status === "Failed") day.failed++;
+    else if (exec.status === "Partial") day.partial++;
+  }
+
+  return Array.from(dayMap.values());
+}
+
+/**
+ * Fetches execution activity for a specific calendar year, grouped by day.
+ * Used for the year-selector view in the Backup Calendar Heatmap.
+ */
+export async function getCalendarDataForYear(year: number): Promise<CalendarDayData[]> {
+  const tzSetting = await prisma.systemSetting.findUnique({ where: { key: "system.timezone" } });
+  const timezone = tzSetting?.value || "UTC";
+
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
+
+  const executions = await prisma.execution.findMany({
+    where: {
+      type: "Backup",
+      startedAt: { gte: yearStart, lt: yearEnd },
+    },
+    select: { startedAt: true, status: true },
+  });
+
+  const dayMap = new Map<string, CalendarDayData>();
+
+  // Initialize all 365/366 days of the year so the full grid is always rendered.
+  // Future days will have total: 0 and display as empty gray cells.
+  let cursor = yearStart;
+  while (cursor < yearEnd) {
+    const key = formatInTimeZone(cursor, timezone, "yyyy-MM-dd");
+    if (!dayMap.has(key)) {
+      dayMap.set(key, { date: key, total: 0, completed: 0, failed: 0, partial: 0 });
+    }
+    cursor = addDays(cursor, 1);
+  }
+
+  for (const exec of executions) {
+    const key = formatInTimeZone(exec.startedAt, timezone, "yyyy-MM-dd");
+    const day = dayMap.get(key);
+    if (!day) continue;
+    day.total++;
+    if (exec.status === "Success") day.completed++;
+    else if (exec.status === "Failed") day.failed++;
+    else if (exec.status === "Partial") day.partial++;
+  }
+
+  return Array.from(dayMap.values());
+}
+
+/**
+ * Returns all years that have at least one Backup execution, from the earliest to the current year.
+ * Used to populate the year selector in the Backup Calendar Heatmap.
+ */
+export async function getAvailableCalendarYears(): Promise<number[]> {
+  const earliest = await prisma.execution.findFirst({
+    where: { type: "Backup" },
+    orderBy: { startedAt: "asc" },
+    select: { startedAt: true },
+  });
+  const currentYear = new Date().getFullYear();
+  if (!earliest) return [currentYear];
+  const firstYear = earliest.startedAt.getFullYear();
+  return Array.from({ length: currentYear - firstYear + 1 }, (_, i) => firstYear + i);
 }
 
 /**
