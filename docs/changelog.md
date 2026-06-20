@@ -18,6 +18,7 @@ All notable changes to DBackup are documented here.
 
 ### 🎨 Improvements
 
+- **jobs**: The edit job dialog now scrolls on small screens instead of clipping content below the fold.
 - **storage**: Manual connection test files are now isolated to a `.dbackup/test/` subfolder with the adapter name and timestamp in the filename, and are excluded from the Storage Explorer and backup count statistics. ([#113](https://github.com/Skyfay/DBackup/issues/113))
 - **dashboard**: Latest Jobs widget now fills the same height as the right column and shows as many entries as fit. Added an "Integrity Check" filter option covering both IntegrityCheck and Verification types.
 - **dashboard**: Jobs Activity chart and Job Status donut now include "Partial" executions with an orange indicator.
