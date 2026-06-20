@@ -26,6 +26,8 @@ A job defines:
 | **Source** | Database connection to backup |
 | **Destinations** | One or more storage locations for backups (see [Multi-Destination](#multi-destination) below) |
 | **Enabled** | Toggle job on/off |
+| **Filename Template** | Override the global filename pattern with a per-job naming template (configured in Settings → Templates) |
+| **Skip Verification** | Disable post-upload checksum verification for this job (see [Backup Verification](/user-guide/features/backup-verification)) |
 
 ### Compression
 
@@ -36,6 +38,10 @@ Reduce backup size significantly:
 | **None** | Fastest | 0% | Quick backups, already compressed |
 | **Gzip** | Fast | 60-70% | General use |
 | **Brotli** | Slower | 70-80% | Maximum compression |
+
+::: tip PostgreSQL Native Compression
+PostgreSQL jobs have an additional **PostgreSQL Compression** setting that controls native `pg_dump` compression (GZIP, LZ4, ZSTD). See [PostgreSQL → PostgreSQL Compression](/user-guide/sources/postgresql#postgresql-compression).
+:::
 
 ### Encryption
 
@@ -55,20 +61,23 @@ Automatically clean up old backups. Retention is configured **per destination** 
 
 ### Filename Pattern
 
-Customize the filename of backup files globally in **Settings → General → Backup Filename Pattern**. The pattern supports the following tokens:
+Customize the filename of backup files globally in **Settings → General → Backup Filename Pattern**, or override it per job via a **Naming Template** (see [Templates](#templates) below). The pattern supports the following tokens:
 
 | Token | Description | Example |
 | :--- | :--- | :--- |
-| `{name}` | Job name | `Daily MySQL Backup` |
+| `{job_name}` | Job name (canonical token) | `Daily MySQL Backup` |
+| `{name}` | Job name (legacy alias, still supported) | `Daily MySQL Backup` |
 | `{db_name}` | Database name | `mydb` |
 | `yyyy` | 4-digit year | `2026` |
-| `MM` | 2-digit month | `05` |
+| `MM` | 2-digit month (zero-padded) | `05` |
+| `MMM` | Short month name | `May` |
+| `MMMM` | Full month name | `January` |
 | `dd` | 2-digit day | `03` |
 | `HH` | 2-digit hour (24h) | `14` |
 | `mm` | 2-digit minute | `30` |
 | `ss` | 2-digit second | `00` |
 
-A live preview and clickable token chips are shown in the settings form. The default pattern produces filenames like `JobName_2026-05-03T14-30-00.sql`.
+A live preview and clickable token chips (grouped by category) are shown in the settings form. Token chips insert at the current cursor position. The default pattern produces filenames like `JobName_2026-05-03T14-30-00.sql`.
 
 ### Notifications
 
@@ -91,10 +100,10 @@ A job can upload to **multiple storage destinations** simultaneously - ideal for
 
 ### Per-Destination Retention
 
-Each destination has its own retention configuration:
-- Expand a destination row to reveal the retention settings
-- Choose None, Simple, or Smart (GFS) independently per destination
-- Example: keep 30 daily backups locally, but only 12 monthly in S3
+Each destination uses a **Retention Policy** from the Templates system. In the job form, expand a destination row and use the **Retention Policy picker** to assign a named policy. To create or manage policies, go to **Administration → Templates → Retention Policies**.
+
+- Example: assign a "30-day daily" policy to local storage and a "12-month monthly" policy to S3
+- A system-wide default policy can be set in Templates - it applies automatically to any destination without an explicit assignment
 
 ### Upload Behavior
 
@@ -122,11 +131,23 @@ Toggle the job without deleting:
 - Disabled jobs don't run on schedule
 - Can still be triggered manually
 
-### Duplicate
+### Clone
 
-Create a copy with same settings:
-- Useful for similar backups
-- Modify as needed after duplication
+Create a copy with the same settings:
+
+1. Click the **Clone** icon on a job row
+2. A dialog opens - customize the name before creating (default: "Original Name (Copy)")
+3. Click **Clone** to confirm
+
+Cloned jobs start **disabled** to prevent accidental execution. Enable the clone once you have reviewed or adjusted its settings.
+
+### Browse Backups
+
+Click the **Browse** (folder icon) button on a job row to open the Storage Explorer pre-filtered to that job's backups. If the job has multiple destinations, a dropdown lets you choose which one to open.
+
+### Exclude from Restore
+
+Database **sources** can be individually excluded from the Restore target dropdown. Open the source's edit form and enable the **Exclude from Restore** toggle. Backups can still be created from an excluded source - it is only hidden from the restore wizard target list.
 
 ### Delete
 
@@ -263,8 +284,49 @@ Temp files are stored locally during processing:
 2. Enable compression to reduce temp file size
 3. Clean up old temp files: `/tmp/dbackup-*`
 
+## Templates
+
+The **Administration → Templates** page provides three reusable template types that keep job configuration consistent across your setup:
+
+### Retention Policies
+
+Named retention rules assignable per destination. Each policy defines Simple (keep N backups) or Smart (GFS - Grandfather-Father-Son rotation: daily, weekly, monthly, yearly buckets) behavior.
+
+- One policy can be marked as the **system default** - it applies automatically to any destination without an explicit assignment
+- Assign via the Retention Policy picker inside the job's destination row
+
+### Naming Templates
+
+Custom backup filename patterns saved as named templates. Supports all tokens listed in [Filename Pattern](#filename-pattern) above.
+
+- One template can be set as the **system default**
+- Override per job using the **Filename Template** picker in the job's Basic Settings
+
+### Schedule Presets
+
+Named cron expressions that can be used as quick-fill presets or **live-linked** to jobs. When a live-linked preset is updated, all jobs using it pick up the new schedule automatically.
+
+- Enable via the **Preset** toggle in the Schedule field of the job form
+- Selecting a preset auto-fills the cron expression
+
+## Jobs Table Columns
+
+The jobs table includes the following columns:
+
+| Column | Description |
+| :--- | :--- |
+| **Name** | Job name with enabled/disabled indicator |
+| **Source** | Database source adapter |
+| **Destinations** | Number of storage destinations |
+| **Schedule** | Cron expression or preset name |
+| **Last Run** | Start time of the most recent execution |
+| **Next Run** | Calculated next run time (based on cron + Scheduler Timezone) |
+| **Status** | Last execution result |
+| **Actions** | Run, Browse Backups, Clone, Edit, Delete |
+
 ## Next Steps
 
 - [Scheduling](/user-guide/jobs/scheduling) - Configure when jobs run
 - [Retention Policies](/user-guide/jobs/retention) - Automatic cleanup
 - [Encryption](/user-guide/security/encryption) - Secure your backups
+- [Templates](/user-guide/features/templates) - Retention Policies, Naming Templates, Schedule Presets

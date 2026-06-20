@@ -106,6 +106,40 @@ System notifications cover events beyond individual backup jobs: user activity, 
 Backup success/failure notifications are configured **per-job** (Job → Notifications tab) and are not duplicated in system notifications. This prevents double notifications.
 :::
 
+#### Storage Events
+
+| Event | Description | Default |
+| :--- | :--- | :--- |
+| **Storage Usage Spike** | Storage size changed significantly between snapshots | Enabled |
+| **Storage Limit Warning** | Storage usage is approaching the configured size limit | Enabled |
+| **Missing Backup Alert** | No new backup was created within the expected time window | Enabled |
+
+These events are configured per destination in **Destinations → [destination] → Alerts**.
+
+#### Update Events
+
+| Event | Description | Default |
+| :--- | :--- | :--- |
+| **Update Available** | A new version of DBackup is available | Enabled |
+
+Supports **reminder** notifications — resend at a configured interval while the update remains uninstalled.
+
+#### Health & Connectivity Events
+
+| Event | Description | Default |
+| :--- | :--- | :--- |
+| **Connection Offline** | A source or destination became unreachable after repeated health checks | Enabled |
+| **Connection Recovered** | A previously offline source or destination is reachable again | Enabled |
+| **Database Version Changed** | A database engine version changed between two health check intervals | Enabled |
+
+Connection Offline supports **reminder** notifications. Health checks run every minute — notifications fire after repeated failures to avoid alerting on transient blips.
+
+#### Integrity Events
+
+| Event | Description | Default |
+| :--- | :--- | :--- |
+| **Integrity Check Failed** | A scheduled or manual integrity check found one or more checksum mismatches | Enabled |
+
 ### Global vs. Per-Event Channels
 
 - **Global Channels**: The default channels used for all events that don't have an explicit override.

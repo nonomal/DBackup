@@ -247,22 +247,29 @@ export const SMBAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: SMBConfig): Promise<{ success: boolean; message: string }> {
+        const client = createClient(config);
+        try {
+            const listPath = config.pathPrefix ? `${config.pathPrefix}/*` : "*";
+            await client.list(listPath);
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const safe = sanitizeSmbError(error, config.password);
+            return { success: false, message: `SMB Connection failed: ${safe.message}` };
+        }
+    },
+
     async test(config: SMBConfig): Promise<{ success: boolean; message: string }> {
-        const testFileName = `.connection-test-${Date.now()}`;
-        const tmpPath = path.join(os.tmpdir(), testFileName);
-        // Initialized outside try/catch so they are always accessible in the finally block.
+        const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const testFileName = `.dbackup/test/connection-test-smb-${ts}`;
+        const tmpPath = path.join(os.tmpdir(), `connection-test-smb-${ts}`);
         const client = createClient(config);
         const destination = resolvePath(config, testFileName);
 
         try {
-            // Ensure pathPrefix directory exists if set
-            if (config.pathPrefix) {
-                try {
-                    await client.mkdir(config.pathPrefix, "/");
-                } catch {
-                    // Directory may already exist
-                }
-            }
+            // Ensure test subfolder exists (two-step: samba-client does not handle nested mkdir)
+            await client.mkdir(resolvePath(config, '.dbackup'), '/').catch(() => {});
+            await client.mkdir(resolvePath(config, '.dbackup/test'), '/').catch(() => {});
 
             // Create a temp file to upload
             await fs.writeFile(tmpPath, "Connection Test");
@@ -278,10 +285,6 @@ export const SMBAdapter: StorageAdapter = {
             const safe = sanitizeSmbError(error, config.password);
             return { success: false, message: `SMB Connection failed: ${safe.message}` };
         } finally {
-            // Always attempt remote cleanup. This guards against the edge case where
-            // sendFile partially succeeded (file exists on the SMB share) but then
-            // threw before the explicit deleteFile call was reached. "File not found"
-            // errors from the redundant delete in the success path are silently ignored.
             await client.deleteFile(destination).catch(() => {});
             await fs.unlink(tmpPath).catch(() => {});
         }

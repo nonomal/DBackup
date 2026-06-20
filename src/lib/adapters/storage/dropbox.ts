@@ -317,6 +317,20 @@ export const DropboxAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: DropboxConfig): Promise<{ success: boolean; message: string }> {
+        try {
+            const dbx = createDropboxClient(config);
+            await dbx.usersGetCurrentAccount();
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes("invalid_access_token") || message.includes("expired_access_token")) {
+                return { success: false, message: "Authorization expired. Please re-authorize with Dropbox." };
+            }
+            return { success: false, message: `Dropbox connection failed: ${message}` };
+        }
+    },
+
     async test(config: DropboxConfig): Promise<{ success: boolean; message: string }> {
         try {
             const dbx = createDropboxClient(config);
@@ -346,10 +360,10 @@ export const DropboxAdapter: StorageAdapter = {
                 }
             }
 
-            // Test 3: Write and delete a test file
-            const testPath = basePath
-                ? `${basePath}/.dbackup-test-${Date.now()}`
-                : `/.dbackup-test-${Date.now()}`;
+            // Test 3: Write and delete a test file inside the dedicated subfolder
+            const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+            const testSubdir = basePath ? `${basePath}/.dbackup/test` : `/.dbackup/test`;
+            const testPath = `${testSubdir}/connection-test-dropbox-${ts}`;
             let testFileUploaded = false;
 
             try {

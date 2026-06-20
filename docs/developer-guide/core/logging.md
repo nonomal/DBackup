@@ -240,7 +240,7 @@ For backup and restore operations, DBackup uses structured execution logs that a
 export interface LogEntry {
   timestamp: string;      // ISO 8601 format
   level: LogLevel;        // 'info' | 'success' | 'warning' | 'error'
-  type: LogType;          // 'general' | 'command'
+  type: LogType;          // 'general' | 'command' | 'storage' | 'security'
   message: string;        // Short, human-readable message
   stage?: string;         // Current execution stage
   details?: string;       // Long output (stdout, stack traces)
@@ -248,7 +248,7 @@ export interface LogEntry {
 }
 
 export type LogLevel = 'info' | 'success' | 'warning' | 'error';
-export type LogType = 'general' | 'command';
+export type LogType = 'general' | 'command' | 'storage' | 'security';
 ```
 
 ### Log Levels
@@ -483,7 +483,7 @@ Notification logging was introduced for audit trail and adapter-specific preview
 
 Every notification sent through the system (per-job and system-wide) is logged to the `NotificationLog` table. This provides a full audit trail and enables adapter-specific preview rendering on the History page.
 
-**Service**: `src/services/notification-log-service.ts`
+**Service**: `src/services/notifications/notification-log-service.ts`
 
 ### Recording Notifications
 

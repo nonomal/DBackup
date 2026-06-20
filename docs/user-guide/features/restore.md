@@ -290,10 +290,11 @@ ERROR: backup version (8.0) newer than server (5.7)
 ERROR: encryption profile not found
 ```
 
-**Solutions**:
-1. Import key to Vault
-2. Smart recovery should find it
-3. Use Recovery Kit manually
+If Smart Recovery cannot automatically identify a matching key (e.g. after a key delete and reimport), a **"Encryption Key Required"** dialog appears. You can:
+1. Select a vault profile from the dropdown to try
+2. Paste the raw hex key directly
+
+If you no longer have the key, use the [Recovery Kit](/user-guide/security/recovery-kit) for offline decryption.
 
 ### Character Set Issues
 

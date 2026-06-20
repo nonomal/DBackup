@@ -56,91 +56,31 @@ All permissions are defined in `src/lib/auth/permissions.ts`:
 
 ```typescript
 export const PERMISSIONS = {
-  // User Management
-  USERS: {
-    READ: "users:read",
-    WRITE: "users:write",
-  },
-
-  // Group Management
-  GROUPS: {
-    READ: "groups:read",
-    WRITE: "groups:write",
-  },
-
-  // Database Sources
-  SOURCES: {
-    READ: "sources:read",
-    WRITE: "sources:write",
-  },
-
-  // Storage Destinations
-  DESTINATIONS: {
-    READ: "destinations:read",
-    WRITE: "destinations:write",
-  },
-
-  // Backup Jobs
-  JOBS: {
-    READ: "jobs:read",
-    WRITE: "jobs:write",
-    EXECUTE: "jobs:execute",
-  },
-
-  // Storage Explorer
-  STORAGE: {
-    READ: "storage:read",
-    DOWNLOAD: "storage:download",
-    RESTORE: "storage:restore",
-    DELETE: "storage:delete",
-  },
-
-  // Execution History
-  HISTORY: {
-    READ: "history:read",
-  },
-
-  // Notifications
-  NOTIFICATIONS: {
-    READ: "notifications:read",
-    WRITE: "notifications:write",
-  },
-
-  // Encryption Vault
-  VAULT: {
-    READ: "vault:read",
-    WRITE: "vault:write",
-  },
-
-  // System Settings
-  SETTINGS: {
-    READ: "settings:read",
-    WRITE: "settings:write",
-  },
-
-  // Profile Settings
-  PROFILE: {
-    UPDATE_NAME: "profile:update_name",
-    UPDATE_EMAIL: "profile:update_email",
-    UPDATE_PASSWORD: "profile:update_password",
-    MANAGE_2FA: "profile:manage_2fa",
-    MANAGE_PASSKEYS: "profile:manage_passkeys",
-  },
-
-  // Audit Logs
-  AUDIT: {
-    READ: "audit:read",
-  },
-
-  // API Keys
-  API_KEYS: {
-    READ: "api-keys:read",
-    WRITE: "api-keys:write",
-  },
+  USERS:        { READ: "users:read", WRITE: "users:write" },
+  GROUPS:       { READ: "groups:read", WRITE: "groups:write" },
+  SOURCES:      { VIEW: "sources:view", READ: "sources:read", WRITE: "sources:write" },
+  DESTINATIONS: { READ: "destinations:read", WRITE: "destinations:write" },
+  JOBS:         { READ: "jobs:read", WRITE: "jobs:write", EXECUTE: "jobs:execute" },
+  STORAGE:      { READ: "storage:read", DOWNLOAD: "storage:download", RESTORE: "storage:restore", DELETE: "storage:delete" },
+  HISTORY:      { READ: "history:read" },
+  AUDIT:        { READ: "audit:read" },
+  NOTIFICATIONS:{ READ: "notifications:read", WRITE: "notifications:write" },
+  VAULT:        { READ: "vault:read", WRITE: "vault:write" },
+  CREDENTIALS:  { READ: "credentials:read", WRITE: "credentials:write", DELETE: "credentials:delete", REVEAL: "credentials:reveal" },
+  PROFILE:      { UPDATE_NAME: "profile:update_name", UPDATE_EMAIL: "profile:update_email", UPDATE_PASSWORD: "profile:update_password", MANAGE_2FA: "profile:manage_2fa", MANAGE_PASSKEYS: "profile:manage_passkeys" },
+  SETTINGS:     { READ: "settings:read", WRITE: "settings:write" },
+  API_KEYS:     { READ: "api-keys:read", WRITE: "api-keys:write" },
+  TEMPLATES:    { READ: "templates:read", WRITE: "templates:write" },
 } as const;
 
-export type Permission = typeof PERMISSIONS[keyof typeof PERMISSIONS][keyof typeof PERMISSIONS[keyof typeof PERMISSIONS]];
+export type Permission = /* union of all leaf string values */;
 ```
+
+### AVAILABLE_PERMISSIONS
+
+`AVAILABLE_PERMISSIONS` is a flat array exported from `src/lib/auth/permissions.ts`. It is the canonical list used to populate the group editor UI. Each entry has `{ id, label, category }`.
+
+This array is also used for SuperAdmin expansion — if code needs to grant all permissions, it maps over `AVAILABLE_PERMISSIONS` rather than hard-coding permission strings.
 
 ## Access Control Functions
 
@@ -322,7 +262,8 @@ export function SourceManager({ canCreate, canDelete }: Props) {
 
 | Permission | Description |
 | :--- | :--- |
-| `sources:read` | View database sources |
+| `sources:view` | View database sources in the sidebar |
+| `sources:read` | Browse the Database Explorer (tables and data) |
 | `sources:write` | Create, edit, delete sources |
 | `destinations:read` | View storage destinations |
 | `destinations:write` | Create, edit, delete destinations |
@@ -360,6 +301,24 @@ export function SourceManager({ canCreate, canDelete }: Props) {
 | `vault:read` | View encryption profiles |
 | `vault:write` | Create, delete encryption profiles |
 | `audit:read` | View audit logs |
+| `api-keys:read` | View own API keys |
+| `api-keys:write` | Create, delete, rotate API keys |
+
+### Credential Profiles
+
+| Permission | Description |
+| :--- | :--- |
+| `credentials:read` | View credential profiles |
+| `credentials:write` | Create and edit credential profiles |
+| `credentials:delete` | Delete credential profiles |
+| `credentials:reveal` | Reveal stored secrets (SSH keys, passwords) |
+
+### Templates
+
+| Permission | Description |
+| :--- | :--- |
+| `templates:read` | View naming templates, schedule presets, and retention policies |
+| `templates:write` | Create, edit, delete templates |
 
 ### Profile (Self-Service)
 
@@ -379,24 +338,29 @@ Recommended group templates:
 
 ```json
 ["users:read", "users:write", "groups:read", "groups:write",
- "sources:read", "sources:write", "destinations:read", "destinations:write",
+ "sources:view", "sources:read", "sources:write",
+ "destinations:read", "destinations:write",
  "jobs:read", "jobs:write", "jobs:execute", "history:read",
  "storage:read", "storage:download", "storage:restore", "storage:delete",
- "notifications:read", "notifications:write", "vault:read", "vault:write",
- "settings:read", "settings:write", "audit:read"]
+ "notifications:read", "notifications:write",
+ "vault:read", "vault:write",
+ "credentials:read", "credentials:write", "credentials:delete", "credentials:reveal",
+ "templates:read", "templates:write",
+ "settings:read", "settings:write", "audit:read",
+ "api-keys:read", "api-keys:write"]
 ```
 
 ### Operator
 
 ```json
-["sources:read", "destinations:read", "jobs:read", "jobs:execute",
+["sources:view", "destinations:read", "jobs:read", "jobs:execute",
  "history:read", "storage:read", "storage:download", "storage:restore"]
 ```
 
 ### Viewer
 
 ```json
-["sources:read", "destinations:read", "jobs:read", "history:read",
+["sources:view", "destinations:read", "jobs:read", "history:read",
  "storage:read"]
 ```
 

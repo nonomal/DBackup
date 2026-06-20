@@ -171,6 +171,7 @@ export default defineConfig({
           collapsed: false,
           items: [
             { text: 'Storage Explorer', link: '/user-guide/features/storage-explorer' },
+            { text: 'Database Explorer', link: '/user-guide/features/database-explorer' },
             { text: 'Backup Verification', link: '/user-guide/features/backup-verification' },
             { text: 'Restore', link: '/user-guide/features/restore' },
             { text: 'Notifications', link: '/user-guide/features/notifications' },
@@ -189,7 +190,8 @@ export default defineConfig({
           items: [
             { text: 'User Management', link: '/user-guide/admin/users' },
             { text: 'Groups & Permissions', link: '/user-guide/admin/permissions' },
-            { text: 'SSO / OIDC', link: '/user-guide/admin/sso' }
+            { text: 'SSO / OIDC', link: '/user-guide/admin/sso' },
+            { text: 'Templates', link: '/user-guide/features/templates' }
           ]
         }
       ],
@@ -214,7 +216,9 @@ export default defineConfig({
             { text: 'Download Tokens', link: '/developer-guide/core/download-tokens' },
             { text: 'Rate Limiting', link: '/developer-guide/core/rate-limiting' },
             { text: 'Update Service', link: '/developer-guide/core/updates' },
-            { text: 'Storage List Cache', link: '/developer-guide/core/storage-cache' }
+            { text: 'Storage List Cache', link: '/developer-guide/core/storage-cache' },
+            { text: 'Integrity Checks', link: '/developer-guide/core/integrity' },
+            { text: 'Storage Alerts', link: '/developer-guide/core/storage-alerts' }
           ]
         },
         {
@@ -238,6 +242,7 @@ export default defineConfig({
             { text: 'Encryption Pipeline', link: '/developer-guide/advanced/encryption' },
             { text: 'Retention System', link: '/developer-guide/advanced/retention' },
             { text: 'Healthcheck System', link: '/developer-guide/advanced/healthcheck' },
+            { text: 'Credential Profiles', link: '/developer-guide/advanced/credential-profiles' },
             { text: 'Config Backup (Meta)', link: '/developer-guide/advanced/config-backup' }
           ]
         },

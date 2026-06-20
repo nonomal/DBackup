@@ -93,21 +93,27 @@ openssl rand -hex 32
 
 ## Database Setup
 
-```bash
-# Push schema to database
-npx prisma db push
-
-# Generate Prisma client
-npx prisma generate
-```
-
-## Start Development Server
+The dev server handles migrations automatically. `pnpm dev` runs `prisma migrate deploy` on every startup, so the local database is always in sync with the schema - no manual step needed after pulling changes.
 
 ```bash
+# Start the dev server — migrations apply automatically
 pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+::: danger Never use `prisma db push`
+`prisma db push` applies schema changes without creating a migration file. This causes the local `_prisma_migrations` table to diverge from the actual schema, breaking `database:deploy` in production and for every other developer. Always use `prisma migrate dev` to create a proper migration instead.
+:::
+
+::: warning Schema changes require a stopped dev server
+Never run `prisma migrate dev` while `pnpm dev` is running. The dev server holds an open SQLite connection. `migrate dev` can trigger an interactive DB reset (on schema drift), which conflicts with the file lock and crashes the Node process.
+
+**Safe workflow for schema changes:**
+1. Stop the dev server (`Ctrl+C`)
+2. `npx prisma migrate dev --name <migration-name>`
+3. Restart `pnpm dev` - the new migration applies automatically on startup
+:::
 
 ## Test Database Setup
 
@@ -152,12 +158,16 @@ pnpm test:ui
 # Open database GUI
 npx prisma studio
 
-# Create migration
-npx prisma migrate dev --name description
+# Create a new migration (stop pnpm dev first!)
+npx prisma migrate dev --name <description>
 
-# Reset database
-npx prisma migrate reset
+# Reset dev database from scratch (drops + recreates via all migrations)
+pnpm run database:reset
 ```
+
+::: warning
+Always stop `pnpm dev` before running `prisma migrate dev`. See [Database Setup](#database-setup) for the full safe workflow.
+:::
 
 ### Development
 

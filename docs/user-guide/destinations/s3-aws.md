@@ -26,6 +26,10 @@ Amazon S3 requires a [Credential Profile](/user-guide/security/credential-profil
 | `GLACIER` | Long-term archive (retrieval in minutes to hours) |
 | `DEEP_ARCHIVE` | Cheapest storage, retrieval in 12+ hours |
 
+::: warning Glacier and Deep Archive restrict direct access
+Objects stored in `GLACIER` or `DEEP_ARCHIVE` are archived and cannot be downloaded or restored directly. In the Storage Explorer, these objects show an orange **Glacier** or **Deep Archive** badge and the **Download** and **Restore** buttons are disabled. To access an archived object, you must first initiate a restore via the AWS Console or CLI - once the object is available (minutes to hours for Glacier, up to 12+ hours for Deep Archive), you can download or restore it from DBackup as normal.
+:::
+
 ## Setup Guide
 
 1. **Create an S3 bucket** in your preferred region via the [AWS Console](https://s3.console.aws.amazon.com/)

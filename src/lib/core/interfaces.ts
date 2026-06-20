@@ -147,9 +147,16 @@ export interface BaseAdapter {
      */
     credentials?: AdapterCredentialRequirements;
     /**
-     * Optional method to test the connection configuration
+     * Optional method to test the connection configuration (full write/delete verification).
      */
     test?: (config: AdapterConfig) => Promise<{ success: boolean; message: string; version?: string }>;
+
+    /**
+     * Optional lightweight connectivity check that verifies reachability without writing any files.
+     * Used by the periodic health check (every minute) to avoid creating test files that accumulate
+     * under S3 governance/retention policies. Falls back to test() when not implemented.
+     */
+    ping?: (config: AdapterConfig) => Promise<{ success: boolean; message: string }>;
 
     /**
      * Optional method to list available databases (for Source adapters)

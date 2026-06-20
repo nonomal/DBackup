@@ -126,6 +126,10 @@ describe("GoogleDriveAdapter", () => {
                     mimeType: "application/vnd.google-apps.folder",
                 },
             });
+            // resolveOrCreatePath traverses .dbackup/test segments via files.list
+            mockDrive.files.list.mockResolvedValue({
+                data: { files: [{ id: "test-subfolder-id" }] },
+            });
             mockDrive.files.create.mockResolvedValue({
                 data: { id: "test-file-id" },
             });
@@ -166,6 +170,10 @@ describe("GoogleDriveAdapter", () => {
         it("should work without folderId (uses root)", async () => {
             const rootConfig = { ...validConfig, folderId: undefined };
 
+            // resolveOrCreatePath traverses .dbackup/test segments via files.list
+            mockDrive.files.list.mockResolvedValue({
+                data: { files: [{ id: "test-subfolder-id" }] },
+            });
             mockDrive.files.create.mockResolvedValue({
                 data: { id: "test-file-id" },
             });

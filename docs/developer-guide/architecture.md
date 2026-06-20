@@ -125,13 +125,19 @@ export async function createSource(data: SourceInput) {
 
 ```
 src/services/
-├── job-service.ts        # Job CRUD
-├── backup-service.ts     # Backup triggering
-├── restore-service.ts    # Restore orchestration
-├── retention-service.ts  # GFS algorithm
-├── encryption-service.ts # Key management
-├── user-service.ts       # User management
-└── oidc-provider-service.ts
+├── jobs/              # job-service.ts
+├── backup/            # backup-service.ts, retention-service.ts, encryption-service.ts, integrity-service.ts
+├── restore/           # restore-service.ts, preflight.ts, pipeline.ts, smart-recovery.ts
+├── auth/              # auth-service.ts, api-key-service.ts, credential-service.ts
+├── sso/               # oidc-provider-service.ts, oidc-registry.ts
+├── storage/           # storage-service.ts, verification-service.ts, storage-alert-service.ts
+├── notifications/     # notification-log-service.ts, system-notification-service.ts
+├── system/            # healthcheck-service.ts, system-task-service.ts, update-service.ts
+├── config/            # config-service.ts, export.ts, import.ts
+├── templates/         # naming-template-service.ts, retention-policy-service.ts
+├── user/              # user-service.ts
+├── dashboard-service.ts
+└── audit-service.ts
 ```
 
 Services:
@@ -146,23 +152,12 @@ Plugin architecture for external integrations.
 
 ```
 src/lib/adapters/
-├── definitions.ts        # Zod schemas
+├── definitions/         # Zod schemas (database.ts, storage.ts, notification.ts, shared.ts)
 ├── index.ts             # Registration
-├── database/
-│   ├── mysql.ts
-│   ├── postgresql.ts
-│   ├── mongodb.ts
-│   └── sqlite.ts
-├── storage/
-│   ├── local.ts
-│   ├── s3.ts
-│   └── sftp.ts
-├── notification/
-│   ├── discord.ts
-│   └── email.ts
-└── oidc/
-    ├── authentik.ts
-    └── generic.ts
+├── database/            # mysql, postgresql, mongodb, mariadb, sqlite, mssql, redis
+├── storage/             # local, s3, sftp, ftp, smb, webdav, rsync, dropbox, gdrive, onedrive
+├── notification/        # discord, email, slack, teams, telegram, ntfy, gotify, twilio, webhook
+└── oidc/                # authentik, pocket-id, keycloak, generic
 ```
 
 **Adapter Interfaces:**
@@ -171,7 +166,8 @@ src/lib/adapters/
 interface DatabaseAdapter {
   dump(config, path): Promise<BackupResult>;
   restore(config, path): Promise<BackupResult>;
-  test(config): Promise<TestResult>;
+  test(config): Promise<TestResult>;   // full write/delete verification
+  ping?(config): Promise<void>;        // lightweight check, no test file; used by health checks
   getDatabases?(config): Promise<string[]>;
 }
 
@@ -180,6 +176,7 @@ interface StorageAdapter {
   download(config, remote, local): Promise<void>;
   list(config, path): Promise<FileInfo[]>;
   delete(config, path): Promise<void>;
+  ping?(config): Promise<void>;        // lightweight check; falls back to test() if not implemented
 }
 
 interface NotificationAdapter {
@@ -337,9 +334,35 @@ Periodic Integrity Check:
 ```
 
 **Key Components:**
-- `src/lib/checksum.ts` - SHA-256 utility (stream-based, memory-efficient)
-- `src/services/integrity-service.ts` - Periodic full verification
-- System task `system.integrity_check` - Weekly schedule (disabled by default)
+- `src/lib/crypto/checksum.ts` - SHA-256 utility (stream-based, memory-efficient)
+- `src/services/backup/integrity-service.ts` - Periodic full verification
+- System task `INTEGRITY_CHECK` - Weekly schedule (disabled by default)
+
+## System Tasks
+
+9 built-in background tasks run on configurable cron schedules (Settings > System Tasks):
+
+| Task | Default Schedule | Enabled by Default |
+|------|-----------------|-------------------|
+| `HEALTH_CHECK` | Every minute | Yes |
+| `UPDATE_DB_VERSIONS` | Hourly | Yes |
+| `REFRESH_STORAGE_STATS` | Hourly | Yes |
+| `WARMUP_STORAGE_CACHE` | Hourly | Yes |
+| `CHECK_FOR_UPDATES` | Daily midnight | Yes |
+| `CLEAN_OLD_LOGS` | Daily midnight | Yes |
+| `SYNC_PERMISSIONS` | Daily midnight | Yes |
+| `CONFIG_BACKUP` | Daily 3 AM | No |
+| `INTEGRITY_CHECK` | Weekly Sunday 4 AM | No |
+
+**Infrastructure:** `src/services/system/system-task-service.ts` + `src/lib/runner/system-task-runner.ts`
+
+## Health Check System
+
+Every minute, the `HEALTH_CHECK` task pings all configured adapters and records results in `HealthCheckLog` (ONLINE / DEGRADED / OFFLINE + latency). Offline notifications are deduplicated with a 24 h cooldown.
+
+- Uses `ping()` if implemented, otherwise falls back to `test()`
+- Max 5 concurrent checks
+- `src/services/system/healthcheck-service.ts`
 
 ## Logging & Error Handling
 

@@ -364,6 +364,21 @@ export const GoogleDriveAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: GoogleDriveConfig): Promise<{ success: boolean; message: string }> {
+        try {
+            const drive = createDriveClient(config);
+            const folderId = config.folderId || "root";
+            await drive.files.get({ fileId: folderId, fields: "id" });
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            if (message.includes("invalid_grant") || message.includes("Token has been expired")) {
+                return { success: false, message: "Authorization expired. Please re-authorize with Google." };
+            }
+            return { success: false, message: `Google Drive connection failed: ${message}` };
+        }
+    },
+
     async test(config: GoogleDriveConfig): Promise<{ success: boolean; message: string }> {
         try {
             const drive = createDriveClient(config);
@@ -380,12 +395,14 @@ export const GoogleDriveAdapter: StorageAdapter = {
                 }
             }
 
-            // Test 2: Write a test file
-            const testFileName = `.dbackup-test-${Date.now()}`;
+            // Test 2: Write a test file inside the dedicated subfolder
+            const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+            const testFileName = `connection-test-google-drive-${ts}`;
+            const testSubfolderId = await resolveOrCreatePath(drive, folderId, `.dbackup/test/${testFileName}`);
             const testFile = await drive.files.create({
                 requestBody: {
                     name: testFileName,
-                    parents: [folderId],
+                    parents: [testSubfolderId],
                 },
                 media: {
                     mimeType: "text/plain",

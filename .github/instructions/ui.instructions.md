@@ -20,8 +20,9 @@ applyTo: "src/components/**/*.tsx, src/app/**/*.tsx"
 
   <formatting>
     - **Dates**:
-      - ❌ Forbidden: `new Date().toLocaleDateS      - ❌ Forbidden: `new Date().toLocaleDateS      - ❌ Forbidden: `new Date().toLocaleDateS      - ❌ Forbidden: `new Date().toLocaleDateS      - ❌ Fosx).
-      - This ensures user timezone preferences are respected.
+      - ❌ Forbidden: `new Date().toLocaleDateString()` or any direct locale formatting.
+      - ✅ Use the `useDateFormatter` hook from `src/hooks/use-date-formatter.ts` instead.
+      - This ensures user timezone and format preferences are respected.
   </formatting>
 
   <architecture>

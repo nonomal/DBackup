@@ -5,7 +5,7 @@ applyTo: "**/*"
 # Database Backup Manager - AI Assistant Guidelines
 
 ## Project Overview
-Self-hosted web app for automating database backups (MySQL, PostgreSQL, MongoDB) with encryption, compression, and retention policies. Built with **Next.js 16 (App Router)**, **TypeScript**, **Prisma** (SQLite), and **Shadcn UI**.
+Self-hosted web app for automating database backups (MySQL, PostgreSQL, MongoDB, MariaDB, SQLite, MSSQL, Redis) with encryption, compression, and retention policies. Built with **Next.js 16 (App Router)**, **TypeScript**, **Prisma** (SQLite), and **Shadcn UI**.
 
 ## Language & Commands
 - **Code/Comments**: English
@@ -20,20 +20,30 @@ Self-hosted web app for automating database backups (MySQL, PostgreSQL, MongoDB)
 - `actions/*.ts`: Server Actions - thin wrappers (Auth → Zod Validation → Service call → Revalidate)
 
 ### 2. Service Layer (`src/services`) ⭐ CORE
-All business logic lives here. Server Actions must delegate to Services.
+All business logic lives here, organized by domain:
 ```
-job-service.ts      → CRUD for backup jobs
-backup-service.ts   → Triggers runJob()
-retention-service.ts → GFS (Grandfather-Father-Son) algorithm
-restore-service.ts  → Restore orchestration
+src/services/
+  jobs/          → job-service.ts (CRUD for backup jobs)
+  backup/        → backup-service.ts (triggers runJob()), retention-service.ts (GFS), encryption-service.ts, integrity-service.ts
+  restore/       → restore-service.ts, preflight.ts, pipeline.ts, smart-recovery.ts, types.ts
+  auth/          → auth-service.ts, api-key-service.ts, credential-service.ts
+  sso/           → oidc-provider-service.ts, oidc-registry.ts
+  storage/       → storage-service.ts, verification-service.ts, storage-alert-service.ts
+  notifications/ → notification-log-service.ts, system-notification-service.ts
+  system/        → healthcheck-service.ts, system-task-service.ts, update-service.ts, db-version-service.ts, certificate-service.ts
+  config/        → config-service.ts, export.ts, import.ts
+  templates/     → naming-template-service.ts, retention-policy-service.ts, schedule-preset-service.ts
+  user/          → user-service.ts
+  dashboard-service.ts (flat, no subdirectory)
+  audit-service.ts     (flat, no subdirectory)
 ```
 
 ### 3. Adapter System (`src/lib/adapters`)
 Plugin architecture for databases, storage, and notifications:
 ```typescript
 // src/lib/core/interfaces.ts - Adapter contracts
-DatabaseAdapter  → dump(), restore(), test(), getDatabases()
-StorageAdapter   → upload(), download(), list(), delete()
+DatabaseAdapter  → dump(), restore(), test(), ping(), getDatabases()
+StorageAdapter   → upload(), download(), list(), delete(), ping()
 NotificationAdapter → send()
 
 // src/lib/core/registry.ts - Central registration
@@ -43,12 +53,16 @@ registry.get("mysql") // Retrieve by ID
 
 **Adding a new adapter**: Create folder in `src/lib/adapters/{database|storage|notification}/`, implement interface, register in `src/lib/adapters/index.ts`.
 
+**Adapter connectivity methods:**
+- `test()` – full write/delete verification (~15 s timeout). Used for manual connection tests.
+- `ping()` – lightweight connectivity check, no test file written. Used by the health check system. Falls back to `test()` if not implemented.
+
 ### 4. Backup Pipeline (`src/lib/runner`)
 Step-based execution (Queue Manager → Runner → Steps):
 ```
 01-initialize.ts → Fetch Job, resolve adapters
 02-dump.ts       → Execute database dump + compression/encryption
-03-upload.ts     → Upload to storage destination
+03-upload.ts     → Upload to storage destination (sets Partial status on partial failure)
 04-completion.ts → Cleanup temp files, finalize
 05-retention.ts  → Apply retention policy (delete old backups)
 ```
@@ -60,6 +74,16 @@ All database adapters use a unified TAR archive for multi-database backups:
 - **Types**: `src/lib/adapters/database/common/types.ts` (TarManifest, DatabaseEntry)
 - Single-DB backups remain direct dump files (no TAR wrapper)
 - TAR contains `manifest.json` + individual dump files per database
+
+## Execution Status Types
+
+Backup and restore executions can have the following statuses:
+- `Pending` – queued, not yet started
+- `Running` – currently executing
+- `Success` – all destinations succeeded
+- `Partial` – some destinations succeeded, some failed (set in `03-upload.ts`)
+- `Failed` – dump failed or all uploads failed
+- `Cancelled` – user-cancelled
 
 ## Security (RBAC)
 
@@ -73,8 +97,14 @@ Permissions defined in [src/lib/auth/permissions.ts](src/lib/auth/permissions.ts
 ## Key Patterns
 
 ### Zod Validation
-All adapter configs defined in [src/lib/adapters/definitions.ts](src/lib/adapters/definitions.ts):
+Adapter configs are defined in `src/lib/adapters/definitions/` (split by category):
+- `definitions/database.ts` – MySQLSchema, PostgresSchema, MongoSchema, etc.
+- `definitions/storage.ts` – S3Schema, SFTPSchema, LocalSchema, etc.
+- `definitions/notification.ts` – DiscordSchema, EmailSchema, etc.
+- `definitions/shared.ts` – shared field helpers
+
 ```typescript
+// src/lib/adapters/definitions/database.ts
 export const MySQLSchema = z.object({
   host: z.string().default("localhost"),
   port: z.coerce.number().default(3306),
@@ -90,7 +120,8 @@ return { success: boolean, message?: string, data?: any, error?: string }
 ### Dates
 - **Storage**: Always UTC (ISO 8601)
 - **Library**: `date-fns` / `date-fns-tz`
-- **Display**: Use `formatDate()` from [src/lib/utils.ts](src/lib/utils.ts)
+- **Display**: Use the `useDateFormatter` hook from `src/hooks/use-date-formatter.ts`. Respects user timezone preference.
+- **Backend utilities**: `src/lib/utils.ts` exports `formatBytes`, `formatDuration`, `compareVersions` (no date formatting).
 
 ## Developer Workflows
 
@@ -138,18 +169,46 @@ runJob(jobId) → Creates Execution (status: "Pending") → processQueue()
 - Jobs execute via `performExecution()` in [src/lib/runner.ts](src/lib/runner.ts)
 - Concurrency limit stored in `SystemSetting` table (key: `maxConcurrentJobs`)
 
+## System Tasks (`src/services/system/system-task-service.ts`)
+
+9 built-in background tasks run on configurable cron schedules with enable/disable toggles. Runner infrastructure lives in `src/lib/runner/system-task-runner.ts`.
+
+| Task | Default Schedule | Enabled |
+|------|-----------------|---------|
+| `HEALTH_CHECK` | Every minute | Yes |
+| `UPDATE_DB_VERSIONS` | Hourly | Yes |
+| `REFRESH_STORAGE_STATS` | Hourly | Yes |
+| `WARMUP_STORAGE_CACHE` | Hourly | Yes |
+| `CHECK_FOR_UPDATES` | Daily midnight | Yes |
+| `CLEAN_OLD_LOGS` | Daily midnight | Yes |
+| `SYNC_PERMISSIONS` | Daily midnight | Yes |
+| `CONFIG_BACKUP` | Daily 3 AM | No |
+| `INTEGRITY_CHECK` | Weekly Sunday 4 AM | No |
+
+Managed via Settings > System Tasks or `POST /api/settings/system-tasks`.
+
+## Health Check System (`src/services/system/healthcheck-service.ts`)
+
+Runs every minute (via `HEALTH_CHECK` system task). Pings all configured adapters and writes `HealthCheckLog` records (status: `ONLINE` / `DEGRADED` / `OFFLINE`, latency in ms).
+
+- Uses `ping()` first, falls back to `test()` if not implemented
+- Max 5 concurrent checks to avoid overloading the system
+- Deduplicates offline notifications with 24 h cooldown
+- `GET /api/adapters/[id]/health-history` – paginated history with uptime % and avg latency
+
 ## SSO/OIDC Integration
 
 **Architecture:**
 ```
-src/lib/adapters/oidc/     → Provider adapters (Authentik, PocketID, Generic)
-src/services/oidc-provider-service.ts → CRUD for SSO providers
-src/services/oidc-registry.ts → Runtime provider registration for better-auth
+src/lib/adapters/oidc/                    → Provider adapters
+src/services/sso/oidc-provider-service.ts → CRUD for SSO providers
+src/services/sso/oidc-registry.ts         → Runtime provider registration for better-auth
 ```
 
 **Supported Providers** (`src/lib/adapters/oidc/`):
 - `authentik.ts` – Pre-configured for Authentik
 - `pocket-id.ts` – Pre-configured for PocketID
+- `keycloak.ts` – Pre-configured for Keycloak
 - `generic.ts` – Manual OIDC configuration (any provider)
 
 **Adding a new OIDC Adapter:**
@@ -166,7 +225,7 @@ src/services/oidc-registry.ts → Runtime provider registration for better-auth
 ### 1. System Encryption (`ENCRYPTION_KEY` env var)
 Used to encrypt sensitive data at rest (DB connection passwords, SSO secrets):
 ```typescript
-// src/lib/crypto.ts
+// src/lib/crypto/index.ts
 encrypt(plaintext)  → AES-256-GCM encrypted (stored in DB)
 decrypt(ciphertext) → Original value
 decryptConfig(obj)  → Recursively decrypts all encrypted fields in config objects
@@ -176,10 +235,10 @@ decryptConfig(obj)  → Recursively decrypts all encrypted fields in config obje
 User-managed keys for backup files:
 
 ```typescript
-// src/services/encryption-service.ts
+// src/services/backup/encryption-service.ts
 createEncryptionProfile(name) → Generates 32-byte key, encrypts with system key, stores in DB
 
-// src/lib/crypto-stream.ts (Streaming for large files)
+// src/lib/crypto/stream.ts (Streaming for large files)
 createEncryptionStream(key) → Returns { stream, iv, getAuthTag() }
 createDecryptionStream(key, iv, authTag) → Returns decryption stream
 ```
@@ -193,9 +252,12 @@ Database Dump → Compression Stream (optional) → Encryption Stream → Storag
 
 **Metadata File** (`.meta.json`): Stores `iv`, `authTag`, `compression`, and `profileId` for decryption. See `BackupMetadata` interface in [src/lib/core/interfaces.ts](src/lib/core/interfaces.ts).
 
-## Restore Pipeline (`src/services/restore-service.ts`)
+## Restore Pipeline (`src/services/restore/restore-service.ts`)
 
-Restore runs as a background process with live progress tracking:
+Restore runs as a background process with live progress tracking. Implementation is split across sub-modules in `src/services/restore/`:
+- `preflight.ts` – pre-flight checks (DB permissions, version compatibility)
+- `pipeline.ts` – download, decrypt, decompress, restore orchestration
+- `smart-recovery.ts` – auto-matches encryption profiles when metadata is missing
 
 ```
 RestoreService.restore(input)
@@ -218,7 +280,7 @@ RestoreService.restore(input)
 - **Database Mapping**: Restore to different DB names via `databaseMapping` parameter
 - **Privileged Auth**: Optional elevated credentials for CREATE DATABASE permissions
 - **Version Guard**: Prevents restoring newer dumps to older DB servers
-- **Streaming Decryption**: Uses same `crypto-stream.ts` as backup (reverse direction)
+- **Streaming Decryption**: Uses same `crypto/stream.ts` as backup (reverse direction)
 
 **Input Interface:**
 ```typescript
@@ -231,6 +293,61 @@ interface RestoreInput {
   privilegedAuth?: { user, password };      // Elevated credentials
 }
 ```
+
+## Integrity & Verification
+
+### Post-Upload Verification (`src/services/storage/verification-service.ts`)
+After every backup upload, checksums are validated:
+- SHA-256 and MD5 checksums calculated and stored in `.meta.json`
+- Native adapter verification used for S3, Google Drive, OneDrive (no re-download needed)
+- Falls back to full file download for other storage adapters
+
+### Periodic Integrity Checks (`src/services/backup/integrity-service.ts`)
+Full verification of stored backups (scheduled weekly via `INTEGRITY_CHECK` task, disabled by default):
+- **Jobs mode**: Only checks files linked to enabled jobs
+- **Destinations mode**: Full storage scan regardless of job associations
+- Filters: skip already-passed files, max age days, max size MB
+- Returns: total, verified, passed, failed, skipped counts with error details
+
+## Storage Alerts (`src/services/storage/storage-alert-service.ts`)
+
+Per-destination configurable alerts with state tracking:
+- **Usage Spike** – alert when size grows by X% unexpectedly
+- **Storage Limit** – alert when total size exceeds a configured threshold
+- **Missing Backup** – alert if no backup has been created in the past N hours
+
+State tracking: notifies once on trigger, re-notifies after 24 h cooldown while active, resets automatically when resolved.
+
+## Config Backup (`src/lib/runner/config-runner.ts`)
+
+System task (`CONFIG_BACKUP`) that exports the full system configuration to a storage destination:
+- Includes: adapters, jobs, users, groups, settings, schedules, policies
+- Optional inclusion of secrets requires an encryption profile (cannot export secrets unencrypted)
+- Output: `.tar.gz` or `.tar.gz.enc` stored in a chosen destination
+- Disabled by default. Enable in Settings > System Tasks.
+
+## Credential Profiles (`src/services/auth/credential-service.ts`)
+
+Reusable named credential sets encrypted with the system `ENCRYPTION_KEY`:
+- Types: `USERNAME_PASSWORD`, `SSH_KEY`, `ACCESS_KEY`, `TOKEN`, `SMTP`, `WEBHOOK`, `OAUTH`
+- Assignable to multiple adapters as primary or SSH credentials
+
+## Notification Events
+
+16 configurable event types (enable/disable per event, set reminder interval, target recipient):
+
+| Category | Events |
+|----------|--------|
+| Auth | `USER_LOGIN`, `USER_CREATED` |
+| Backup | `BACKUP_SUCCESS`, `BACKUP_FAILURE` |
+| Restore | `RESTORE_COMPLETE`, `RESTORE_FAILURE` |
+| System | `CONFIG_BACKUP`, `SYSTEM_ERROR`, `UPDATE_AVAILABLE` |
+| Storage | `STORAGE_USAGE_SPIKE`, `STORAGE_LIMIT_WARNING`, `STORAGE_MISSING_BACKUP` |
+| Connectivity | `CONNECTION_OFFLINE`, `CONNECTION_ONLINE` |
+| Database | `DB_VERSION_CHANGED` |
+| Integrity | `INTEGRITY_CHECK_FAILURE` |
+
+Notification log: `src/services/notifications/notification-log-service.ts`.
 
 ## File Conventions
 - **Naming**: `kebab-case` (e.g., `backup-service.ts`, `user-table.tsx`)
@@ -287,5 +404,15 @@ catch (e: unknown) {
 | Services | [src/services/](src/services/) |
 | Server Actions | [src/app/actions/](src/app/actions/) |
 | Scheduler (Cron) | [src/lib/server/scheduler.ts](src/lib/server/scheduler.ts) |
+| System Tasks | [src/services/system/system-task-service.ts](src/services/system/system-task-service.ts) |
+| Health Checks | [src/services/system/healthcheck-service.ts](src/services/system/healthcheck-service.ts) |
+| Integrity Checks | [src/services/backup/integrity-service.ts](src/services/backup/integrity-service.ts) |
+| Post-Upload Verification | [src/services/storage/verification-service.ts](src/services/storage/verification-service.ts) |
+| Config Backup Runner | [src/lib/runner/config-runner.ts](src/lib/runner/config-runner.ts) |
+| Credential Profiles | [src/services/auth/credential-service.ts](src/services/auth/credential-service.ts) |
+| Storage Alerts | [src/services/storage/storage-alert-service.ts](src/services/storage/storage-alert-service.ts) |
+| Audit Logging | [src/services/audit-service.ts](src/services/audit-service.ts) |
+| Crypto (encrypt/decrypt) | [src/lib/crypto/index.ts](src/lib/crypto/index.ts) |
+| Crypto (streams) | [src/lib/crypto/stream.ts](src/lib/crypto/stream.ts) |
 | Logger | [src/lib/logging/logger.ts](src/lib/logging/logger.ts) |
 | Error Classes | [src/lib/logging/errors.ts](src/lib/logging/errors.ts) |

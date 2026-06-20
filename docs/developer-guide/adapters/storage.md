@@ -27,7 +27,6 @@ interface StorageAdapter {
   id: string;
   type: "storage";
   name: string;
-  configSchema: ZodSchema;
 
   // Core operations
   upload(
@@ -35,7 +34,8 @@ interface StorageAdapter {
     localPath: string,
     remotePath: string,
     onProgress?: (percent: number) => void,
-    onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void
+    onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void,
+    options?: UploadOptions
   ): Promise<boolean>;
 
   download(
@@ -49,13 +49,37 @@ interface StorageAdapter {
   list(config: unknown, path: string): Promise<FileInfo[]>;
   delete(config: unknown, path: string): Promise<boolean>;
 
-  // Connection test
-  test(config: unknown): Promise<TestResult>;
+  // Connection tests
+  test?(config: unknown): Promise<TestResult>;  // Full write/delete test (~15 s timeout)
+  ping?(config: unknown): Promise<TestResult>;  // Lightweight check — no test file written
 
-  // Optional: Read small files (for metadata)
+  // Optional: native checksum verification (avoids full re-download)
+  // Implemented by: S3, Google Drive, OneDrive
+  verifyChecksum?(
+    config: unknown,
+    remotePath: string,
+    checksums: { sha256?: string; md5?: string }
+  ): Promise<boolean>;
+
+  // Optional: persistent session for multiple uploads in one job run
+  // Avoids reconnecting for each destination file
+  openSession?(
+    config: unknown,
+    onLog?: (msg: string, level?: LogLevel, type?: LogType, details?: string) => void
+  ): Promise<StorageSession>;
+
+  // Optional: read small files directly (used for .meta.json sidecar retrieval)
   read?(config: unknown, path: string): Promise<string | null>;
 }
 ```
+
+::: info No `configSchema` on the adapter
+The Zod schema lives in `src/lib/adapters/definitions/storage.ts`, registered in `ADAPTER_DEFINITIONS`. It is not a property on the adapter instance.
+:::
+
+::: tip `ping()` vs `test()`
+`ping()` is used by the health check system (every minute) — it must be fast and must not write any files to storage. `test()` is used for manual "Test Connection" clicks and may write and delete a test file (~15 s timeout). If `ping()` is not implemented, the health check falls back to `test()`.
+:::
 
 ## FileInfo Interface
 

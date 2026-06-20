@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -410,16 +411,20 @@ export function JobsClient({ canManage, canExecute }: JobsClientProps) {
                             {editingJob ? "Update the configuration for this backup job." : "Configure a new backup job with source, destinations, and schedule."}
                         </DialogDescription>
                     </DialogHeader>
-                    {isDialogOpen && (
-                        <JobForm
-                            sources={sources}
-                            destinations={destinations}
-                            notifications={notificationChannels}
-                            encryptionProfiles={encryptionProfiles}
-                            initialData={editingJob}
-                            onSuccess={() => { setIsDialogOpen(false); fetchJobs(); }}
-                        />
-                    )}
+                    <ScrollArea className="*:data-[slot=scroll-area-viewport]:max-h-[calc(95dvh-9rem)]">
+                        <div className="pr-3">
+                            {isDialogOpen && (
+                                <JobForm
+                                    sources={sources}
+                                    destinations={destinations}
+                                    notifications={notificationChannels}
+                                    encryptionProfiles={encryptionProfiles}
+                                    initialData={editingJob}
+                                    onSuccess={() => { setIsDialogOpen(false); fetchJobs(); }}
+                                />
+                            )}
+                        </div>
+                    </ScrollArea>
                 </DialogContent>
             </Dialog>
 

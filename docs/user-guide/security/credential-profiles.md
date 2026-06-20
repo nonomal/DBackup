@@ -30,12 +30,16 @@ which type they accept, and the credential picker filters the list accordingly.
 | `USERNAME_PASSWORD` | `username`, `password` | MySQL, MariaDB, Postgres, MongoDB, MSSQL, Redis, FTP, SMB, WebDAV |
 | `SSH_KEY` | `username`, `authType` (`password` / `privateKey` / `agent`), and `password` / `privateKey` / `passphrase` depending on `authType` | SFTP, Rsync, and the SSH tunnel slot of any DB adapter |
 | `ACCESS_KEY` | `accessKeyId`, `secretAccessKey` | S3 (AWS, generic, R2, Hetzner) |
-| `TOKEN` | `token` | Gotify, ntfy, Telegram |
+| `TOKEN` | `token` | Gotify, ntfy, Telegram, Twilio |
 | `SMTP` | `user`, `password` | Email |
+| `WEBHOOK` | `url`, `authHeader` (optional) | Discord, Slack, Microsoft Teams, Generic Webhook |
+| `OAUTH` | `clientId`, `clientSecret`, `refreshToken` (managed automatically after authorization) | Google Drive, Dropbox, Microsoft OneDrive |
 
-Local-filesystem, OAuth-based storage (Google Drive, Dropbox, OneDrive),
-Discord/Slack/Teams/Generic Webhook/Twilio adapters do not need a credential
-profile and have no picker in their form.
+::: info
+The `OAUTH` profile type is managed automatically during the OAuth authorization flow - you do not need to fill the `refreshToken` field manually. After clicking **Authorize** in the adapter form, the token is stored in the vault and the picker updates automatically.
+:::
+
+Local Filesystem adapters do not use a credential profile.
 
 ## Creating a Profile
 

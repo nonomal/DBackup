@@ -378,9 +378,13 @@ function HistoryContent() {
                                      {selectedLog?.status === "Running" && <Loader2 className="h-4 w-4 animate-spin text-blue-500 dark:text-blue-400" />}
                                      <span className="font-mono">{selectedLog?.job?.name || (selectedLog?.type === "IntegrityCheck" ? "Backup Integrity Check" : selectedLog?.type) || "Manual Job"}</span>
                                      {selectedLog?.status && (
-                                        <Badge variant={selectedLog.status === 'Success' ? 'default' : selectedLog.status === 'Failed' ? 'destructive' : selectedLog.status === 'Cancelled' ? 'outline' : 'secondary'}>
-                                            {selectedLog.status}
-                                        </Badge>
+                                        selectedLog.status === 'Partial' ? (
+                                            <Badge className="bg-[hsl(25,90%,55%)] text-white border-transparent hover:bg-[hsl(25,90%,50%)]">Partial</Badge>
+                                        ) : (
+                                            <Badge variant={selectedLog.status === 'Success' ? 'default' : selectedLog.status === 'Failed' ? 'destructive' : selectedLog.status === 'Cancelled' ? 'outline' : 'secondary'}>
+                                                {selectedLog.status}
+                                            </Badge>
+                                        )
                                      )}
                                 </DialogTitle>
                                 <DialogDescription className="text-muted-foreground">

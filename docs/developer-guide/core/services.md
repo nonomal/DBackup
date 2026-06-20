@@ -6,15 +6,51 @@ The Service Layer contains all business logic in DBackup. Server Actions and API
 
 ```
 src/services/
-├── job-service.ts        # CRUD for backup jobs
-├── backup-service.ts     # Trigger backups
-├── restore-service.ts    # Restore orchestration
-├── retention-service.ts  # GFS algorithm
-├── encryption-service.ts # Encryption profiles
-├── integrity-service.ts  # SHA-256 checksum verification
-├── notification-log-service.ts # Notification log recording & queries
-├── user-service.ts       # User management
-└── oidc-provider-service.ts # SSO configuration
+├── audit-service.ts           # Audit log recording & queries (flat, no subdirectory)
+├── dashboard-service.ts       # Dashboard aggregations (flat, no subdirectory)
+├── auth/
+│   ├── api-key-service.ts     # API key CRUD and validation
+│   ├── auth-service.ts        # Session helpers
+│   └── credential-service.ts # Credential profile management
+├── backup/
+│   ├── backup-service.ts      # Triggers runJob()
+│   ├── encryption-service.ts  # Encryption profile management
+│   ├── integrity-service.ts   # Periodic backup integrity checks
+│   └── retention-service.ts   # GFS retention algorithm
+├── config/
+│   ├── config-service.ts      # System config read/write
+│   ├── export.ts              # Config backup export
+│   └── import.ts              # Config backup import
+├── jobs/
+│   └── job-service.ts         # CRUD for backup jobs
+├── notifications/
+│   ├── notification-log-service.ts    # Notification log recording & queries
+│   └── system-notification-service.ts # Sends system-level notifications
+├── restore/
+│   ├── pipeline.ts            # Download, decrypt, decompress, restore pipeline
+│   ├── preflight.ts           # Pre-restore permission and version checks
+│   ├── restore-service.ts     # Orchestrates the restore flow
+│   ├── smart-recovery.ts      # Auto-matches encryption profiles
+│   └── types.ts               # RestoreInput, RestoreResult interfaces
+├── sso/
+│   ├── oidc-provider-service.ts # SSO provider CRUD
+│   └── oidc-registry.ts         # Runtime provider registration for better-auth
+├── storage/
+│   ├── storage-alert-service.ts # Per-destination usage and missing-backup alerts
+│   ├── storage-service.ts       # Storage listing and deletion
+│   └── verification-service.ts  # Post-upload checksum verification
+├── system/
+│   ├── certificate-service.ts   # TLS certificate management
+│   ├── db-version-service.ts    # Tracks DB engine versions
+│   ├── healthcheck-service.ts   # Adapter connectivity monitoring
+│   ├── system-task-service.ts   # Built-in background task management
+│   └── update-service.ts        # New version detection
+├── templates/
+│   ├── naming-template-service.ts    # File naming pattern templates
+│   ├── retention-policy-service.ts   # Reusable retention policy CRUD
+│   └── schedule-preset-service.ts    # Schedule preset CRUD
+└── user/
+    └── user-service.ts          # User CRUD and profile management
 ```
 
 ## Architecture Principle
@@ -281,7 +317,7 @@ interface IntegrityCheckResult {
 Records and queries notification delivery history. Every notification sent through the system (per-job and system-wide) is logged for auditing and debugging.
 
 ```typescript
-// src/services/notification-log-service.ts
+// src/services/notifications/notification-log-service.ts
 export async function recordNotificationLog(entry: NotificationLogEntry): Promise<void> {
   // Fire-and-forget: catches all errors to never block callers
   await prisma.notificationLog.create({ data: entry });

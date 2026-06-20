@@ -330,20 +330,34 @@ export const FTPAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: FTPConfig): Promise<{ success: boolean; message: string }> {
+        let client: Client | null = null;
+        try {
+            client = await connectFTP(config);
+            await client.pwd();
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, message: `FTP Connection failed: ${message}` };
+        } finally {
+            if (client) client.close();
+        }
+    },
+
     async test(config: FTPConfig): Promise<{ success: boolean; message: string }> {
-        const testFileName = `.connection-test-${Date.now()}`;
-        const tmpPath = path.join(os.tmpdir(), testFileName);
+        const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const testFileName = `.dbackup/test/connection-test-ftp-${ts}`;
+        const tmpPath = path.join(os.tmpdir(), `connection-test-ftp-${ts}`);
         const destination = resolvePath(config, testFileName);
         let client: Client | null = null;
         let remoteFileCreated = false;
         try {
             client = await connectFTP(config);
 
-            // Ensure pathPrefix directory exists if set
-            if (config.pathPrefix) {
-                await client.ensureDir(config.pathPrefix);
-                await client.cd("/");
-            }
+            // Ensure test subfolder exists
+            const subdir = resolvePath(config, '.dbackup/test');
+            await client.ensureDir(subdir);
+            await client.cd("/");
 
             // Check MLSD support via FEAT command.
             // MLSD provides accurate per-file modification timestamps which are required

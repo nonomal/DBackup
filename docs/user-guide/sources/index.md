@@ -14,6 +14,10 @@ DBackup supports a wide variety of database engines.
 | [SQLite](/user-guide/sources/sqlite) | 3.x | `.dump` command |
 | [MSSQL](/user-guide/sources/mssql) | 2017, 2019, 2022 | `BACKUP DATABASE` |
 
+## Database Explorer
+
+Beyond configuring sources for backups, DBackup includes a **Database Explorer** that lets you browse live databases, tables, and data directly from the UI — no separate database client needed. See [Database Explorer](/user-guide/features/database-explorer).
+
 ## Adding a Source
 
 1. Navigate to **Sources** → **Add Source**

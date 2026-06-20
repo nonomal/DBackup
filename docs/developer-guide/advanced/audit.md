@@ -50,7 +50,10 @@ export const AUDIT_RESOURCES = {
   JOB: 'JOB',
   SYSTEM: 'SYSTEM',
   ADAPTER: 'ADAPTER',
-  VAULT: 'VAULT',     // Encryption profiles / recovery kits
+  VAULT: 'VAULT',       // Encryption profiles / recovery kits
+  CREDENTIAL: 'CREDENTIAL', // Credential profiles
+  API_KEY: 'API_KEY',   // API keys
+  TEMPLATE: 'TEMPLATE', // Naming templates, schedule presets, retention policies
 } as const;
 ```
 
@@ -81,12 +84,11 @@ export async function createSource(data: SourceInput) {
   // 2. Log the Action
   if (session?.user) {
     await auditService.log(
-      session.user.id,           // Actor (User ID)
-      AUDIT_ACTIONS.CREATE,      // Action Type
-      AUDIT_RESOURCES.SOURCE,    // Resource Type
-      newSource.id,              // Resource ID
-      { name: newSource.name },  // Additional details
-      request                    // Request object (for IP/UserAgent)
+      session.user.id,           // userId (nullable for system actions)
+      AUDIT_ACTIONS.CREATE,      // action
+      AUDIT_RESOURCES.SOURCE,    // resource
+      { name: newSource.name },  // details (optional, Record<string, any>)
+      newSource.id,              // resourceId (optional)
     );
   }
 
@@ -117,8 +119,8 @@ await auditService.log(
   userId,
   AUDIT_ACTIONS.UPDATE,
   AUDIT_RESOURCES.USER,
-  userId,
-  { field: 'password', selfService: true }
+  { field: 'password', selfService: true }, // details
+  userId,                                   // resourceId
 );
 ```
 

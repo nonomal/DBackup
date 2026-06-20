@@ -27,6 +27,7 @@ Complete reference for all environment variables in DBackup.
 | `DATA_DIR` | Base directory for all persistent data | `/data` |
 | `PUID` | User ID the container runs as (for volume permissions) | `1001` |
 | `PGID` | Group ID the container runs as (for volume permissions) | `1001` |
+| `DBACKUP_AUTO_LOCK` | Set to `1` in the CI image to automatically lock every backup triggered via the API | - |
 
 ### Notes
 

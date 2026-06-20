@@ -116,7 +116,7 @@ Whether you're running a single MySQL database or managing multiple PostgreSQL, 
 ### 🎨 Designed for Simplicity
 
 - **Intuitive UI** - Clean, modern interface that makes complex backup workflows feel simple
-- **Quick Setup Wizard** - Guided 7-step first-run setup to get your first backup running in minutes
+- **Quick Setup Wizard** - Guided first-run setup wizard to get your first backup running in minutes
 - **Highly Configurable** - Session lifetimes, rate limits, retention periods, notification preferences, system tasks, and more
 - **Docker Ready** - Multi-arch images (AMD64/ARM64), health checks, graceful shutdown, and configurable PUID/PGID
 
@@ -215,10 +215,7 @@ pnpm install
 # Configure environment
 cp .env.example .env  # Edit with your secrets
 
-# Initialize database
-npx prisma db push
-
-# Start dev server
+# Start dev server (applies pending migrations automatically on startup)
 pnpm dev
 ```
 

@@ -56,11 +56,16 @@ interface DatabaseInfo {
   tableCount?: number;   // Number of tables/collections
 }
 
+interface TableInfo {
+  name: string;
+  rowCount?: number;
+  sizeInBytes?: number;
+}
+
 interface DatabaseAdapter {
   id: string;
   type: "database";
   name: string;
-  configSchema: ZodSchema;
 
   // Core operations
   dump(
@@ -77,22 +82,27 @@ interface DatabaseAdapter {
     onProgress?: (percentage: number) => void
   ): Promise<BackupResult>;
 
-  // Connection test
-  test(config: unknown): Promise<TestResult>;
+  // Connection tests
+  test?(config: unknown): Promise<TestResult>;  // Full write/delete test (~15 s timeout)
+  ping?(config: unknown): Promise<TestResult>;  // Lightweight connectivity check (no test file written)
 
-  // Optional: List database names
+  // Optional: database discovery
   getDatabases?(config: unknown): Promise<string[]>;
-
-  // Optional: List databases with size and table count
   getDatabasesWithStats?(config: unknown): Promise<DatabaseInfo[]>;
 
-  // Optional: Pre-flight check for restore
+  // Optional: restore helpers
   prepareRestore?(config: unknown, databases: string[]): Promise<void>;
-
-  // Optional: Analyze dump file
   analyzeDump?(sourcePath: string): Promise<string[]>;
+
+  // Optional: table/data inspection (Database Explorer UI)
+  getTables?(config: unknown, database: string): Promise<TableInfo[]>;
+  getTableData?(config: unknown, options: TableDataOptions): Promise<TableDataResult>;
 }
 ```
+
+::: info No `configSchema` on the adapter
+The Zod schema for an adapter's configuration lives in `src/lib/adapters/definitions/database.ts` (or `storage.ts` / `notification.ts`), registered in `ADAPTER_DEFINITIONS`. It is not a property on the adapter instance itself.
+:::
 
 ## Database Stats (`getDatabasesWithStats`)
 
@@ -752,27 +762,9 @@ async getDatabases(config): Promise<string[]> {
 }
 ```
 
-## Version Detection
-
-Used for restore compatibility checks:
-
-```typescript
-async getVersion(config): Promise<string> {
-  const validated = MySQLSchema.parse(config);
-
-  const { stdout } = await execAsync(
-    `mysql -h${validated.host} -P${validated.port} ` +
-    `-u${validated.username} --password=${validated.password} ` +
-    `-e "SELECT VERSION()" -N`
-  );
-
-  return stdout.trim(); // e.g., "8.0.35"
-}
-```
-
 ## Adding a New Database Adapter
 
-1. **Create schema** in `src/lib/adapters/definitions.ts`
+1. **Create schema** in `src/lib/adapters/definitions/database.ts`
 2. **Create adapter** in `src/lib/adapters/database/`
 3. **Register** in `src/lib/adapters/index.ts`
 4. **Add tests** in `tests/integration/adapters/`

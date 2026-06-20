@@ -276,13 +276,26 @@ export class SystemTaskService {
                             `${result.passed} passed, ${result.failed} failed, ${result.skipped} skipped of ${result.totalFiles} total`,
                             result.failed > 0 ? "warning" : "success"
                         );
-                        await runner.finish("Success");
+                        await runner.finish(result.failed > 0 ? "Partial" : "Success");
                         log.info("Integrity check completed", {
                             total: result.totalFiles,
                             passed: result.passed,
                             failed: result.failed,
                             skipped: result.skipped,
                         });
+                        if (result.failed > 0) {
+                            await notify({
+                                eventType: NOTIFICATION_EVENTS.INTEGRITY_CHECK_FAILURE,
+                                data: {
+                                    totalFiles: result.totalFiles,
+                                    failed: result.failed,
+                                    passed: result.passed,
+                                    skipped: result.skipped,
+                                    triggerType: triggerType === "Manual" ? "Manual" : "Scheduler",
+                                    errors: result.errors,
+                                },
+                            });
+                        }
                     } catch (e: unknown) {
                         runner.logEntry(getErrorMessage(e), "error");
                         runner.setStage(INTEGRITY_CHECK_STAGES.FAILED);

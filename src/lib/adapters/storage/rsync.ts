@@ -505,10 +505,27 @@ export const RsyncAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: RsyncConfig): Promise<{ success: boolean; message: string }> {
+        let keyFile: string | undefined;
+        try {
+            if (config.authType === "privateKey" && config.privateKey) {
+                keyFile = await writeTempKey(config.privateKey);
+            }
+            await execSSH(config, `echo ping`, keyFile);
+            return { success: true, message: "Connection successful" };
+        } catch (error: unknown) {
+            return { success: false, message: `Rsync connection failed: ${sanitizeError(error)}` };
+        } finally {
+            if (keyFile) await fs.unlink(keyFile).catch(() => {});
+        }
+    },
+
     async test(config: RsyncConfig): Promise<{ success: boolean; message: string }> {
         let keyFile: string | undefined;
-        const testFileName = `.connection-test-${Date.now()}`;
+        const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const testFileName = `connection-test-rsync-${ts}`;
         const tmpPath = path.join(os.tmpdir(), testFileName);
+        const testSubdir = path.posix.join(config.pathPrefix, '.dbackup/test');
         let remoteFileCreated = false;
         try {
             if (config.authType === "privateKey" && config.privateKey) {
@@ -529,10 +546,13 @@ export const RsyncAdapter: StorageAdapter = {
                 throw mkdirError;
             }
 
-            // 1. Write Test - create temp file and rsync it
+            // Ensure test subfolder exists
+            await execSSH(config, `mkdir -p '${shellEscapeSingleQuote(testSubdir)}'`, keyFile);
+
+            // 1. Write Test - create temp file and rsync it to subfolder
             await fs.writeFile(tmpPath, "Connection Test");
 
-            const destination = buildRemotePath(config, testFileName);
+            const destination = buildRemotePath(config, `.dbackup/test/${testFileName}`);
             const rsync = await createRsyncInstance(config, keyFile);
 
             rsync.source(tmpPath);
@@ -542,7 +562,7 @@ export const RsyncAdapter: StorageAdapter = {
             remoteFileCreated = true;
 
             // 2. Delete Test
-            const fullPath = path.posix.join(config.pathPrefix, testFileName);
+            const fullPath = path.posix.join(testSubdir, testFileName);
             await execSSH(config, `rm -f '${shellEscapeSingleQuote(fullPath)}'`, keyFile);
             remoteFileCreated = false;
 
@@ -551,7 +571,7 @@ export const RsyncAdapter: StorageAdapter = {
             return { success: false, message: `Rsync connection failed: ${sanitizeError(error)}` };
         } finally {
             if (remoteFileCreated) {
-                const fullPath = path.posix.join(config.pathPrefix, testFileName);
+                const fullPath = path.posix.join(testSubdir, testFileName);
                 await execSSH(config, `rm -f '${shellEscapeSingleQuote(fullPath)}'`, keyFile).catch(() => {});
             }
             if (keyFile) await fs.unlink(keyFile).catch(() => {});

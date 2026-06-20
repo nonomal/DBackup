@@ -294,7 +294,10 @@ export class StorageService {
             config = await resolveAdapterConfig(adapterConfig);
         } catch { return; }
 
-        const allRemoteFiles = await adapter.list(config, "");
+        const allRemoteFiles = (await adapter.list(config, "")).filter(f => {
+            const p = f.path.replace(/\\/g, '/');
+            return !p.startsWith('.dbackup/') && !p.startsWith('/.dbackup/');
+        });
         const remoteBackups = allRemoteFiles.filter(f => !f.name.endsWith('.meta.json'));
         const remoteMetaFiles = allRemoteFiles.filter(f => f.name.endsWith('.meta.json'));
         const remotePathSet = new Set(remoteBackups.map(f => f.path));
@@ -403,7 +406,10 @@ export class StorageService {
             throw new Error(`Failed to decrypt configuration for ${adapterConfigId}: ${(e as Error).message}`);
         }
 
-        const allFiles = await adapter.list(config, "");
+        const allFiles = (await adapter.list(config, "")).filter(f => {
+            const p = f.path.replace(/\\/g, '/');
+            return !p.startsWith('.dbackup/') && !p.startsWith('/.dbackup/');
+        });
 
         const backups = allFiles.filter(f => !f.name.endsWith('.meta.json'));
         const metadataFiles = allFiles.filter(f => f.name.endsWith('.meta.json'));

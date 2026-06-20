@@ -24,11 +24,19 @@ export function LatestJobs({ data }: LatestJobsProps) {
 
   const filteredData = useMemo(() => {
     if (typeFilter === "all") return data;
+    if (typeFilter === "integrity") return data.filter((job) => job.type === "IntegrityCheck" || job.type === "Verification");
     return data.filter((job) => job.type.toLowerCase() === typeFilter);
   }, [data, typeFilter]);
 
+  const emptyMessage: Record<string, string> = {
+    all: "No executions found.",
+    backup: "No backup executions found.",
+    restore: "No restore executions found.",
+    integrity: "No integrity check executions found.",
+  };
+
   return (
-    <Card className="h-full">
+    <Card className="h-full flex flex-col">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Latest Jobs</CardTitle>
         <Select value={typeFilter} onValueChange={setTypeFilter}>
@@ -39,16 +47,16 @@ export function LatestJobs({ data }: LatestJobsProps) {
             <SelectItem value="all">All</SelectItem>
             <SelectItem value="backup">Backup</SelectItem>
             <SelectItem value="restore">Restore</SelectItem>
+            <SelectItem value="integrity">Integrity Check</SelectItem>
           </SelectContent>
         </Select>
       </CardHeader>
-      <CardContent>
+      <CardContent className="flex-1 overflow-hidden relative">
+        <div className="absolute bottom-0 inset-x-0 h-10 bg-linear-to-t from-card to-transparent pointer-events-none z-10" />
         <div className="space-y-1">
           {filteredData.length === 0 ? (
             <div className="flex h-50 items-center justify-center text-sm text-muted-foreground">
-              {typeFilter === "all"
-                ? "No executions found."
-                : `No ${typeFilter} executions found.`}
+              {emptyMessage[typeFilter] ?? "No executions found."}
             </div>
           ) : (
             filteredData.map((job) => {
@@ -56,6 +64,7 @@ export function LatestJobs({ data }: LatestJobsProps) {
               const isSuccess = job.status === "Success";
               const isPending = job.status === "Pending";
               const isCancelled = job.status === "Cancelled";
+              const isPartial = job.status === "Partial";
 
               return (
                 <Link
@@ -66,7 +75,7 @@ export function LatestJobs({ data }: LatestJobsProps) {
                   <div className="flex items-center justify-between hover:bg-muted/50 px-2 py-2.5 -mx-2 rounded-md transition-colors">
                     <div className="flex items-center gap-3 min-w-0">
                       <TypeBadge type={job.type} />
-                      <SourceIcon sourceType={job.sourceType} isRunning={isRunning} isSuccess={isSuccess} isPending={isPending} isCancelled={isCancelled} />
+                      <SourceIcon sourceType={job.sourceType} isRunning={isRunning} isSuccess={isSuccess} isPending={isPending} isCancelled={isCancelled} isPartial={isPartial} />
                       <div className="min-w-0">
                         <p className="text-sm font-medium leading-none truncate">
                           {job.jobName}
@@ -122,12 +131,14 @@ function SourceIcon({
   isSuccess,
   isPending,
   isCancelled,
+  isPartial,
 }: {
   sourceType: string | null;
   isRunning: boolean;
   isSuccess: boolean;
   isPending: boolean;
   isCancelled: boolean;
+  isPartial: boolean;
 }) {
   const className = `h-4 w-4 shrink-0 ${
     isRunning
@@ -138,7 +149,9 @@ function SourceIcon({
           ? "text-yellow-500"
           : isCancelled
             ? "text-muted-foreground"
-            : "text-red-500"
+            : isPartial
+              ? "text-orange-500"
+              : "text-red-500"
   }`;
 
   if (isRunning) return <Loader2 className={`${className} animate-spin`} />;
@@ -153,6 +166,7 @@ function StatusBadge({ status }: { status: string }) {
     Running: { bg: "bg-[hsl(225,79%,54%)]", label: "Running" },
     Pending: { bg: "bg-[hsl(45,93%,58%)]", label: "Pending" },
     Cancelled: { bg: "bg-[hsl(0,0%,55%)]", label: "Cancelled" },
+    Partial: { bg: "bg-[hsl(25,90%,55%)]", label: "Partial" },
   };
 
   const { bg, label } = config[status] ?? { bg: "bg-muted", label: status };

@@ -7,6 +7,8 @@ import { getAuthContext, checkPermissionWithContext } from "@/lib/auth/access-co
 import { PERMISSIONS } from "@/lib/auth/permissions";
 import { logger } from "@/lib/logging/logger";
 import { wrapError, getErrorMessage } from "@/lib/logging/errors";
+import { notify } from "@/services/notifications/system-notification-service";
+import { NOTIFICATION_EVENTS } from "@/lib/notifications/types";
 
 const log = logger.child({ route: "storage/verify-async" });
 
@@ -33,7 +35,11 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
             return NextResponse.json({ error: "Invalid file path" }, { status: 400 });
         }
 
-        const user = await prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } });
+        const [user, adapterConfig] = await Promise.all([
+            prisma.user.findUnique({ where: { id: ctx.userId }, select: { name: true } }),
+            prisma.adapterConfig.findUnique({ where: { id: params.id }, select: { name: true } }),
+        ]);
+        const destinationName = adapterConfig?.name ?? params.id;
 
         const runner = await SystemTaskRunner.create(
             "Verification",
@@ -65,6 +71,22 @@ export async function POST(req: NextRequest, props: { params: Promise<{ id: stri
                         `Expected: ${result.expectedChecksum ?? "unknown"}\nActual:   ${result.actualChecksum ?? "unknown"}`
                     );
                     await runner.finish("Failed");
+                    await notify({
+                        eventType: NOTIFICATION_EVENTS.INTEGRITY_CHECK_FAILURE,
+                        data: {
+                            totalFiles: 1,
+                            failed: 1,
+                            passed: 0,
+                            skipped: 0,
+                            triggerType: "Manual",
+                            errors: [{
+                                file,
+                                destination: destinationName,
+                                expected: result.expectedChecksum ?? "",
+                                actual: result.actualChecksum ?? "",
+                            }],
+                        },
+                    });
                 } else {
                     const skipReasons: Record<string, string> = {
                         no_metadata: "No metadata file found",

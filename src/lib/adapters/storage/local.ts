@@ -5,6 +5,10 @@ import { LocalStorageSchema } from "@/lib/adapters/definitions";
 import fs from "fs/promises";
 import path from "path";
 import { createReadStream, createWriteStream } from "fs";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 import { pipeline } from "stream/promises";
 import { logger } from "@/lib/logging/logger";
 import { wrapError, AdapterError } from "@/lib/logging/errors";
@@ -201,11 +205,27 @@ export const LocalFileSystemAdapter: StorageAdapter = {
         }
     },
 
+    async ping(config: { basePath: string }): Promise<{ success: boolean; message: string }> {
+        try {
+            await fs.access(config.basePath, fs.constants.R_OK | fs.constants.W_OK);
+            return { success: true, message: `Access to ${config.basePath} verified` };
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            return { success: false, message: `Access failed: ${message}` };
+        }
+    },
+
     async test(config: { basePath: string }): Promise<{ success: boolean; message: string }> {
-        const testFile = path.join(config.basePath, `.connection-test-${Date.now()}`);
+        const ts = new Date().toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '-');
+        const subdir = path.join(config.basePath, '.dbackup', 'test');
+        const testFile = path.join(subdir, `connection-test-local-filesystem-${ts}`);
         let written = false;
         try {
-            await fs.mkdir(config.basePath, { recursive: true });
+            await fs.mkdir(subdir, { recursive: true });
+            // On Windows, set the hidden attribute on .dbackup so it doesn't appear in File Explorer
+            if (process.platform === 'win32') {
+                await execFileAsync('attrib', ['+h', path.join(config.basePath, '.dbackup')]).catch(() => {});
+            }
 
             // 1. Write
             await fs.writeFile(testFile, "Connection Test");

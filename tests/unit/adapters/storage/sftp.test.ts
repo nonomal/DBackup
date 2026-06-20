@@ -271,7 +271,7 @@ describe("SFTPAdapter", () => {
             const result = await SFTPAdapter.test!(config);
 
             expect(result.success).toBe(true);
-            expect(mockSftpMkdir).toHaveBeenCalledWith(config.pathPrefix, true);
+            expect(mockSftpMkdir).toHaveBeenCalledWith('/backups/.dbackup/test', true);
         });
     });
 

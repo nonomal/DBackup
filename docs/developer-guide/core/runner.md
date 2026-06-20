@@ -52,7 +52,7 @@ interface DestinationContext {
   priority: number;
   uploadResult?: {
     success: boolean;
-    remotePath?: string;
+    path?: string;
     error?: string;
   };
 }
@@ -78,7 +78,7 @@ interface RunnerContext {
   dumpSize?: number;
   metadata?: any;
 
-  status: "Success" | "Failed" | "Running" | "Partial";
+  status: "Success" | "Failed" | "Running" | "Partial" | "Cancelled";
   startedAt: Date;
 }
 ```
@@ -437,7 +437,7 @@ The `RestoreService` verifies checksums before processing:
 ### Utility Functions
 
 ```typescript
-// src/lib/checksum.ts
+// src/lib/crypto/checksum.ts
 import { calculateFileChecksum, verifyFileChecksum } from "@/lib/crypto/checksum";
 
 // Calculate SHA-256 hash of a file (stream-based, memory-efficient)
@@ -489,4 +489,4 @@ useEffect(() => {
 - [Service Layer](/developer-guide/core/services)
 - [Retention System](/developer-guide/advanced/retention)
 - [Encryption Pipeline](/developer-guide/advanced/encryption)
-- Checksum Utility (`src/lib/checksum.ts`)
+- Checksum Utility (`src/lib/crypto/checksum.ts`)

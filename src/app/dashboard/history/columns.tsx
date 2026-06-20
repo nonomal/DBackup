@@ -122,6 +122,12 @@ export const createColumns = (onViewLogs: (execution: Execution) => void): Colum
                         Running
                     </Badge>
                 );
+            } else if (status === "Partial") {
+                return (
+                    <Badge className="bg-[hsl(25,90%,55%)] text-white border-transparent hover:bg-[hsl(25,90%,50%)]">
+                        Partial
+                    </Badge>
+                );
             } else if (status === "Cancelled") {
                 return (
                     <Badge variant="outline" className="text-muted-foreground">
@@ -223,6 +229,8 @@ export const createSystemTaskColumns = (onViewLogs: (execution: Execution) => vo
                 return <Badge className="bg-[hsl(357,78%,54%)] text-white border-transparent hover:bg-[hsl(357,78%,48%)]">Failed</Badge>;
             } else if (status === "Running") {
                 return <Badge className="bg-[hsl(225,79%,54%)] text-white border-transparent hover:bg-[hsl(225,79%,48%)]">Running</Badge>;
+            } else if (status === "Partial") {
+                return <Badge className="bg-[hsl(25,90%,55%)] text-white border-transparent hover:bg-[hsl(25,90%,50%)]">Partial</Badge>;
             }
             return <Badge variant="outline">{status}</Badge>;
         },

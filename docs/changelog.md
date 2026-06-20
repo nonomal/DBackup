@@ -2,6 +2,41 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.7.1 - Backup Calendar Heatmap, Partial Integrity Status, and Multiple Improvements
+*Released: June 20, 2026*
+
+### ✨ Features
+
+- **dashboard**: Added a Backup Calendar Heatmap - a 12-month GitHub-style contribution graph showing daily backup outcomes (success, partial, failed, or no backup).
+- **integrity**: Integrity check executions now finish with a "Partial" status when some files fail verification, instead of "Success", making partial failures visible across the System Tasks list and Jobs Activity chart.
+- **integrity**: System notifications are now sent when an integrity check (scheduled or manual) finds one or more checksum mismatches. ([#94](https://github.com/Skyfay/DBackup/issues/94))
+
+### 🐛 Bug Fixes
+
+- **storage**: Periodic health checks no longer write test files to storage destinations, preventing file accumulation on storage with governance or object-lock retention policies. ([#113](https://github.com/Skyfay/DBackup/issues/113))
+- **audit**: Fixed Audit Log table resetting to page 1 after every page navigation.
+- **audit**: Reduced Audit Log load time by skipping filter-stats queries on page changes and parallelizing the underlying DB queries.
+
+### 🎨 Improvements
+
+- **jobs**: The edit job dialog now scrolls on small screens instead of clipping content below the fold.
+- **storage**: Manual connection test files are now isolated to a `.dbackup/test/` subfolder with the adapter name and timestamp in the filename, and are excluded from the Storage Explorer and backup count statistics. ([#113](https://github.com/Skyfay/DBackup/issues/113))
+- **dashboard**: Latest Jobs widget now fills the same height as the right column and shows as many entries as fit. Added an "Integrity Check" filter option covering both IntegrityCheck and Verification types.
+- **dashboard**: Jobs Activity chart and Job Status donut now include "Partial" executions with an orange indicator.
+
+### 📝 Documentation
+
+- **wiki**: Overhauled the developer guide - corrected 50+ inaccuracies across all pages and added three new pages covering the Integrity Check system, Storage Alert system, and Credential Profiles.
+- **wiki**: Audited and updated the user guide - corrected factual errors (PostgreSQL dump format, permissions reference, Redis credential requirement), added 8 missing system notification events, documented the pgCompression job option and Database Explorer feature, and filled minor config table gaps across Telegram, MongoDB, and job settings.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.7.1`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.7.0 - Backup Integrity Verification, Storage Explorer Caching, and Multiple Improvements
 *Released: June 14, 2026*
 

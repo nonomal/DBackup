@@ -94,7 +94,28 @@ export class VerificationService {
                         passed,
                         trigger,
                     });
-                    return { status: nativeResult, expectedChecksum: metadata.checksum, verifiedAt };
+
+                    if (passed) {
+                        return { status: 'passed', expectedChecksum: metadata.checksum, verifiedAt };
+                    }
+
+                    // Native check failed — compute actual checksum via download for diagnostics.
+                    if (metadata.checksum) {
+                        const tempFile = path.join(getTempDir(), `verify_${crypto.randomUUID()}_${path.basename(remotePath)}`);
+                        try {
+                            const downloadOk = await adapter.download(config, remotePath, tempFile);
+                            if (downloadOk) {
+                                const actual = await calculateFileChecksum(tempFile);
+                                return { status: 'failed', expectedChecksum: metadata.checksum, actualChecksum: actual, verifiedAt };
+                            }
+                        } catch (e: unknown) {
+                            log.warn("Could not compute actual checksum after native failure", { remotePath }, wrapError(e));
+                        } finally {
+                            await fs.unlink(tempFile).catch(() => {});
+                        }
+                    }
+
+                    return { status: 'failed', expectedChecksum: metadata.checksum, verifiedAt };
                 }
             } catch (e: unknown) {
                 log.warn("Native checksum verification error, falling back to download", { remotePath }, wrapError(e));

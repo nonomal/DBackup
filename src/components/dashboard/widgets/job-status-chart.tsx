@@ -33,6 +33,10 @@ const chartConfig = {
     label: "Pending",
     color: "hsl(45, 93%, 58%)",
   },
+  Partial: {
+    label: "Partial",
+    color: "hsl(25, 90%, 55%)",
+  },
   Cancelled: {
     label: "Cancelled",
     color: "hsl(0, 0%, 55%)",
