@@ -76,7 +76,7 @@ export function AuditTable() {
           count: resourceCounts.get(val) || 0
         })));
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("An unexpected error occurred");
     } finally {
       setIsLoading(false);

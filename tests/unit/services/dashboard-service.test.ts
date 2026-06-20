@@ -314,9 +314,9 @@ describe("refreshStorageStatsCache", () => {
   it("queries adapter.list() and filters out .meta.json sidecar files", async () => {
     const mockAdapter = {
       list: vi.fn().mockResolvedValue([
-        { name: "backup.sql", size: 1000 },
-        { name: "backup.sql.meta.json", size: 50 }, // must be excluded
-        { name: "backup2.sql", size: 2000 },
+        { name: "backup.sql", path: "backup.sql", size: 1000, lastModified: new Date() },
+        { name: "backup.sql.meta.json", path: "backup.sql.meta.json", size: 50, lastModified: new Date() },
+        { name: "backup2.sql", path: "backup2.sql", size: 2000, lastModified: new Date() },
       ]),
     };
     vi.mocked(registry.get).mockReturnValue(mockAdapter as any);
@@ -355,7 +355,7 @@ describe("refreshStorageStatsCache", () => {
   it("saves storage snapshots and checks alerts after a successful refresh", async () => {
     const mockAdapter = {
       list: vi.fn().mockResolvedValue([
-        { name: "backup.sql", size: 500 },
+        { name: "backup.sql", path: "backup.sql", size: 500, lastModified: new Date() },
       ]),
     };
     vi.mocked(registry.get).mockReturnValue(mockAdapter as any);
