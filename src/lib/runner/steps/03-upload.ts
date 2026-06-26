@@ -257,6 +257,26 @@ export async function stepUpload(ctx: RunnerContext) {
     // Cleanup temp metadata file
     await fs.unlink(metaPath).catch(() => {});
 
+    // --- EVALUATE RESULTS (before verification so summary appears in Uploading stage) ---
+    const successCount = ctx.destinations.filter(d => d.uploadResult?.success).length;
+    const failCount = ctx.destinations.filter(d => d.uploadResult && !d.uploadResult.success).length;
+
+    const firstSuccess = ctx.destinations.find(d => d.uploadResult?.success);
+    if (firstSuccess) {
+        ctx.finalRemotePath = firstSuccess.uploadResult!.path;
+    }
+
+    if (successCount === 0) {
+        throw new Error(`All ${failCount} destination upload(s) failed`);
+    }
+
+    if (failCount > 0) {
+        ctx.status = "Partial";
+        ctx.log(`Upload summary: ${successCount}/${totalDests} successful, ${failCount} failed`, 'warning');
+    } else {
+        ctx.log(`Upload summary: All ${successCount} destination(s) successful`);
+    }
+
     // --- POST-UPLOAD VERIFICATION ---
     const postVerifySetting = await prisma.systemSetting.findUnique({ where: { key: "backup.postUploadVerify" } });
     const postVerifyEnabled = postVerifySetting?.value === 'true';
@@ -288,24 +308,4 @@ export async function stepUpload(ctx: RunnerContext) {
         }
     }
 
-    // --- EVALUATE RESULTS ---
-    const successCount = ctx.destinations.filter(d => d.uploadResult?.success).length;
-    const failCount = ctx.destinations.filter(d => d.uploadResult && !d.uploadResult.success).length;
-
-    // Set finalRemotePath to first successful upload (backward compat)
-    const firstSuccess = ctx.destinations.find(d => d.uploadResult?.success);
-    if (firstSuccess) {
-        ctx.finalRemotePath = firstSuccess.uploadResult!.path;
-    }
-
-    if (successCount === 0) {
-        throw new Error(`All ${failCount} destination upload(s) failed`);
-    }
-
-    if (failCount > 0) {
-        ctx.status = "Partial";
-        ctx.log(`Upload summary: ${successCount}/${totalDests} successful, ${failCount} failed`, 'warning');
-    } else {
-        ctx.log(`Upload summary: All ${successCount} destination(s) successful`);
-    }
 }
