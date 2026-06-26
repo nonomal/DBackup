@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Lock, History, ChevronsUpDown, Plus, Trash2, ChevronDown, ChevronRight, Database, Info, Loader2, FileText, CalendarClock, Pencil } from "lucide-react";
@@ -141,7 +142,7 @@ const jobSchema = z.object({
     pgCompressionAlgo: z.enum(["LEGACY", "NONE", "GZIP", "LZ4", "ZSTD"]).default("LEGACY"),
     pgCompressionLevel: z.coerce.number().int().min(0).max(22).default(6),
     notificationIds: z.array(z.string()).optional(),
-    notificationEvents: z.enum(["ALWAYS", "FAILURE_ONLY", "SUCCESS_ONLY"]).default("ALWAYS"),
+    notificationEvents: z.array(z.enum(["SUCCESS", "PARTIAL", "FAILED"])).default(["SUCCESS", "PARTIAL", "FAILED"]),
     enabled: z.boolean().default(true),
     skipVerification: z.boolean().default(false),
 });
@@ -192,6 +193,22 @@ function parseRetention(retentionStr: string) {
  * - null + empty retention (retention = '{}') → return DEFAULT_RETENTION_SENTINEL (use system default)
  * - null + explicit mode (e.g. NONE) in retention → return undefined (no policy)
  */
+const NOTIFICATION_EVENT_OPTIONS = [
+    { value: "SUCCESS", label: "Success" },
+    { value: "PARTIAL", label: "Partial" },
+    { value: "FAILED", label: "Failed" },
+] as const;
+
+function parseNotificationEvents(raw?: string | null): Array<"SUCCESS" | "PARTIAL" | "FAILED"> {
+    if (!raw) return ["SUCCESS", "PARTIAL", "FAILED"];
+    // Handle legacy enum values
+    if (raw === "ALWAYS") return ["SUCCESS", "PARTIAL", "FAILED"];
+    if (raw === "FAILURE_ONLY") return ["PARTIAL", "FAILED"];
+    if (raw === "SUCCESS_ONLY") return ["SUCCESS"];
+    const valid = new Set(["SUCCESS", "PARTIAL", "FAILED"]);
+    return raw.split("|").filter(v => valid.has(v)) as Array<"SUCCESS" | "PARTIAL" | "FAILED">;
+}
+
 function resolveInitialRetentionPolicyId(d: { retentionPolicyId?: string | null; retention: string }): string | undefined {
     if (d.retentionPolicyId) return d.retentionPolicyId;
     if (!d.retention || d.retention === "{}") return DEFAULT_RETENTION_SENTINEL;
@@ -245,7 +262,7 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
             pgCompressionLevel: parsePgCompression(initialData?.pgCompression).level,
             namingTemplateId: initialData?.namingTemplateId || undefined,
             notificationIds: initialData?.notifications?.map((n) => n.id) || [],
-            notificationEvents: (initialData?.notificationEvents as "ALWAYS" | "FAILURE_ONLY" | "SUCCESS_ONLY") || "ALWAYS",
+            notificationEvents: parseNotificationEvents(initialData?.notificationEvents),
             enabled: initialData?.enabled ?? true,
             skipVerification: initialData?.skipVerification ?? false,
         }
@@ -368,6 +385,7 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
             const { pgCompressionAlgo: _algo, pgCompressionLevel: _level, ...rest } = data;
             const payload = {
                 ...rest,
+                notificationEvents: data.notificationEvents.join("|") || "SUCCESS|PARTIAL|FAILED",
                 skipVerification: data.skipVerification,
                 pgCompression,
                 encryptionProfileId: data.encryptionProfileId === "no-encryption" ? "" : data.encryptionProfileId,
@@ -905,20 +923,26 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
                     <TabsContent value="notifications" className="pt-4 space-y-4">
                         <FormField control={form.control} name="notificationEvents" render={({ field }) => (
                             <FormItem>
-                                <FormLabel>Notification Trigger</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl>
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select trigger" />
-                                        </SelectTrigger>
-                                    </FormControl>
-                                    <SelectContent>
-                                        <SelectItem value="ALWAYS">Always (Success & Failure)</SelectItem>
-                                        <SelectItem value="FAILURE_ONLY">On Failure Only</SelectItem>
-                                        <SelectItem value="SUCCESS_ONLY">On Success Only</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                                <FormDescription>Choose when to send alerts.</FormDescription>
+                                <FormLabel>Notify on</FormLabel>
+                                <div className="flex gap-4 pt-1">
+                                    {NOTIFICATION_EVENT_OPTIONS.map(opt => (
+                                        <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox
+                                                checked={(field.value ?? []).includes(opt.value)}
+                                                onCheckedChange={(checked) => {
+                                                    const current: string[] = field.value ?? [];
+                                                    field.onChange(
+                                                        checked
+                                                            ? [...current, opt.value]
+                                                            : current.filter(v => v !== opt.value)
+                                                    );
+                                                }}
+                                            />
+                                            <span className="text-sm">{opt.label}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                                <FormDescription>Select which outcomes trigger a notification.</FormDescription>
                                 <FormMessage />
                             </FormItem>
                         )} />

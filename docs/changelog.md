@@ -2,6 +2,25 @@
 
 All notable changes to DBackup are documented here.
 
+## vNEXT
+*Release: In Progress*
+
+### ✨ Features
+
+- **notifications**: Job notification triggers redesigned - select any combination of Success, Partial, and Failed outcomes per job instead of a fixed preset. ([#117](https://github.com/Skyfay/DBackup/issues/117))
+
+### 🎨 Improvements
+
+- **history**: Uploading step in the execution log viewer now shows orange instead of red for partial backup executions.
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:vNEXT`
+- **Also tagged as**: `latest`, `vNEXT`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.7.2 - Multiple Bug Fixes, S3 Connection Stability Improvements, and Security Updates
 *Released: June 22, 2026*
 

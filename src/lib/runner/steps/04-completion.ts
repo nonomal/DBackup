@@ -81,18 +81,24 @@ export async function stepFinalize(ctx: RunnerContext) {
 
     // 3. Notifications
     if (ctx.job && ctx.job.notifications && ctx.job.notifications.length > 0) {
-        const condition = ctx.job.notificationEvents || "ALWAYS";
         const isSuccess = ctx.status === "Success";
         const isPartial = ctx.status === "Partial";
+        const rawEvents = ctx.job.notificationEvents || "SUCCESS|PARTIAL|FAILED";
+        // Support legacy single-value format for backwards compatibility
+        const legacyMap: Record<string, string> = {
+            ALWAYS: "SUCCESS|PARTIAL|FAILED",
+            FAILURE_ONLY: "PARTIAL|FAILED",
+            SUCCESS_ONLY: "SUCCESS",
+        };
+        const normalizedEvents = legacyMap[rawEvents] ?? rawEvents;
+        const events = new Set(normalizedEvents.split("|"));
         const shouldNotify =
-            condition === "ALWAYS" ||
-            (condition === "SUCCESS_ONLY" && isSuccess) ||
-            (condition === "FAILURE_ONLY" && !isSuccess && !isPartial) ||
-            // Partial counts as notable - notify on both ALWAYS and FAILURE_ONLY
-            (condition === "FAILURE_ONLY" && isPartial);
+            (isSuccess && events.has("SUCCESS")) ||
+            (isPartial && events.has("PARTIAL")) ||
+            (!isSuccess && !isPartial && events.has("FAILED"));
 
         if (!shouldNotify) {
-            ctx.log(`Skipping notifications. Condition: ${condition}, Status: ${ctx.status}`);
+            ctx.log(`Skipping notifications. Events: ${normalizedEvents}, Status: ${ctx.status}`);
         } else {
             ctx.setStage(PIPELINE_STAGES.NOTIFICATIONS);
             ctx.log("Sending notifications...");
@@ -106,7 +112,7 @@ export async function stepFinalize(ctx: RunnerContext) {
                         const eventType = isSuccess
                             ? NOTIFICATION_EVENTS.BACKUP_SUCCESS
                             : isPartial
-                                ? NOTIFICATION_EVENTS.BACKUP_SUCCESS // Partial uses success event with modified message
+                                ? NOTIFICATION_EVENTS.BACKUP_PARTIAL
                                 : NOTIFICATION_EVENTS.BACKUP_FAILURE;
 
                         // Build destination summary for notification
@@ -194,6 +200,7 @@ export async function stepFinalize(ctx: RunnerContext) {
                             title: payload.title,
                             fields: payload.fields,
                             color: payload.color,
+                            badge: payload.badge,
                         }));
 
                         // Record successful send
@@ -220,7 +227,9 @@ export async function stepFinalize(ctx: RunnerContext) {
                     await recordNotificationLog({
                         eventType: ctx.status === "Success"
                             ? NOTIFICATION_EVENTS.BACKUP_SUCCESS
-                            : NOTIFICATION_EVENTS.BACKUP_FAILURE,
+                            : ctx.status === "Partial"
+                                ? NOTIFICATION_EVENTS.BACKUP_PARTIAL
+                                : NOTIFICATION_EVENTS.BACKUP_FAILURE,
                         channelId: channel.id,
                         channelName: channel.name,
                         adapterId: channel.adapterId,

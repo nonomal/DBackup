@@ -35,7 +35,7 @@ interface LogViewerProps {
 interface LogGroup {
     stage: string;
     logs: LogEntry[];
-    status: 'pending' | 'running' | 'success' | 'failed';
+    status: 'pending' | 'running' | 'success' | 'failed' | 'partial';
     startTime?: string;
     endTime?: string;
     durationMs?: number;
@@ -109,10 +109,14 @@ export function LogViewer({ logs, className, autoScroll = true, status, executio
               const lastTs = stageLogs[stageLogs.length - 1].timestamp;
               const duration = new Date(lastTs).getTime() - new Date(firstTs).getTime();
 
+              const isPartialStage = stage === "Uploading" || stage === "Verifying Checksums";
+              const isOverallPartial = status === "Partial";
               groups.push({
                   stage,
                   logs: stageLogs,
-                  status: hasError ? "failed" : (isLast && isRunning) ? "running" : "success",
+                  status: hasError
+                      ? (isPartialStage && isOverallPartial ? "partial" : "failed")
+                      : (isLast && isRunning) ? "running" : "success",
                   startTime: firstTs,
                   endTime: lastTs,
                   durationMs: duration >= 0 ? duration : undefined,
@@ -215,11 +219,12 @@ export function LogViewer({ logs, className, autoScroll = true, status, executio
                     );
                 }
 
-                const StageIcon = group.status === "failed" ? AlertCircle
+                const StageIcon = group.status === "failed" || group.status === "partial" ? AlertCircle
                     : group.status === "running" ? Loader2
                     : CheckCircle2;
 
                 const stageColor = group.status === "failed" ? "text-red-500 dark:text-red-400"
+                    : group.status === "partial" ? "text-orange-500 dark:text-orange-400"
                     : group.status === "running" ? "text-blue-500 dark:text-blue-400"
                     : "text-green-500 dark:text-green-400";
 
