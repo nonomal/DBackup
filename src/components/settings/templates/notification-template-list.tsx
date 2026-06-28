@@ -29,8 +29,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Pencil, Star, Bell, X } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Trash2,
+  Pencil,
+  Star,
+  Bell,
+  Settings2,
+  ChevronDown,
+  ChevronRight,
+} from "lucide-react";
 import { AdapterConfig } from "@prisma/client";
 import {
   getNotificationTemplates,
@@ -91,6 +103,7 @@ export function NotificationTemplateDialog({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [channels, setChannels] = useState<ChannelRow[]>([]);
+  const [expandedChannels, setExpandedChannels] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -103,8 +116,18 @@ export function NotificationTemplateDialog({
           events: ch.events.split("|").filter(Boolean),
         })) ?? []
       );
+      setExpandedChannels(new Set());
     }
   }, [open, template]);
+
+  const toggleExpanded = (index: number) => {
+    setExpandedChannels((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
 
   const addChannel = () => {
     const unused = availableChannels.find(
@@ -125,6 +148,14 @@ export function NotificationTemplateDialog({
 
   const removeChannel = (index: number) => {
     setChannels((prev) => prev.filter((_, i) => i !== index));
+    setExpandedChannels((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => {
+        if (i < index) next.add(i);
+        else if (i > index) next.add(i - 1);
+      });
+      return next;
+    });
   };
 
   const updateChannelConfig = (index: number, configId: string) => {
@@ -239,81 +270,113 @@ export function NotificationTemplateDialog({
               </Button>
             </div>
 
-            {channels.length === 0 && (
+            {channels.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">
                 No channels configured. Add at least one.
               </p>
-            )}
+            ) : (
+              <ScrollArea className="*:data-[slot=scroll-area-viewport]:max-h-80">
+                <div className="space-y-2 pr-3">
+                  {channels.map((ch, i) => {
+                    const config = availableChannels.find((c) => c.id === ch.configId);
+                    const isExpanded = expandedChannels.has(i);
+                    return (
+                      <div key={i} className="border rounded-lg">
+                        <div className="flex items-center gap-2 p-3">
+                          <span className="text-xs text-muted-foreground font-mono w-5 shrink-0">
+                            #{i + 1}
+                          </span>
 
-            <div className="space-y-2">
-              {channels.map((ch, i) => {
-                const config = availableChannels.find((c) => c.id === ch.configId);
-                return (
-                  <div
-                    key={i}
-                    className="border rounded-md p-3 space-y-2"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <Select
-                          value={ch.configId}
-                          onValueChange={(v) => updateChannelConfig(i, v)}
-                        >
-                          <SelectTrigger className="h-8">
-                            <SelectValue>
-                              {config && (
-                                <span className="flex items-center gap-2">
-                                  <AdapterIcon
-                                    adapterId={config.adapterId}
-                                    className="h-3.5 w-3.5"
-                                  />
-                                  {config.name}
-                                </span>
-                              )}
-                            </SelectValue>
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableChannels.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                <span className="flex items-center gap-2">
-                                  <AdapterIcon
-                                    adapterId={c.adapterId}
-                                    className="h-3.5 w-3.5"
-                                  />
-                                  {c.name}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          <div className="flex-1 min-w-0">
+                            <Select
+                              value={ch.configId}
+                              onValueChange={(v) => updateChannelConfig(i, v)}
+                            >
+                              <SelectTrigger className="h-9 w-full">
+                                <SelectValue>
+                                  {config && (
+                                    <span className="flex items-center gap-2 min-w-0">
+                                      <AdapterIcon
+                                        adapterId={config.adapterId}
+                                        className="h-4 w-4 shrink-0"
+                                      />
+                                      <span className="truncate">{config.name}</span>
+                                    </span>
+                                  )}
+                                </SelectValue>
+                              </SelectTrigger>
+                              <SelectContent>
+                                {availableChannels.map((c) => (
+                                  <SelectItem key={c.id} value={c.id}>
+                                    <span className="flex items-center gap-2">
+                                      <AdapterIcon
+                                        adapterId={c.adapterId}
+                                        className="h-4 w-4"
+                                      />
+                                      {c.name}
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 px-2"
+                            onClick={() => toggleExpanded(i)}
+                            title="Event settings"
+                          >
+                            <Settings2 className="h-4 w-4 mr-1" />
+                            {isExpanded ? (
+                              <ChevronDown className="h-3 w-3" />
+                            ) : (
+                              <ChevronRight className="h-3 w-3" />
+                            )}
+                          </Button>
+
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 px-2 text-muted-foreground hover:text-destructive"
+                            onClick={() => removeChannel(i)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <Collapsible open={isExpanded}>
+                          <CollapsibleContent>
+                            <div className="border-t px-3 py-3 bg-muted/30 space-y-2">
+                              <div className="text-xs font-medium text-muted-foreground">
+                                Notify on
+                              </div>
+                              <div className="flex gap-4">
+                                {EVENT_OPTIONS.map((opt) => (
+                                  <label
+                                    key={opt.value}
+                                    className="flex items-center gap-1.5 cursor-pointer"
+                                  >
+                                    <Checkbox
+                                      checked={ch.events.includes(opt.value)}
+                                      onCheckedChange={() => toggleEvent(i, opt.value)}
+                                    />
+                                    <span className="text-xs">{opt.label}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </Collapsible>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => removeChannel(i)}
-                        className="text-muted-foreground hover:text-destructive transition-colors"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-
-                    <div className="flex gap-4 pl-1">
-                      {EVENT_OPTIONS.map((opt) => (
-                        <label
-                          key={opt.value}
-                          className="flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Checkbox
-                            checked={ch.events.includes(opt.value)}
-                            onCheckedChange={() => toggleEvent(i, opt.value)}
-                          />
-                          <span className="text-xs">{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            )}
           </div>
         </div>
 
