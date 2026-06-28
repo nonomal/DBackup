@@ -16,7 +16,7 @@ import { SchedulePicker } from "./schedule-picker";
 import { RetentionPolicyPicker, DEFAULT_RETENTION_SENTINEL } from "@/components/templates/retention-policy-picker";
 import { NamingTemplatePicker } from "@/components/templates/naming-template-picker";
 import { NotificationTemplatePicker } from "@/components/templates/notification-template-picker";
-import { getSchedulePresets } from "@/app/actions/templates";
+import { getSchedulePresets, getNotificationTemplates } from "@/app/actions/templates";
 import type { SchedulePreset } from "@prisma/client";
 import { SchedulePresetDialog } from "@/components/settings/templates/schedule-preset-list";
 import { AdapterIcon } from "@/components/adapter/adapter-icon";
@@ -293,6 +293,19 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
             if (res.success && res.data) setSchedulePresets(res.data);
         });
     }, []);
+
+    // Pre-select the default notification template for new jobs only.
+    // Does not override an existing selection (e.g. when editing).
+    useEffect(() => {
+        if (initialData) return;
+        getNotificationTemplates().then((res) => {
+            if (!res.success || !res.data) return;
+            const defaultTemplate = res.data.find((t) => t.isDefault);
+            if (defaultTemplate && form.getValues("notificationTemplateIds").length === 0) {
+                form.setValue("notificationTemplateIds", [defaultTemplate.id]);
+            }
+        });
+    }, [initialData, form]);
 
     // Determine whether to show database picker based on selected source adapter
     const selectedSourceId = form.watch("sourceId");

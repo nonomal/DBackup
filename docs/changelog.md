@@ -12,6 +12,7 @@ All notable changes to DBackup are documented here.
 
 ### 🎨 Improvements
 
+- **notifications**: New backup jobs now pre-select the default notification template (if one is marked as default), so it no longer has to be added manually each time. The selection can still be removed before saving.
 - **history**: Notification results (sent/failed per channel) are now shown directly in the execution log dialog, with a clickable pill per channel that opens the full notification preview.
 - **history**: Uploading step in the execution log viewer now shows orange instead of red for partial backup executions.
 
