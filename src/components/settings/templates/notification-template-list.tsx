@@ -108,6 +108,7 @@ export function NotificationTemplateDialog({
 
   useEffect(() => {
     if (open) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setName(template?.name ?? "");
       setDescription(template?.description ?? "");
       setChannels(
@@ -117,6 +118,7 @@ export function NotificationTemplateDialog({
         })) ?? []
       );
       setExpandedChannels(new Set());
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [open, template]);
 

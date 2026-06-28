@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { Lock, History, ChevronsUpDown, Plus, Trash2, ChevronDown, ChevronRight, Database, Info, Loader2, FileText, CalendarClock, Pencil } from "lucide-react";
@@ -197,12 +196,6 @@ function parseRetention(retentionStr: string) {
  * - null + empty retention (retention = '{}') → return DEFAULT_RETENTION_SENTINEL (use system default)
  * - null + explicit mode (e.g. NONE) in retention → return undefined (no policy)
  */
-const NOTIFICATION_EVENT_OPTIONS = [
-    { value: "SUCCESS", label: "Success" },
-    { value: "PARTIAL", label: "Partial" },
-    { value: "FAILED", label: "Failed" },
-] as const;
-
 function parseNotificationEvents(raw?: string | null): Array<"SUCCESS" | "PARTIAL" | "FAILED"> {
     if (!raw) return ["SUCCESS", "PARTIAL", "FAILED"];
     // Handle legacy enum values
@@ -219,9 +212,8 @@ function resolveInitialRetentionPolicyId(d: { retentionPolicyId?: string | null;
     return undefined;
 }
 
-export function JobForm({ sources, destinations, notifications, encryptionProfiles, initialData, onSuccess }: JobFormProps) {
+export function JobForm({ sources, destinations, notifications: _notifications, encryptionProfiles, initialData, onSuccess }: JobFormProps) {
     const [sourceOpen, setSourceOpen] = useState(false);
-    const [notifyOpen, setNotifyOpen] = useState(false);
     const [expandedDests, setExpandedDests] = useState<Set<number>>(new Set());
     const [availableDatabases, setAvailableDatabases] = useState<string[]>([]);
     const [isLoadingDbs, setIsLoadingDbs] = useState(false);
@@ -301,7 +293,7 @@ export function JobForm({ sources, destinations, notifications, encryptionProfil
         getNotificationTemplates().then((res) => {
             if (!res.success || !res.data) return;
             const defaultTemplate = res.data.find((t) => t.isDefault);
-            if (defaultTemplate && form.getValues("notificationTemplateIds").length === 0) {
+            if (defaultTemplate && (form.getValues("notificationTemplateIds") ?? []).length === 0) {
                 form.setValue("notificationTemplateIds", [defaultTemplate.id]);
             }
         });

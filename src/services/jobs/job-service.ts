@@ -268,7 +268,7 @@ export class JobService {
                 notifications: {
                     connect: original.notifications.map((n) => ({ id: n.id }))
                 },
-                notificationTemplates: original.notificationTemplates.length > 0
+                notificationTemplates: (original.notificationTemplates?.length ?? 0) > 0
                     ? {
                         create: original.notificationTemplates.map((nt) => ({
                             templateId: nt.templateId,

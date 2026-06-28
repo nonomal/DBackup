@@ -115,6 +115,8 @@ export async function stepFinalize(ctx: RunnerContext) {
                 for (const ch of ctx.job.notifications) {
                     channelsToNotify.push({ channel: ch as any, events });
                 }
+            } else {
+                ctx.log(`Skipping notifications - event filter (${rawEvents}) does not match status (${executionStatus})`);
             }
         }
     }

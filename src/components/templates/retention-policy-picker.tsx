@@ -61,7 +61,6 @@ export function RetentionPolicyPicker({
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchPolicies();
   }, [fetchPolicies]);
 

@@ -18,6 +18,12 @@ All notable changes to DBackup are documented here.
 - **history**: Notification results (sent/failed per channel) are now shown directly in the execution log dialog, with a clickable pill per channel that opens the full notification preview.
 - **history**: Uploading step in the execution log viewer now shows orange instead of red for partial backup executions.
 
+### 🐛 Bug Fixes
+
+- **dashboard**: Fixed Backup Calendar "Last 12 months" view missing today's backups when the server runs in a non-UTC timezone.
+- **notifications**: Fixed "Skipping notifications" not being logged when the event filter excludes the current backup status (legacy path).
+- **jobs**: Fixed cloning a job crashing when the source job has no notification templates assigned.
+
 ### 🐳 Docker
 
 - **Image**: `skyfay/dbackup:vNEXT`

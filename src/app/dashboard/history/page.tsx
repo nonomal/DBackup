@@ -128,7 +128,7 @@ function HistoryContent() {
         }
     }, [activeTab, fetchNotificationLogs]);
 
-    // Fetch per-execution notification results when a completed execution dialog opens
+    // Fetch per-execution notification results when a completed execution dialog opens.
     useEffect(() => {
         if (!selectedLog || selectedLog.status === "Running" || selectedLog.status === "Pending") {
             setExecutionNotifications([]);
@@ -138,7 +138,7 @@ function HistoryContent() {
             .then(r => r.ok ? r.json() : null)
             .then(result => { if (result) setExecutionNotifications(result.data); })
             .catch(() => {});
-    }, [selectedLog?.id, selectedLog?.status]);
+    }, [selectedLog]);
 
     const parseLogs = (json: string) => {
         try {
