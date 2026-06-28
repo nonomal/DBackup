@@ -15,6 +15,7 @@ All notable changes to DBackup are documented here.
 ### 🐛 Bug Fixes
 
 - **users**: Fixed "Create Group" and "Create API Key" dialogs where the footer buttons were rendered inside the scroll area instead of being fixed at the bottom, and scrolling was broken. Added missing `DialogDescription` to resolve the `aria-describedby` accessibility warnings.
+- **jobs**: Fixed "API Trigger" dialog where scrolling was broken due to an ineffective `grid-rows` class on the flex-based `DialogContent`.
 
 ### 🎨 Improvements
 

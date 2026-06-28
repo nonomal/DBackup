@@ -540,7 +540,7 @@ stages:
 
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-4xl max-h-[85vh] grid-rows-[auto_1fr] overflow-hidden">
+            <DialogContent className="sm:max-w-4xl max-h-[85vh] overflow-hidden">
                 <DialogHeader>
                     <DialogTitle className="flex items-center gap-2">
                         <Webhook className="h-5 w-5" />
@@ -551,7 +551,7 @@ stages:
                     </DialogDescription>
                 </DialogHeader>
 
-                <ScrollArea className="overflow-hidden">
+                <ScrollArea className="*:data-radix-scroll-area-viewport:max-h-[calc(85vh-9rem)]">
                 <div className="pr-4">
                 <Tabs defaultValue="overview" className="mt-1">
                     <TabsList className="w-full flex-wrap h-auto gap-1 p-1">
