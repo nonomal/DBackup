@@ -91,6 +91,32 @@ function backupSuccessTemplate(data: BackupResultData): NotificationPayload {
   };
 }
 
+function backupPartialTemplate(data: BackupResultData): NotificationPayload {
+  return {
+    title: `Backup Partial: ${data.jobName}`,
+    message: `Backup job '${data.jobName}' completed with partial success - some destinations failed.${data.error ? ` Details: ${data.error}` : ""}`,
+    fields: [
+      { name: "Job", value: data.jobName, inline: true },
+      ...(data.sourceName
+        ? [{ name: "Source", value: data.sourceName, inline: true }]
+        : []),
+      ...(data.duration !== undefined
+        ? [{ name: "Duration", value: `${Math.round(data.duration / 1000)}s`, inline: true }]
+        : []),
+      ...(data.size !== undefined
+        ? [{ name: "Size", value: formatBytes(data.size), inline: true }]
+        : []),
+      ...(data.error
+        ? [{ name: "Details", value: data.error, inline: false }]
+        : []),
+      { name: "Time", value: data.timestamp, inline: true },
+    ],
+    color: "#f97316", // orange
+    success: false,
+    badge: "Partial",
+  };
+}
+
 function backupFailureTemplate(data: BackupResultData): NotificationPayload {
   return {
     title: `Backup Failed: ${data.jobName}`,
@@ -466,6 +492,8 @@ export function renderTemplate(
       return userCreatedTemplate(event.data);
     case NOTIFICATION_EVENTS.BACKUP_SUCCESS:
       return backupSuccessTemplate(event.data);
+    case NOTIFICATION_EVENTS.BACKUP_PARTIAL:
+      return backupPartialTemplate(event.data);
     case NOTIFICATION_EVENTS.BACKUP_FAILURE:
       return backupFailureTemplate(event.data);
     case NOTIFICATION_EVENTS.RESTORE_COMPLETE:

@@ -106,7 +106,7 @@ function DiscordPreview({ entry }: NotificationPreviewProps) {
                           <div className="text-[#B5BAC1] text-xs font-bold">
                             {field.name}
                           </div>
-                          <div className="text-[#DBDEE1] text-sm mt-0.5 break-words">{field.value}</div>
+                          <div className="text-[#DBDEE1] text-sm mt-0.5 wrap-break-word">{field.value}</div>
                         </div>
                       ))}
                     </div>
@@ -179,7 +179,7 @@ function EmailPreview({ entry }: NotificationPreviewProps) {
   if (entry.renderedHtml) {
     // Replace external logo URL with local path for preview rendering
     const previewHtml = entry.renderedHtml.replace(
-      /https:\/\/dbackup\.app\/logo\.png/g,
+      /https:\/\/docs\.dbackup\.app\/logo\.png/g,
       "/logo.svg"
     );
     return (

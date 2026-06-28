@@ -9,7 +9,7 @@ import {
 describe("Notification Types & Constants", () => {
   describe("NOTIFICATION_EVENTS", () => {
     it("should define all 16 event types", () => {
-      expect(Object.keys(NOTIFICATION_EVENTS)).toHaveLength(16);
+      expect(Object.keys(NOTIFICATION_EVENTS)).toHaveLength(17);
     });
 
     it("should have unique event string values", () => {

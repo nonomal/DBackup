@@ -59,6 +59,8 @@ function getStatusStyle(color: string | undefined, success: boolean, badge?: str
           return { label: badge, icon: "⚠", accent: tokens.blue, bg: "#eff6ff", border: "#bfdbfe" };
         case "#ef4444": // red
           return { label: badge, icon: "⚠", accent: tokens.destructive, bg: tokens.destructiveBg, border: tokens.destructiveBorder };
+        case "#f97316": // orange – partial
+          return { label: badge, icon: "⚠", accent: "#f97316", bg: "#fff7ed", border: "#fed7aa" };
         default:
           return { label: badge, icon: "⚠", accent: tokens.amber, bg: "#fffbeb", border: "#fde68a" };
       }

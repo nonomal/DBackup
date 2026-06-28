@@ -199,7 +199,10 @@ export async function getCalendarData(months: number = 12): Promise<CalendarDayD
   const timezone = tzSetting?.value || "UTC";
 
   const now = new Date();
-  const startDate = startOfDay(subMonths(now, months));
+  // Use Date.UTC so cursor steps land on UTC midnights, matching getCalendarDataForYear behavior.
+  const subResult = subMonths(now, months);
+  const startDate = new Date(Date.UTC(subResult.getUTCFullYear(), subResult.getUTCMonth(), subResult.getUTCDate()));
+  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
 
   const executions = await prisma.execution.findMany({
     where: {
@@ -212,7 +215,7 @@ export async function getCalendarData(months: number = 12): Promise<CalendarDayD
   const dayMap = new Map<string, CalendarDayData>();
 
   let cursor = startDate;
-  while (cursor <= now) {
+  while (cursor < endDate) {
     const key = formatInTimeZone(cursor, timezone, "yyyy-MM-dd");
     dayMap.set(key, { date: key, total: 0, completed: 0, failed: 0, partial: 0 });
     cursor = addDays(cursor, 1);

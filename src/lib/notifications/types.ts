@@ -11,6 +11,7 @@ export const NOTIFICATION_EVENTS = {
   USER_LOGIN: "user_login",
   USER_CREATED: "user_created",
   BACKUP_SUCCESS: "backup_success",
+  BACKUP_PARTIAL: "backup_partial",
   BACKUP_FAILURE: "backup_failure",
   RESTORE_COMPLETE: "restore_complete",
   RESTORE_FAILURE: "restore_failure",
@@ -204,6 +205,7 @@ export type NotificationEventData =
   | { eventType: typeof NOTIFICATION_EVENTS.USER_LOGIN; data: UserLoginData }
   | { eventType: typeof NOTIFICATION_EVENTS.USER_CREATED; data: UserCreatedData }
   | { eventType: typeof NOTIFICATION_EVENTS.BACKUP_SUCCESS; data: BackupResultData }
+  | { eventType: typeof NOTIFICATION_EVENTS.BACKUP_PARTIAL; data: BackupResultData }
   | { eventType: typeof NOTIFICATION_EVENTS.BACKUP_FAILURE; data: BackupResultData }
   | { eventType: typeof NOTIFICATION_EVENTS.RESTORE_COMPLETE; data: RestoreResultData }
   | { eventType: typeof NOTIFICATION_EVENTS.RESTORE_FAILURE; data: RestoreResultData }

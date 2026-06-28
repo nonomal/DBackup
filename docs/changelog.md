@@ -2,6 +2,50 @@
 
 All notable changes to DBackup are documented here.
 
+## v2.8.0 - Notification Templates, Per-Job Event Filters, and Multiple Bug Fixes
+*Released: June 28, 2026*
+
+> ⚠️ **Breaking:** The per-job notification configuration has been replaced by Notification Templates, and existing job notification settings are **not** migrated automatically. After updating, every backup job loses its notification setup and must be reconfigured: create a Notification Template under **Templates -> Notification Templates** (assign channels and pick the Success/Partial/Failed events per channel), then assign it to each job via the job edit form. You can mark one template as the default so it is pre-selected for new jobs.
+
+### ✨ Features
+
+- **notifications**: Job notification triggers redesigned - select any combination of Success, Partial, and Failed outcomes per job instead of a fixed preset. ([#117](https://github.com/Skyfay/DBackup/issues/117))
+- **notifications**: Added Notification Templates - reusable templates with per-channel event filters (Success/Partial/Failed) that can be assigned to multiple backup jobs, replacing the per-job flat channel configuration.
+
+### 🐛 Bug Fixes
+
+- **users**: Fixed "Create Group" and "Create API Key" dialogs where the footer buttons were rendered inside the scroll area instead of being fixed at the bottom, and scrolling was broken. Added missing `DialogDescription` to resolve the `aria-describedby` accessibility warnings.
+- **jobs**: Fixed "API Trigger" dialog where scrolling was broken due to an ineffective `grid-rows` class on the flex-based `DialogContent`.
+- **dashboard**: Fixed Backup Calendar "Last 12 months" view missing today's backups when the server runs in a non-UTC timezone.
+- **notifications**: Fixed "Skipping notifications" not being logged when the event filter excludes the current backup status (legacy path).
+- **jobs**: Fixed cloning a job crashing when the source job has no notification templates assigned.
+- **notifications**: Fixed email preview not showing the logo because the URL pattern used for local replacement did not match the current `docs.dbackup.app` domain.
+
+### 🎨 Improvements
+
+- **notifications**: New backup jobs now pre-select the default notification template (if one is marked as default), so it no longer has to be added manually each time. The selection can still be removed before saving.
+- **history**: Notification results (sent/failed per channel) are now shown directly in the execution log dialog, with a clickable pill per channel that opens the full notification preview.
+- **history**: Uploading step in the execution log viewer now shows orange instead of red for partial backup executions.
+
+### 🧪 Tests
+
+- **coverage**: Raised overall unit test coverage from 84% to 92% (statements) / 94% (lines) by adding 270+ new tests across notification templates, SSH key conversion, restore pipeline, backup dump, dashboard service, storage adapters (SFTP, S3/R2/Hetzner, Google Drive, OneDrive, FTP), SSH client PKCS#8 path, integrity service, encryption service, job service, and runner initialization steps.
+- **lint**: Fixed 5 ESLint errors - renamed unused variables (`wrapError`, `mockLog`, `callCount`, `capturedCallback`) to underscore-prefixed equivalents, and removed stale `no-throw-literal` disable comment (rule was renamed to `only-throw-error` in newer typescript-eslint).
+- **types**: Fixed 7 TypeScript errors - replaced incorrect `as Parameters<typeof generateKeyPairSync>[1]` casts with `as any` for RSA/EC key generation, added `as unknown as string` for Ed25519 `privateKey` cast, and wrapped four Prisma `mockImplementation` async functions with `as any` to satisfy `Prisma__SystemSettingClient` return type.
+- **test-infra**: Reduced active test containers in `docker-compose.test.yml` to oldest + newest version per database family (MySQL 5.7+9.1, MariaDB 10+11, PostgreSQL 12+17, MongoDB 4.4+8.0, MSSQL 2019+2022, Redis 6+8). Middle versions are commented out and can be re-enabled on demand.
+- **test-infra**: Updated `tests/integration/test-configs.ts` to match - middle versions commented out, `multiDbTestConfigs` updated to use the newest active containers (MySQL 9, PG 17, MongoDB 8). Azure SQL Edge entry commented out alongside its container.
+- **test-infra**: Updated `scripts/generate-stress-data.sh` container references to the remaining active containers (MySQL 9.1, PostgreSQL 17, MongoDB 8.0).
+- **test-infra**: Updated `scripts/setup-mssql-testdb.sh` to skip the disabled `mssql-edge` container.
+- **test-infra**: `scripts/seed-test-sources.ts` now cleans up previously seeded but now-disabled adapter configs from the dev DB on the next `pnpm test:seed` run (MySQL 8.0, PG 13-16, MongoDB 5-7, Redis 7, Azure SQL Edge).
+
+### 🐳 Docker
+
+- **Image**: `skyfay/dbackup:v2.8.0`
+- **Also tagged as**: `latest`, `v2`
+- **CI Image**: `skyfay/dbackup:ci`
+- **Platforms**: linux/amd64, linux/arm64
+
+
 ## v2.7.2 - Multiple Bug Fixes, S3 Connection Stability Improvements, and Security Updates
 *Released: June 22, 2026*
 

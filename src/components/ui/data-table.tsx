@@ -133,7 +133,6 @@ export function DataTable<TData, TValue>({
     const pagination = controlledPagination ?? internalPagination;
     const setPagination = onPaginationChange ?? setInternalPagination;
 
-    // eslint-disable-next-line
     const table = useReactTable({
         data,
         columns,
