@@ -45,12 +45,8 @@ export default async function DashboardPage() {
 
         <DashboardBottomGrid
           left={<LatestJobs data={latestJobs} />}
-          right={
-            <>
-              <JobStatusChart key="job-status" data={statusData} />
-              <StorageVolumeChart key="storage-volume" data={storageData} cacheUpdatedAt={cacheUpdatedAt} />
-            </>
-          }
+          rightTop={<JobStatusChart data={statusData} />}
+          rightBottom={<StorageVolumeChart data={storageData} cacheUpdatedAt={cacheUpdatedAt} />}
           bottomLeft={
             <BackupCalendar
               data={calendarData}
